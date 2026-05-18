@@ -111,6 +111,36 @@ func (l *Layer) Over(upper *Layer) *Packet {
 	return NewFrom(l, upper)
 }
 
+// ParseFields deserializes raw bytes into field values in definition order.
+// It iterates through the layer's fields, calling Unpack on each one to
+// extract values from the byte stream. For ConditionalField, the condition
+// is evaluated after earlier fields have been parsed.
+// Returns the total number of bytes consumed.
+func (l *Layer) ParseFields(data []byte) (int, error) {
+	if len(data) == 0 {
+		return 0, nil
+	}
+
+	offset := 0
+	for _, f := range l.fields {
+		// Handle conditional fields: check if active given values parsed so far.
+		if cf, ok := f.(*fields.ConditionalField); ok {
+			if !cf.Active(l.values) {
+				continue
+			}
+		}
+
+		val, consumed, err := f.Unpack(data[offset:])
+		if err != nil {
+			return offset, fmt.Errorf("packet: layer %s field %s: %w", l.proto, f.Name(), err)
+		}
+		l.values[f.Name()] = val
+		offset += consumed
+	}
+
+	return offset, nil
+}
+
 // SerializeFields packs all active fields into bytes in definition order.
 // ConditionalField values are only included if Active() returns true.
 // This is the naive serialization used as the first pass of Build.
