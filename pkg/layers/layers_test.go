@@ -580,3 +580,490 @@ func TestICMPTypeConstants(t *testing.T) {
 		t.Errorf("ICMPTimeExceed = %d", ICMPTimeExceed)
 	}
 }
+
+// ---- TCP tests ----
+
+func TestTCPDefaults(t *testing.T) {
+	tcp := NewTCP()
+
+	sport, _ := tcp.Get("sport")
+	dport, _ := tcp.Get("dport")
+	seq, _ := tcp.Get("seq")
+	ack, _ := tcp.Get("ack")
+	dataofs, _ := tcp.Get("dataofs")
+	flags, _ := tcp.Get("flags")
+	window, _ := tcp.Get("window")
+	chksum, _ := tcp.Get("chksum")
+	urgptr, _ := tcp.Get("urgptr")
+
+	if sport.(uint16) != 0 {
+		t.Errorf("sport = %d, want 0", sport)
+	}
+	if dport.(uint16) != 0 {
+		t.Errorf("dport = %d, want 0", dport)
+	}
+	if seq.(uint32) != 0 {
+		t.Errorf("seq = %d, want 0", seq)
+	}
+	if ack.(uint32) != 0 {
+		t.Errorf("ack = %d, want 0", ack)
+	}
+	if dataofs.(uint8) != 0x50 {
+		t.Errorf("dataofs = %#x, want 0x50 (5 words = 20 bytes)", dataofs)
+	}
+	if flags.(uint8) != 0 {
+		t.Errorf("flags = %#x, want 0", flags)
+	}
+	if window.(uint16) != 8192 {
+		t.Errorf("window = %d, want 8192", window)
+	}
+	if chksum.(uint16) != 0 {
+		t.Errorf("chksum = %d, want 0 (auto-computed during Build)", chksum)
+	}
+	if urgptr.(uint16) != 0 {
+		t.Errorf("urgptr = %d, want 0", urgptr)
+	}
+}
+
+func TestTCPDataOffset(t *testing.T) {
+	if TCPDataOffset(0x50) != 20 {
+		t.Errorf("TCPDataOffset(0x50) = %d, want 20", TCPDataOffset(0x50))
+	}
+	if TCPDataOffset(0x60) != 24 {
+		t.Errorf("TCPDataOffset(0x60) = %d, want 24", TCPDataOffset(0x60))
+	}
+	if TCPDataOffset(0x80) != 32 {
+		t.Errorf("TCPDataOffset(0x80) = %d, want 32", TCPDataOffset(0x80))
+	}
+}
+
+func TestTCPFlagConstants(t *testing.T) {
+	if TCPFin != 0x01 {
+		t.Errorf("TCPFin = %#x, want 0x01", TCPFin)
+	}
+	if TCPSyn != 0x02 {
+		t.Errorf("TCPSyn = %#x, want 0x02", TCPSyn)
+	}
+	if TCPRst != 0x04 {
+		t.Errorf("TCPRst = %#x, want 0x04", TCPRst)
+	}
+	if TCPPsh != 0x08 {
+		t.Errorf("TCPPsh = %#x, want 0x08", TCPPsh)
+	}
+	if TCPAck != 0x10 {
+		t.Errorf("TCPAck = %#x, want 0x10", TCPAck)
+	}
+	if TCPUrg != 0x20 {
+		t.Errorf("TCPUrg = %#x, want 0x20", TCPUrg)
+	}
+	if TCPEce != 0x40 {
+		t.Errorf("TCPEce = %#x, want 0x40", TCPEce)
+	}
+	if TCPCwr != 0x80 {
+		t.Errorf("TCPCwr = %#x, want 0x80", TCPCwr)
+	}
+}
+
+func TestTCPSerialization(t *testing.T) {
+	// Scapy: TCP(sport=12345, dport=80, seq=1000, ack=0, flags='S', window=8192)
+	// Expected bytes (20 bytes):
+	// 30 39 00 50 00 00 03 e8 00 00 00 00 50 02 20 00 00 00 00 00
+	expected := []byte{
+		0x30, 0x39,                   // sport = 12345
+		0x00, 0x50,                   // dport = 80
+		0x00, 0x00, 0x03, 0xE8,       // seq = 1000
+		0x00, 0x00, 0x00, 0x00,       // ack = 0
+		0x50,                         // dataofs = 5 (words) << 4
+		0x02,                         // flags = SYN
+		0x20, 0x00,                   // window = 8192
+		0x00, 0x00,                   // checksum (placeholder)
+		0x00, 0x00,                   // urgptr
+	}
+
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+	tcp.Set("seq", uint32(1000))
+
+	got := serializeLayer(t, tcp)
+
+	if len(got) != 20 {
+		t.Fatalf("serialized len = %d, want 20", len(got))
+	}
+	if !bytes.Equal(got, expected) {
+		t.Errorf("TCP SYN serialization mismatch:\n got: %x\nwant: %x", got, expected)
+	}
+}
+
+func TestTCPSynAckSerialization(t *testing.T) {
+	// Scapy: TCP(sport=80, dport=12345, seq=2000, ack=1001, flags='SA', window=65535)
+	expected := []byte{
+		0x00, 0x50,                   // sport = 80
+		0x30, 0x39,                   // dport = 12345
+		0x00, 0x00, 0x07, 0xD0,       // seq = 2000
+		0x00, 0x00, 0x03, 0xE9,       // ack = 1001
+		0x50,                         // dataofs = 5
+		0x12,                         // flags = SYN|ACK (0x02|0x10)
+		0xFF, 0xFF,                   // window = 65535
+		0x00, 0x00,                   // checksum
+		0x00, 0x00,                   // urgptr
+	}
+
+	tcp := NewTCPWith(80, 12345, TCPSyn|TCPAck)
+	tcp.Set("seq", uint32(2000))
+	tcp.Set("ack", uint32(1001))
+	tcp.Set("window", uint16(65535))
+
+	got := serializeLayer(t, tcp)
+
+	if !bytes.Equal(got, expected) {
+		t.Errorf("TCP SYN-ACK mismatch:\n got: %x\nwant: %x", got, expected)
+	}
+}
+
+func TestTCPChecksumCalc(t *testing.T) {
+	// Build a TCP SYN segment, compute checksum with pseudo-header.
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+	tcp.Set("seq", uint32(1000))
+
+	seg := serializeLayer(t, tcp)
+
+	srcIP := net.ParseIP("192.168.1.1").To4()
+	dstIP := net.ParseIP("8.8.8.8").To4()
+
+	csum := TCPChecksum(srcIP, dstIP, seg)
+	if csum == 0 {
+		t.Error("TCP checksum should not be zero")
+	}
+
+	// Verify: set checksum, re-compute → should be 0x0000
+	seg[16] = uint8(csum >> 8)
+	seg[17] = uint8(csum)
+	verify := TCPChecksum(srcIP, dstIP, seg)
+	if verify != 0 {
+		t.Errorf("TCP checksum verification failed: got %#x, want 0", verify)
+	}
+}
+
+func TestTCPFieldsOrder(t *testing.T) {
+	tcp := NewTCP()
+	tcpFields := tcp.Fields()
+	if tcpFields[0].Name() != "sport" {
+		t.Errorf("TCP field 0 = %s, want sport", tcpFields[0].Name())
+	}
+	if tcpFields[1].Name() != "dport" {
+		t.Errorf("TCP field 1 = %s, want dport", tcpFields[1].Name())
+	}
+	if tcpFields[2].Name() != "seq" {
+		t.Errorf("TCP field 2 = %s, want seq", tcpFields[2].Name())
+	}
+	if tcpFields[3].Name() != "ack" {
+		t.Errorf("TCP field 3 = %s, want ack", tcpFields[3].Name())
+	}
+	if tcpFields[4].Name() != "dataofs" {
+		t.Errorf("TCP field 4 = %s, want dataofs", tcpFields[4].Name())
+	}
+	if tcpFields[5].Name() != "flags" {
+		t.Errorf("TCP field 5 = %s, want flags", tcpFields[5].Name())
+	}
+	if tcpFields[6].Name() != "window" {
+		t.Errorf("TCP field 6 = %s, want window", tcpFields[6].Name())
+	}
+	if tcpFields[7].Name() != "chksum" {
+		t.Errorf("TCP field 7 = %s, want chksum", tcpFields[7].Name())
+	}
+	if tcpFields[8].Name() != "urgptr" {
+		t.Errorf("TCP field 8 = %s, want urgptr", tcpFields[8].Name())
+	}
+}
+
+// ---- UDP tests ----
+
+func TestUDPDefaults(t *testing.T) {
+	udp := NewUDP()
+
+	sport, _ := udp.Get("sport")
+	dport, _ := udp.Get("dport")
+	length, _ := udp.Get("len")
+	chksum, _ := udp.Get("chksum")
+
+	if sport.(uint16) != 0 {
+		t.Errorf("sport = %d, want 0", sport)
+	}
+	if dport.(uint16) != 0 {
+		t.Errorf("dport = %d, want 0", dport)
+	}
+	if length.(uint16) != 8 {
+		t.Errorf("len = %d, want 8 (header only)", length)
+	}
+	if chksum.(uint16) != 0 {
+		t.Errorf("chksum = %d, want 0 (auto-computed during Build)", chksum)
+	}
+}
+
+func TestUDPWith(t *testing.T) {
+	udp := NewUDPWith(12345, 53)
+
+	sport, _ := udp.Get("sport")
+	dport, _ := udp.Get("dport")
+
+	if sport.(uint16) != 12345 {
+		t.Errorf("sport = %d, want 12345", sport)
+	}
+	if dport.(uint16) != 53 {
+		t.Errorf("dport = %d, want 53", dport)
+	}
+}
+
+func TestUDPSerialization(t *testing.T) {
+	// Scapy: UDP(sport=12345, dport=53, len=8)
+	// Expected bytes (8 bytes):
+	// 30 39 00 35 00 08 00 00
+	expected := []byte{
+		0x30, 0x39, // sport = 12345
+		0x00, 0x35, // dport = 53
+		0x00, 0x08, // len = 8 (header only)
+		0x00, 0x00, // checksum (placeholder)
+	}
+
+	udp := NewUDPWith(12345, 53)
+	got := serializeLayer(t, udp)
+
+	if len(got) != 8 {
+		t.Fatalf("serialized len = %d, want 8", len(got))
+	}
+	if !bytes.Equal(got, expected) {
+		t.Errorf("UDP serialization mismatch:\n got: %x\nwant: %x", got, expected)
+	}
+}
+
+func TestUDPChecksumCalc(t *testing.T) {
+	// Build a UDP header, compute checksum with pseudo-header.
+	udp := NewUDPWith(12345, 53)
+	dg := serializeLayer(t, udp)
+
+	srcIP := net.ParseIP("192.168.1.1").To4()
+	dstIP := net.ParseIP("8.8.8.8").To4()
+
+	csum := UDPChecksum(srcIP, dstIP, dg)
+	if csum == 0 {
+		// UDP checksum of 0 is valid but unlikely for this test data
+		t.Error("UDP checksum should not be zero for this test data")
+	}
+
+	// Verify: set checksum, re-compute → should be 0x0000
+	dg[6] = uint8(csum >> 8)
+	dg[7] = uint8(csum)
+	verify := UDPChecksum(srcIP, dstIP, dg)
+	if verify != 0 {
+		t.Errorf("UDP checksum verification failed: got %#x, want 0", verify)
+	}
+}
+
+func TestUDPFieldsOrder(t *testing.T) {
+	udp := NewUDP()
+	udpFields := udp.Fields()
+	if udpFields[0].Name() != "sport" {
+		t.Errorf("UDP field 0 = %s, want sport", udpFields[0].Name())
+	}
+	if udpFields[1].Name() != "dport" {
+		t.Errorf("UDP field 1 = %s, want dport", udpFields[1].Name())
+	}
+	if udpFields[2].Name() != "len" {
+		t.Errorf("UDP field 2 = %s, want len", udpFields[2].Name())
+	}
+	if udpFields[3].Name() != "chksum" {
+		t.Errorf("UDP field 3 = %s, want chksum", udpFields[3].Name())
+	}
+}
+
+// ---- Raw tests ----
+
+func TestRawDefaults(t *testing.T) {
+	raw := NewRaw()
+
+	load, _ := raw.Get("load")
+	if load.(string) != "" {
+		t.Errorf("load = %q, want empty string", load)
+	}
+}
+
+func TestRawWith(t *testing.T) {
+	data := []byte("hello")
+	raw := NewRawWith(data)
+
+	load, _ := raw.Get("load")
+	var got string
+	switch v := load.(type) {
+	case string:
+		got = v
+	case []byte:
+		got = string(v)
+	default:
+		t.Fatalf("load type = %T, want []byte or string", load)
+	}
+	if got != "hello" {
+		t.Errorf("load = %q, want \"hello\"", got)
+	}
+}
+
+func TestRawSerialization(t *testing.T) {
+	// Scapy: Raw(load=b"hello")
+	expected := []byte{0x68, 0x65, 0x6c, 0x6c, 0x6f}
+
+	raw := NewRawWith([]byte("hello"))
+	got := serializeLayer(t, raw)
+
+	if !bytes.Equal(got, expected) {
+		t.Errorf("Raw serialization mismatch:\n got: %x\nwant: %x", got, expected)
+	}
+}
+
+func TestRawEmptySerialization(t *testing.T) {
+	raw := NewRaw()
+	got := serializeLayer(t, raw)
+
+	if len(got) != 0 {
+		t.Errorf("empty Raw serialization = %x, want empty", got)
+	}
+}
+
+func TestRawBinaryPayload(t *testing.T) {
+	data := []byte{0x00, 0x01, 0x02, 0x03, 0xFF}
+	raw := NewRawWith(data)
+
+	got := serializeLayer(t, raw)
+	if !bytes.Equal(got, data) {
+		t.Errorf("Raw binary payload mismatch:\n got: %x\nwant: %x", got, data)
+	}
+}
+
+// ---- L4 stacking tests ----
+
+func TestTCPOverIPStacking(t *testing.T) {
+	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
+	ip := NewIP()
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+
+	pkt := eth.Over(ip)
+	pkt.Push(tcp)
+	pkt.Sync()
+
+	etherType, _ := eth.Get("type")
+	ipProto, _ := ip.Get("proto")
+
+	if etherType.(uint16) != EtherTypeIPv4 {
+		t.Errorf("Ether.type = %#x, want 0x0800", etherType)
+	}
+	if ipProto.(uint8) != IPProtoTCP {
+		t.Errorf("IP.proto = %d, want 6 (TCP)", ipProto)
+	}
+	if pkt.Len() != 3 {
+		t.Fatalf("packet len = %d, want 3", pkt.Len())
+	}
+}
+
+func TestUDPOverIPStacking(t *testing.T) {
+	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
+	ip := NewIP()
+	udp := NewUDPWith(12345, 53)
+
+	pkt := eth.Over(ip)
+	pkt.Push(udp)
+	pkt.Sync()
+
+	etherType, _ := eth.Get("type")
+	ipProto, _ := ip.Get("proto")
+
+	if etherType.(uint16) != EtherTypeIPv4 {
+		t.Errorf("Ether.type = %#x, want 0x0800", etherType)
+	}
+	if ipProto.(uint8) != IPProtoUDP {
+		t.Errorf("IP.proto = %d, want 17 (UDP)", ipProto)
+	}
+	if pkt.Len() != 3 {
+		t.Fatalf("packet len = %d, want 3", pkt.Len())
+	}
+}
+
+func TestTCPRawStacking(t *testing.T) {
+	// Verify that Raw can be stacked on top of TCP in a multi-layer packet.
+	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
+	ip := NewIP()
+	tcp := NewTCPWith(12345, 80, TCPPsh|TCPAck)
+	raw := NewRawWith([]byte("GET / HTTP/1.1\r\n\r\n"))
+
+	pkt := eth.Over(ip)
+	pkt.Push(tcp)
+	pkt.Push(raw)
+	pkt.Sync()
+
+	if pkt.Len() != 4 {
+		t.Fatalf("packet len = %d, want 4", pkt.Len())
+	}
+	if !pkt.HasLayer("Ethernet") {
+		t.Error("missing Ethernet layer")
+	}
+	if !pkt.HasLayer("IP") {
+		t.Error("missing IP layer")
+	}
+	if !pkt.HasLayer("TCP") {
+		t.Error("missing TCP layer")
+	}
+	if !pkt.HasLayer("Raw") {
+		t.Error("missing Raw layer")
+	}
+
+	ipProto, _ := ip.Get("proto")
+	if ipProto.(uint8) != IPProtoTCP {
+		t.Errorf("IP.proto = %d, want 6 (TCP)", ipProto)
+	}
+
+	rawLayer := pkt.GetLayer("Raw")
+	load, _ := rawLayer.Get("load")
+	var loadStr string
+	switch v := load.(type) {
+	case string:
+		loadStr = v
+	case []byte:
+		loadStr = string(v)
+	default:
+		t.Fatalf("Raw load type = %T", load)
+	}
+	if loadStr != "GET / HTTP/1.1\r\n\r\n" {
+		t.Errorf("Raw load = %q", loadStr)
+	}
+}
+
+func TestUDPRawStacking(t *testing.T) {
+	// Verify UDP + Raw stacking.
+	ip := NewIP()
+	udp := NewUDPWith(12345, 53)
+	raw := NewRawWith([]byte("test payload"))
+
+	pkt := ip.Over(udp)
+	pkt.Push(raw)
+	pkt.Sync()
+
+	if pkt.Len() != 3 {
+		t.Fatalf("packet len = %d, want 3", pkt.Len())
+	}
+
+	ipProto, _ := ip.Get("proto")
+	if ipProto.(uint8) != IPProtoUDP {
+		t.Errorf("IP.proto = %d, want 17 (UDP)", ipProto)
+	}
+
+	rawLayer := pkt.GetLayer("Raw")
+	load, _ := rawLayer.Get("load")
+	var loadStr string
+	switch v := load.(type) {
+	case string:
+		loadStr = v
+	case []byte:
+		loadStr = string(v)
+	default:
+		t.Fatalf("Raw load type = %T", load)
+	}
+	if loadStr != "test payload" {
+		t.Errorf("Raw load = %q", loadStr)
+	}
+}
