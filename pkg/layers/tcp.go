@@ -1,0 +1,50 @@
+package layers
+
+import (
+	"github.com/smallnest/goscapy/pkg/fields"
+	"github.com/smallnest/goscapy/pkg/packet"
+)
+
+// TCP flag bits (can be ORed together).
+const (
+	TCPSyn uint8 = 0x02
+	TCPAck uint8 = 0x10
+	TCPFin uint8 = 0x01
+	TCPRst uint8 = 0x04
+	TCPPsh uint8 = 0x08
+	TCPUrg uint8 = 0x20
+	TCPEce uint8 = 0x40
+	TCPCwr uint8 = 0x80
+)
+
+// NewTCP creates a TCP header layer with sensible defaults.
+// Defaults: dataofs=0x50 (5 words = 20 bytes, no options), flags=0, window=8192,
+// checksum=0 (auto-computed during Build).
+// The dataofs field stores the raw wire byte (upper nibble = data offset in 32-bit words).
+func NewTCP() *packet.Layer {
+	return packet.NewLayer("TCP", []fields.Field{
+		fields.NewShortField("sport", 0),    // source port
+		fields.NewShortField("dport", 0),    // destination port
+		fields.NewIntField("seq", 0),        // sequence number
+		fields.NewIntField("ack", 0),        // acknowledgment number
+		fields.NewByteField("dataofs", 0x50), // data offset in upper nibble (5 << 4 = 0x50 = 20 bytes)
+		fields.NewByteField("flags", 0),     // flags byte (CWR|ECE|URG|ACK|PSH|RST|SYN|FIN)
+		fields.NewShortField("window", 8192),
+		fields.NewShortField("chksum", 0),   // auto-computed during Build
+		fields.NewShortField("urgptr", 0),
+	})
+}
+
+// NewTCPWith creates a TCP header with the given source port, destination port, and flags.
+func NewTCPWith(sport, dport uint16, flags uint8) *packet.Layer {
+	l := NewTCP()
+	l.Set("sport", sport)
+	l.Set("dport", dport)
+	l.Set("flags", flags)
+	return l
+}
+
+// TCPDataOffset extracts the TCP header size in bytes from the dataofs wire byte.
+func TCPDataOffset(dataofs uint8) int {
+	return int(dataofs>>4) * 4
+}
