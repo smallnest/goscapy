@@ -1,0 +1,103 @@
+package packet
+
+import (
+	"fmt"
+
+	"github.com/smallnest/goscapy/pkg/fields"
+)
+
+// Layer represents a single protocol layer within a network packet.
+// It holds the protocol's field definitions and the runtime values for each field.
+type Layer struct {
+	proto  string
+	fields []fields.Field
+	values map[string]interface{}
+}
+
+// NewLayer creates a layer for the given protocol name and field list.
+// All fields are initialized to their default values.
+func NewLayer(proto string, fds []fields.Field) *Layer {
+	values := make(map[string]interface{}, len(fds))
+	for _, f := range fds {
+		// Skip nested conditional fields during defaults — they activate dynamically.
+		if cf, ok := f.(*fields.ConditionalField); ok {
+			if cf.Active(values) {
+				values[f.Name()] = f.DefaultVal()
+			}
+			continue
+		}
+		values[f.Name()] = f.DefaultVal()
+	}
+	return &Layer{proto: proto, fields: fds, values: values}
+}
+
+// Proto returns the protocol name (e.g. "Ethernet", "IP").
+func (l *Layer) Proto() string { return l.proto }
+
+// Fields returns the layer's field definitions in order.
+func (l *Layer) Fields() []fields.Field { return l.fields }
+
+// Get returns the value of a field by name.
+func (l *Layer) Get(name string) (interface{}, error) {
+	v, ok := l.values[name]
+	if !ok {
+		return nil, fmt.Errorf("packet: layer %s has no field %q", l.proto, name)
+	}
+	return v, nil
+}
+
+// Set sets the value of a field by name.
+func (l *Layer) Set(name string, val interface{}) error {
+	if _, ok := l.values[name]; !ok {
+		return fmt.Errorf("packet: layer %s has no field %q", l.proto, name)
+	}
+	l.values[name] = val
+	return nil
+}
+
+// GetField returns the value of a field by its index in the fields list.
+func (l *Layer) GetField(idx int) (interface{}, error) {
+	if idx < 0 || idx >= len(l.fields) {
+		return nil, fmt.Errorf("packet: field index %d out of range [0, %d)", idx, len(l.fields))
+	}
+	name := l.fields[idx].Name()
+	return l.values[name], nil
+}
+
+// SetField sets a field's value by its index in the fields list.
+func (l *Layer) SetField(idx int, val interface{}) error {
+	if idx < 0 || idx >= len(l.fields) {
+		return fmt.Errorf("packet: field index %d out of range [0, %d)", idx, len(l.fields))
+	}
+	name := l.fields[idx].Name()
+	return l.Set(name, val)
+}
+
+// Values returns a copy of the current field values.
+func (l *Layer) Values() map[string]interface{} {
+	cp := make(map[string]interface{}, len(l.values))
+	for k, v := range l.values {
+		cp[k] = v
+	}
+	return cp
+}
+
+// FindField finds a field definition by name, returning nil if not found.
+func (l *Layer) FindField(name string) fields.Field {
+	for _, f := range l.fields {
+		if f.Name() == name {
+			return f
+		}
+	}
+	return nil
+}
+
+// FieldIndex returns the index of a field by name, or -1 if not found.
+func (l *Layer) FieldIndex(name string) int {
+	for i, f := range l.fields {
+		if f.Name() == name {
+			return i
+		}
+	}
+	return -1
+}
