@@ -101,3 +101,11 @@ func (l *Layer) FieldIndex(name string) int {
 	}
 	return -1
 }
+
+// Over stacks upper on top of this layer and returns a Packet.
+// Registered bindings are applied: if a BindingRule exists for
+// (upper.Proto, this.Proto), this layer's bound field is set automatically.
+func (l *Layer) Over(upper *Layer) *Packet {
+	applyBindings(l, upper)
+	return NewFrom(l, upper)
+}

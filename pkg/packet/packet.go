@@ -26,13 +26,17 @@ func NewFrom(layers ...*Layer) *Packet {
 func (p *Packet) Layers() []*Layer { return p.layers }
 
 // Push adds a layer on top of the packet (after the current highest layer).
-func (p *Packet) Push(layer *Layer) {
+// Returns the packet for chaining.
+func (p *Packet) Push(layer *Layer) *Packet {
 	p.layers = append(p.layers, layer)
+	return p
 }
 
 // Insert adds a layer below all current layers (becomes the new lowest layer).
-func (p *Packet) Insert(layer *Layer) {
+// Returns the packet for chaining.
+func (p *Packet) Insert(layer *Layer) *Packet {
 	p.layers = append([]*Layer{layer}, p.layers...)
+	return p
 }
 
 // GetLayer returns the first layer matching the protocol name, or nil.
@@ -86,6 +90,15 @@ func (p *Packet) Copy() *Packet {
 	cp := &Packet{layers: make([]*Layer, len(p.layers))}
 	copy(cp.layers, p.layers)
 	return cp
+}
+
+// Sync re-applies all binding rules between consecutive layer pairs.
+// Call this after modifying field values on a layer that is part of a packet
+// to keep lower-layer protocol type fields consistent.
+func (p *Packet) Sync() {
+	for i := 0; i < len(p.layers)-1; i++ {
+		applyBindings(p.layers[i], p.layers[i+1])
+	}
 }
 
 // Validate checks that all layers have consistent field values.
