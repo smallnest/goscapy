@@ -48,3 +48,32 @@ func NewTCPWith(sport, dport uint16, flags uint8) *packet.Layer {
 func TCPDataOffset(dataofs uint8) int {
 	return int(dataofs>>4) * 4
 }
+
+// tcpBuildHook is called during Packet.Build() for TCP layers.
+// It auto-computes the TCP checksum using the IPv4 pseudo-header.
+func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+	layer := pkt.Layers()[layerIdx]
+
+	// Zero checksum, serialize header.
+	layer.Set("chksum", uint16(0))
+	hdrBytes, err := layer.SerializeFields()
+	if err != nil {
+		return nil, err
+	}
+
+	// Full segment = header + upper payload.
+	fullSeg := make([]byte, 0, len(hdrBytes)+len(upperBytes))
+	fullSeg = append(fullSeg, hdrBytes...)
+	fullSeg = append(fullSeg, upperBytes...)
+
+	// Find IP layer below for src/dst addresses.
+	srcIP, dstIP, err := findIPAddresses(pkt, layerIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	csum := TCPChecksum(srcIP, dstIP, fullSeg)
+	layer.Set("chksum", csum)
+
+	return layer.SerializeFields()
+}

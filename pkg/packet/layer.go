@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/smallnest/goscapy/pkg/fields"
@@ -108,4 +109,29 @@ func (l *Layer) FieldIndex(name string) int {
 func (l *Layer) Over(upper *Layer) *Packet {
 	applyBindings(l, upper)
 	return NewFrom(l, upper)
+}
+
+// SerializeFields packs all active fields into bytes in definition order.
+// ConditionalField values are only included if Active() returns true.
+// This is the naive serialization used as the first pass of Build.
+func (l *Layer) SerializeFields() ([]byte, error) {
+	var buf bytes.Buffer
+	for _, f := range l.fields {
+		// Skip inactive conditional fields.
+		if cf, ok := f.(*fields.ConditionalField); ok {
+			if !cf.Active(l.values) {
+				continue
+			}
+		}
+		val, exists := l.values[f.Name()]
+		if !exists {
+			continue
+		}
+		b, err := f.Pack(val)
+		if err != nil {
+			return nil, fmt.Errorf("packet: layer %s field %s: %w", l.proto, f.Name(), err)
+		}
+		buf.Write(b)
+	}
+	return buf.Bytes(), nil
 }
