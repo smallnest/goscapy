@@ -33,3 +33,26 @@ func NewICMPEcho(id, seq uint16) *packet.Layer {
 	l.Set("seq", seq)
 	return l
 }
+
+// icmpBuildHook is called during Packet.Build() for ICMP layers.
+// It auto-computes the ICMP checksum over the full message (header + payload).
+func icmpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+	layer := pkt.Layers()[layerIdx]
+
+	// Zero checksum, serialize header.
+	layer.Set("chksum", uint16(0))
+	hdrBytes, err := layer.SerializeFields()
+	if err != nil {
+		return nil, err
+	}
+
+	// Full message = header + upper payload.
+	fullMsg := make([]byte, 0, len(hdrBytes)+len(upperBytes))
+	fullMsg = append(fullMsg, hdrBytes...)
+	fullMsg = append(fullMsg, upperBytes...)
+
+	csum := ICMPChecksum(fullMsg)
+	layer.Set("chksum", csum)
+
+	return layer.SerializeFields()
+}
