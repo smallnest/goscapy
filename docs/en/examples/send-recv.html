@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send &amp; Receive Examples — goscapy</title>
+  <meta name="description" content="Complete code examples for sending and receiving packets at L3 (IP level) with goscapy: Send, Recv, SendRecv, SendRecv1.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. Send — L3 ICMP Echo Request -->
+      <div class="section" id="send-icmp">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Send — ICMP Echo Request (L3)</h3>
+        </div>
+        <p>Build an IP+ICMP packet and send it at L3. The OS adds the Ethernet header automatically. <code>Send()</code> is fire-and-forget — it does not wait for a response.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build an IP + ICMP Echo Request packet (L3 — no Ethernet)</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x0001</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// Send at L3 on loopback interface</span>
+iface := sendrecv.<span class="fn">LoopbackName</span>() <span class="cmt">// "lo0" on macOS, "lo" on Linux</span>
+err = sendrecv.<span class="fn">Send</span>(pkt, iface)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"Packet sent!"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPICMP returns raw bytes — use Builder API .Packet() for send/recv</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Send</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>())</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <code>Send()</code> operates at L3 (IP level) — the OS handles L2 framing (Ethernet header).
+          If the packet contains an Ethernet layer, it is automatically skipped during build.
+          Requires root privileges (<code>sudo</code>) or <code>CAP_NET_RAW</code> on Linux.
+        </div>
+      </div>
+
+      <!-- 2. Recv — Receive one packet -->
+      <div class="section" id="recv">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Recv — Receive One Packet</h3>
+        </div>
+        <p>Open a receiver on an interface, wait for one packet, and close. <code>Recv()</code> blocks until a packet arrives or the timeout expires. Use <code>errors.Is(err, sendrecv.ErrTimeout)</code> to detect timeouts.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Example</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"errors"</span>
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+iface := sendrecv.<span class="fn">LoopbackName</span>()
+
+<span class="cmt">// Receive one packet with a 5-second timeout</span>
+pkt, err := sendrecv.<span class="fn">Recv</span>(iface, <span class="num">5</span>*time.Second)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    <span class="kw">if</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout) {
+        fmt.<span class="fn">Println</span>(<span class="str">"No packet received within timeout"</span>)
+    } <span class="kw">else</span> {
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    <span class="kw">return</span>
+}
+
+<span class="cmt">// Print the received packet layers</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// e.g. "Ethernet / IP / ICMP"</span>
+
+<span class="cmt">// Access IP layer fields</span>
+ip := packet.<span class="fn">IP</span>(pkt)
+<span class="kw">if</span> ip != <span class="kw">nil</span> {
+    fmt.<span class="fn">Printf</span>(<span class="str">"Source: %s → Dest: %s\n"</span>, ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>())
+}</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          For receiving multiple packets, use <code>OpenReceiver()</code> directly and call <code>Recv()</code> in a loop.
+          This avoids opening and closing the raw socket for each packet.
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 Receiver Loop</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Open a persistent receiver for capturing multiple packets</span>
+rx, err := sendrecv.<span class="fn">OpenReceiver</span>(sendrecv.<span class="fn">LoopbackName</span>())
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+<span class="kw">defer</span> rx.<span class="fn">Close</span>()
+
+<span class="cmt">// Read up to 10 packets</span>
+<span class="kw">for</span> i := <span class="num">0</span>; i &lt; <span class="num">10</span>; i++ {
+    pkt, err := rx.<span class="fn">Recv</span>(<span class="num">3</span> * time.Second)
+    <span class="kw">if</span> err != <span class="kw">nil</span> {
+        <span class="kw">if</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout) {
+            fmt.<span class="fn">Println</span>(<span class="str">"Timeout, stopping."</span>)
+            <span class="kw">break</span>
+        }
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    fmt.<span class="fn">Printf</span>(<span class="str">"Packet %d: %s\n"</span>, i+<span class="num">1</span>, pkt.<span class="fn">String</span>())
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. SendRecv1 — ICMP Ping -->
+      <div class="section" id="sendrecv1-ping">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>SendRecv1 — ICMP Ping</h3>
+        </div>
+        <p>Build an ICMP Echo Request, send it at L3, and receive the first response. <code>SendRecv1()</code> is ideal for request/response protocols like ICMP ping — it returns only the first matching reply.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build an IP + ICMP Echo Request</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(layers.ICMPEchoRequest).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x0001</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Packet</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// Send and wait for the first response (3-second timeout)</span>
+sent, resp, err := sendrecv.<span class="fn">SendRecv1</span>(
+    pkt,
+    sendrecv.<span class="fn">LoopbackName</span>(),
+    <span class="num">3</span>*time.Second,
+)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+fmt.<span class="fn">Printf</span>(<span class="str">"Sent:     %s\n"</span>, sent.<span class="fn">String</span>())
+<span class="kw">if</span> resp != <span class="kw">nil</span> {
+    fmt.<span class="fn">Printf</span>(<span class="str">"Response: %s\n"</span>, resp.<span class="fn">String</span>())
+
+    <span class="cmt">// Check if the response is an ICMP Echo Reply</span>
+    icmp := packet.<span class="fn">ICMP</span>(resp)
+    <span class="kw">if</span> icmp != <span class="kw">nil</span> &amp;&amp; icmp.<span class="fn">Type</span>() == layers.ICMPEchoReply {
+        fmt.<span class="fn">Println</span>(<span class="str">"✓ ICMP Echo Reply received!"</span>)
+    }
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Quick ping using Builder .Packet() method</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+
+_, resp, _ := sendrecv.<span class="fn">SendRecv1</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>(), <span class="num">3</span>*time.Second)
+<span class="kw">if</span> resp != <span class="kw">nil</span> {
+    fmt.<span class="fn">Println</span>(<span class="str">"Ping reply:"</span>, resp.<span class="fn">String</span>())
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <code>SendRecv1()</code> opens the receiver <strong>before</strong> sending to avoid missing fast responses
+          (e.g. on loopback, the response can arrive before a sequentially-opened receiver is ready).
+        </div>
+      </div>
+
+      <!-- 4. SendRecv — Collect All Responses -->
+      <div class="section" id="sendrecv-multi">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>SendRecv — Collect All Responses</h3>
+        </div>
+        <p><code>SendRecv()</code> sends a packet at L3 and collects <strong>all</strong> response packets that arrive within the timeout window. Useful when you expect multiple responses (e.g. broadcast queries) or want to observe all traffic triggered by your packet.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Example</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build ICMP Echo Request</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(layers.ICMPEchoRequest).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x0001</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="cmt">// Send and collect all responses within 2 seconds</span>
+sent, responses, err := sendrecv.<span class="fn">SendRecv</span>(
+    pkt,
+    sendrecv.<span class="fn">LoopbackName</span>(),
+    <span class="num">2</span>*time.Second,
+)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+fmt.<span class="fn">Printf</span>(<span class="str">"Sent: %s\n"</span>, sent.<span class="fn">String</span>())
+fmt.<span class="fn">Printf</span>(<span class="str">"Received %d response(s):\n"</span>, len(responses))
+<span class="kw">for</span> i, resp := <span class="kw">range</span> responses {
+    fmt.<span class="fn">Printf</span>(<span class="str">"  [%d] %s\n"</span>, i+<span class="num">1</span>, resp.<span class="fn">String</span>())
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. TCP SYN Scan with Recv -->
+      <div class="section" id="tcp-syn">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>TCP SYN — Send &amp; Recv</h3>
+        </div>
+        <p>Construct a TCP SYN packet, send it with <code>Send()</code>, then wait for a SYN-ACK response with <code>Recv()</code>. This demonstrates the two-step send-then-receive pattern for TCP port scanning.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build IP + TCP SYN packet</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn).
+        <span class="fn">Seq</span>(<span class="num">1000</span>)).
+    <span class="fn">Packet</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+iface := sendrecv.<span class="fn">LoopbackName</span>()
+
+<span class="cmt">// Step 1: Send the SYN packet</span>
+err = sendrecv.<span class="fn">Send</span>(pkt, iface)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"SYN sent to 127.0.0.1:80"</span>)
+
+<span class="cmt">// Step 2: Wait for a response</span>
+resp, err := sendrecv.<span class="fn">Recv</span>(iface, <span class="num">5</span>*time.Second)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// Check if response is TCP</span>
+tcp := packet.<span class="fn">TCP</span>(resp)
+<span class="kw">if</span> tcp != <span class="kw">nil</span> {
+    flags := tcp.<span class="fn">Flags</span>()
+    <span class="kw">if</span> flags&amp;layers.TCPSyn != <span class="num">0</span> &amp;&amp; flags&amp;layers.TCPAck != <span class="num">0</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"Port %d: OPEN (SYN-ACK received)\n"</span>, tcp.<span class="fn">SrcPort</span>())
+    } <span class="kw">else if</span> flags&amp;layers.TCPRst != <span class="num">0</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"Port %d: CLOSED (RST received)\n"</span>, tcp.<span class="fn">SrcPort</span>())
+    }
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPTCP shortcut for building the packet</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().<span class="fn">SrcPort</span>(<span class="num">12345</span>).<span class="fn">DstPort</span>(<span class="num">80</span>).<span class="fn">Flags</span>(layers.TCPSyn)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Send</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>())</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          For TCP SYN scanning, <code>SendRecv1()</code> is often more convenient than separate
+          <code>Send()</code> + <code>Recv()</code> calls because it opens the receiver before sending,
+          ensuring no fast responses are missed.
+        </div>
+      </div>
+
+      <!-- 6. Error Handling -->
+      <div class="section" id="error-handling">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>Error Handling</h3>
+        </div>
+        <p>Production code should handle common errors: timeout, interface not found, and permission denied. Here is a robust pattern for all send/receive operations.</p>
+
+        <h3 style="margin-top:1rem;">🔧 Timeout &amp; Error Detection</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"errors"</span>
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build the packet</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(<span class="str">"build error:"</span>, err)
+}
+
+<span class="cmt">// SendRecv1 with comprehensive error handling</span>
+_, resp, err := sendrecv.<span class="fn">SendRecv1</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>(), <span class="num">3</span>*time.Second)
+<span class="kw">switch</span> {
+<span class="kw">case</span> err == <span class="kw">nil</span> &amp;&amp; resp != <span class="kw">nil</span>:
+    fmt.<span class="fn">Println</span>(<span class="str">"Response:"</span>, resp.<span class="fn">String</span>())
+<span class="kw">case</span> err == <span class="kw">nil</span> &amp;&amp; resp == <span class="kw">nil</span>:
+    fmt.<span class="fn">Println</span>(<span class="str">"Sent but no response received within timeout"</span>)
+<span class="kw">case</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout):
+    fmt.<span class="fn">Println</span>(<span class="str">"Operation timed out"</span>)
+<span class="kw">default</span>:
+    fmt.<span class="fn">Println</span>(<span class="str">"Error:"</span>, err)
+    <span class="cmt">// Common errors:</span>
+    <span class="cmt">//   - "sendrecv: open receiver: ..." → interface does not exist</span>
+    <span class="cmt">//   - "operation not permitted"     → needs root/sudo</span>
+    <span class="cmt">//   - "no such device"             → wrong interface name</span>
+}</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          <ul>
+            <li>Always use <code>errors.Is(err, sendrecv.ErrTimeout)</code> — never compare with <code>==</code>.</li>
+            <li>Use <code>sendrecv.LoopbackName()</code> for portable code that works on both macOS (<code>lo0</code>) and Linux (<code>lo</code>).</li>
+            <li>Raw socket operations require <strong>root privileges</strong>. Run with <code>sudo</code> or set <code>CAP_NET_RAW</code> on Linux.</li>
+          </ul>
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../en/index.html">Home</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发送/接收示例 — goscapy</title>
+  <meta name="description" content="使用 goscapy 在 L3（IP 层）发送和接收数据包的完整代码示例：Send、Recv、SendRecv、SendRecv1。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. Send — L3 ICMP Echo Request -->
+      <div class="section" id="send-icmp">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Send — 发送 ICMP 回显请求（L3）</h3>
+        </div>
+        <p>构建 IP+ICMP 数据包并通过 L3 发送。操作系统会自动添加以太网头。<code>Send()</code> 是即发即忘模式 —— 不会等待响应。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建 IP + ICMP 回显请求包（L3 — 无以太网层）</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x0001</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// 在回环接口上通过 L3 发送</span>
+iface := sendrecv.<span class="fn">LoopbackName</span>() <span class="cmt">// macOS 上为 "lo0"，Linux 上为 "lo"</span>
+err = sendrecv.<span class="fn">Send</span>(pkt, iface)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"数据包已发送！"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 使用 Builder .Packet() 方法快速构建并获取 Packet</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Send</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>())</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <code>Send()</code> 工作在 L3（IP 层）—— 操作系统负责 L2 组帧（以太网头）。
+          如果数据包包含以太网层，构建时会自动跳过。
+          需要 root 权限（<code>sudo</code>）或 Linux 上的 <code>CAP_NET_RAW</code> 能力。
+        </div>
+      </div>
+
+      <!-- 2. Recv — 接收一个数据包 -->
+      <div class="section" id="recv">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Recv — 接收一个数据包</h3>
+        </div>
+        <p>在指定接口上打开接收器，等待一个数据包到达后关闭。<code>Recv()</code> 会阻塞直到数据包到达或超时。使用 <code>errors.Is(err, sendrecv.ErrTimeout)</code> 检测超时。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"errors"</span>
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+iface := sendrecv.<span class="fn">LoopbackName</span>()
+
+<span class="cmt">// 接收一个数据包，超时 5 秒</span>
+pkt, err := sendrecv.<span class="fn">Recv</span>(iface, <span class="num">5</span>*time.Second)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    <span class="kw">if</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout) {
+        fmt.<span class="fn">Println</span>(<span class="str">"超时未收到数据包"</span>)
+    } <span class="kw">else</span> {
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    <span class="kw">return</span>
+}
+
+<span class="cmt">// 打印接收到的数据包层信息</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// 例如 "Ethernet / IP / ICMP"</span>
+
+<span class="cmt">// 访问 IP 层字段</span>
+ip := packet.<span class="fn">IP</span>(pkt)
+<span class="kw">if</span> ip != <span class="kw">nil</span> {
+    fmt.<span class="fn">Printf</span>(<span class="str">"源: %s → 目标: %s\n"</span>, ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>())
+}</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 提示</div>
+          如需接收多个数据包，请直接使用 <code>OpenReceiver()</code> 并在循环中调用 <code>Recv()</code>。
+          这样可以避免每个数据包都打开和关闭原始套接字。
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 持续接收循环</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 打开持久接收器以捕获多个数据包</span>
+rx, err := sendrecv.<span class="fn">OpenReceiver</span>(sendrecv.<span class="fn">LoopbackName</span>())
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+<span class="kw">defer</span> rx.<span class="fn">Close</span>()
+
+<span class="cmt">// 最多读取 10 个数据包</span>
+<span class="kw">for</span> i := <span class="num">0</span>; i &lt; <span class="num">10</span>; i++ {
+    pkt, err := rx.<span class="fn">Recv</span>(<span class="num">3</span> * time.Second)
+    <span class="kw">if</span> err != <span class="kw">nil</span> {
+        <span class="kw">if</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout) {
+            fmt.<span class="fn">Println</span>(<span class="str">"超时，停止接收。"</span>)
+            <span class="kw">break</span>
+        }
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    fmt.<span class="fn">Printf</span>(<span class="str">"数据包 %d: %s\n"</span>, i+<span class="num">1</span>, pkt.<span class="fn">String</span>())
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. SendRecv1 — ICMP Ping -->
+      <div class="section" id="sendrecv1-ping">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>SendRecv1 — ICMP Ping</h3>
+        </div>
+        <p>构建 ICMP 回显请求，通过 L3 发送并接收第一个响应。<code>SendRecv1()</code> 非常适合请求/响应协议（如 ICMP ping）—— 它只返回第一个匹配的回复。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建 IP + ICMP 回显请求</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(layers.ICMPEchoRequest).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x0001</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Packet</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// 发送并等待第一个响应（3 秒超时）</span>
+sent, resp, err := sendrecv.<span class="fn">SendRecv1</span>(
+    pkt,
+    sendrecv.<span class="fn">LoopbackName</span>(),
+    <span class="num">3</span>*time.Second,
+)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+fmt.<span class="fn">Printf</span>(<span class="str">"已发送:     %s\n"</span>, sent.<span class="fn">String</span>())
+<span class="kw">if</span> resp != <span class="kw">nil</span> {
+    fmt.<span class="fn">Printf</span>(<span class="str">"响应: %s\n"</span>, resp.<span class="fn">String</span>())
+
+    <span class="cmt">// 检查响应是否为 ICMP 回显回复</span>
+    icmp := packet.<span class="fn">ICMP</span>(resp)
+    <span class="kw">if</span> icmp != <span class="kw">nil</span> &amp;&amp; icmp.<span class="fn">Type</span>() == layers.ICMPEchoReply {
+        fmt.<span class="fn">Println</span>(<span class="str">"✓ 收到 ICMP 回显回复！"</span>)
+    }
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 使用 Builder .Packet() 方法快速 ping</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+
+_, resp, _ := sendrecv.<span class="fn">SendRecv1</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>(), <span class="num">3</span>*time.Second)
+<span class="kw">if</span> resp != <span class="kw">nil</span> {
+    fmt.<span class="fn">Println</span>(<span class="str">"Ping 回复:"</span>, resp.<span class="fn">String</span>())
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <code>SendRecv1()</code> 在发送之前就打开接收器，以避免错过快速响应
+          （例如在回环接口上，响应可能在顺序打开的接收器就绪之前就已到达）。
+        </div>
+      </div>
+
+      <!-- 4. SendRecv — 收集所有响应 -->
+      <div class="section" id="sendrecv-multi">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>SendRecv — 收集所有响应</h3>
+        </div>
+        <p><code>SendRecv()</code> 通过 L3 发送数据包，并在超时窗口内收集<strong>所有</strong>响应数据包。当你预期多个响应（如广播查询）或想观察数据包触发的所有流量时非常有用。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建 ICMP 回显请求</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(layers.ICMPEchoRequest).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x0001</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="cmt">// 发送并在 2 秒内收集所有响应</span>
+sent, responses, err := sendrecv.<span class="fn">SendRecv</span>(
+    pkt,
+    sendrecv.<span class="fn">LoopbackName</span>(),
+    <span class="num">2</span>*time.Second,
+)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+fmt.<span class="fn">Printf</span>(<span class="str">"已发送: %s\n"</span>, sent.<span class="fn">String</span>())
+fmt.<span class="fn">Printf</span>(<span class="str">"收到 %d 个响应:\n"</span>, len(responses))
+<span class="kw">for</span> i, resp := <span class="kw">range</span> responses {
+    fmt.<span class="fn">Printf</span>(<span class="str">"  [%d] %s\n"</span>, i+<span class="num">1</span>, resp.<span class="fn">String</span>())
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. TCP SYN 扫描 -->
+      <div class="section" id="tcp-syn">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>TCP SYN — 发送与接收</h3>
+        </div>
+        <p>构造 TCP SYN 数据包，用 <code>Send()</code> 发送，然后用 <code>Recv()</code> 等待 SYN-ACK 响应。此示例展示了 TCP 端口扫描的两步发送-接收模式。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建 IP + TCP SYN 数据包</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn).
+        <span class="fn">Seq</span>(<span class="num">1000</span>)).
+    <span class="fn">Packet</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+iface := sendrecv.<span class="fn">LoopbackName</span>()
+
+<span class="cmt">// 第 1 步：发送 SYN 数据包</span>
+err = sendrecv.<span class="fn">Send</span>(pkt, iface)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"SYN 已发送到 127.0.0.1:80"</span>)
+
+<span class="cmt">// 第 2 步：等待响应</span>
+resp, err := sendrecv.<span class="fn">Recv</span>(iface, <span class="num">5</span>*time.Second)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// 检查响应是否为 TCP</span>
+tcp := packet.<span class="fn">TCP</span>(resp)
+<span class="kw">if</span> tcp != <span class="kw">nil</span> {
+    flags := tcp.<span class="fn">Flags</span>()
+    <span class="kw">if</span> flags&amp;layers.TCPSyn != <span class="num">0</span> &amp;&amp; flags&amp;layers.TCPAck != <span class="num">0</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"端口 %d: 开放（收到 SYN-ACK）\n"</span>, tcp.<span class="fn">SrcPort</span>())
+    } <span class="kw">else if</span> flags&amp;layers.TCPRst != <span class="num">0</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"端口 %d: 关闭（收到 RST）\n"</span>, tcp.<span class="fn">SrcPort</span>())
+    }
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 使用 Builder 快速构建 TCP SYN 包</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().<span class="fn">SrcPort</span>(<span class="num">12345</span>).<span class="fn">DstPort</span>(<span class="num">80</span>).<span class="fn">Flags</span>(layers.TCPSyn)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Send</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>())</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          对于 TCP SYN 扫描，<code>SendRecv1()</code> 通常比单独的
+          <code>Send()</code> + <code>Recv()</code> 更方便，因为它在发送之前就打开接收器，
+          确保不会错过快速响应。
+        </div>
+      </div>
+
+      <!-- 6. 错误处理 -->
+      <div class="section" id="error-handling">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>错误处理</h3>
+        </div>
+        <p>生产环境代码应处理常见错误：超时、接口不存在、权限不足。以下是一个适用于所有发送/接收操作的健壮错误处理模式。</p>
+
+        <h3 style="margin-top:1rem;">🔧 超时与错误检测</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"errors"</span>
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建数据包</span>
+pkt, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"127.0.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(<span class="str">"构建错误:"</span>, err)
+}
+
+<span class="cmt">// SendRecv1 完整错误处理</span>
+_, resp, err := sendrecv.<span class="fn">SendRecv1</span>(pkt, sendrecv.<span class="fn">LoopbackName</span>(), <span class="num">3</span>*time.Second)
+<span class="kw">switch</span> {
+<span class="kw">case</span> err == <span class="kw">nil</span> &amp;&amp; resp != <span class="kw">nil</span>:
+    fmt.<span class="fn">Println</span>(<span class="str">"响应:"</span>, resp.<span class="fn">String</span>())
+<span class="kw">case</span> err == <span class="kw">nil</span> &amp;&amp; resp == <span class="kw">nil</span>:
+    fmt.<span class="fn">Println</span>(<span class="str">"已发送但超时内未收到响应"</span>)
+<span class="kw">case</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout):
+    fmt.<span class="fn">Println</span>(<span class="str">"操作超时"</span>)
+<span class="kw">default</span>:
+    fmt.<span class="fn">Println</span>(<span class="str">"错误:"</span>, err)
+    <span class="cmt">// 常见错误:</span>
+    <span class="cmt">//   - "sendrecv: open receiver: ..." → 接口不存在</span>
+    <span class="cmt">//   - "operation not permitted"     → 需要 root/sudo</span>
+    <span class="cmt">//   - "no such device"             → 错误的接口名</span>
+}</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 提示</div>
+          <ul>
+            <li>始终使用 <code>errors.Is(err, sendrecv.ErrTimeout)</code> —— 不要用 <code>==</code> 比较。</li>
+            <li>使用 <code>sendrecv.LoopbackName()</code> 编写跨平台代码，macOS 上为 <code>lo0</code>，Linux 上为 <code>lo</code>。</li>
+            <li>原始套接字操作需要 <strong>root 权限</strong>。使用 <code>sudo</code> 运行或在 Linux 上设置 <code>CAP_NET_RAW</code>。</li>
+          </ul>
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../zh/index.html">首页</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy 贡献者。基于 MIT 协议授权。
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>
