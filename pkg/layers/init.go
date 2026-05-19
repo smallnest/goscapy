@@ -44,6 +44,13 @@ func init() {
 	packet.RegisterLayer("TCP", NewTCP)
 	packet.RegisterLayer("UDP", NewUDP)
 	packet.RegisterLayer("ICMPv6", NewICMPv6)
+	packet.RegisterLayer("ICMPv6 Echo", newICMPv6EchoLayer)
+	packet.RegisterLayer("ICMPv6 Echo Reply", newICMPv6EchoReplyLayer)
+	packet.RegisterLayer("NDP Router Solicitation", NewNDPRouterSolicitation)
+	packet.RegisterLayer("NDP Router Advertisement", NewNDPRouterAdvertisement)
+	packet.RegisterLayer("NDP Neighbor Solicitation", NewNDPNeighborSolicitation)
+	packet.RegisterLayer("NDP Neighbor Advertisement", NewNDPNeighborAdvertisement)
+	packet.RegisterLayer("NDP Redirect", NewNDPRedirect)
 	packet.RegisterLayer("Raw", NewRaw)
 
 	// Register key fields for next-layer resolution.
@@ -69,6 +76,9 @@ func init() {
 	packet.RegisterKeyField("IPv6 Fragment", "nh")
 	packet.RegisterKeyField("IPv6 DestOpts", "nh")
 
+	// ICMPv6 uses "type" for sub-type resolution (Echo, NDP, etc.).
+	packet.RegisterKeyField("ICMPv6", "type")
+
 	// Register next-layer mappings: IPv6 nh → extension header or upper protocol.
 	packet.RegisterNextLayer("IPv6", 0, "IPv6 Hop-by-Hop")
 	packet.RegisterNextLayer("IPv6", 43, "IPv6 Routing")
@@ -77,6 +87,15 @@ func init() {
 	packet.RegisterNextLayer("IPv6", 58, "ICMPv6")
 	packet.RegisterNextLayer("IPv6", 6, "TCP")
 	packet.RegisterNextLayer("IPv6", 17, "UDP")
+
+	// ICMPv6 type → sub-layer (Echo, NDP).
+	packet.RegisterNextLayer("ICMPv6", 128, "ICMPv6 Echo")
+	packet.RegisterNextLayer("ICMPv6", 129, "ICMPv6 Echo Reply")
+	packet.RegisterNextLayer("ICMPv6", 133, "NDP Router Solicitation")
+	packet.RegisterNextLayer("ICMPv6", 134, "NDP Router Advertisement")
+	packet.RegisterNextLayer("ICMPv6", 135, "NDP Neighbor Solicitation")
+	packet.RegisterNextLayer("ICMPv6", 136, "NDP Neighbor Advertisement")
+	packet.RegisterNextLayer("ICMPv6", 137, "NDP Redirect")
 
 	// Extension headers can chain to each other or to upper protocols.
 	packet.RegisterNextLayer("IPv6 Hop-by-Hop", 44, "IPv6 Fragment")
