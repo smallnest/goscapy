@@ -296,7 +296,92 @@ timeout := time.<span class="fn">After</span>(<span class="num">5</span> * time.
         </div>
       </div>
 
-      <!-- 7. 组合 — Count + Timeout + Filter -->
+      <!-- 7. SniffChan — Worker Pool -->
+      <div class="section" id="sniffchan-worker">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>SniffChan — Worker Pool 并发处理</h3>
+        </div>
+        <p>将 <code>SniffChan()</code> 与 worker pool 结合，实现数据包的并发处理。当数据包分析比较耗时（如协议解码、负载检查）时非常有用。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"sync"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Filter:  <span class="str">"tcp"</span>,
+    Timeout: <span class="num">30</span> * time.Second,
+})
+<span class="kw">defer</span> <span class="fn">stop</span>()
+
+<span class="cmt">// 启动 4 个 worker 协程</span>
+<span class="kw">var</span> wg sync.<span class="type">WaitGroup</span>
+<span class="kw">for</span> i := <span class="num">0</span>; i &lt; <span class="num">4</span>; i++ {
+    wg.<span class="fn">Add</span>(<span class="num">1</span>)
+    <span class="kw">go</span> <span class="kw">func</span>(id <span class="type">int</span>) {
+        <span class="kw">defer</span> wg.<span class="fn">Done</span>()
+        <span class="kw">for</span> pkt := <span class="kw">range</span> ch {
+            <span class="cmt">// 每个 worker 独立处理数据包</span>
+            tcp := packet.<span class="fn">TCP</span>(pkt)
+            ip := packet.<span class="fn">IP</span>(pkt)
+            <span class="kw">if</span> tcp != <span class="kw">nil</span> &amp;&amp; ip != <span class="kw">nil</span> {
+                fmt.<span class="fn">Printf</span>(<span class="str">"[worker %d] %s:%d → %s:%d\n"</span>,
+                    id, ip.<span class="fn">SrcIP</span>(), tcp.<span class="fn">SrcPort</span>(), ip.<span class="fn">DstIP</span>(), tcp.<span class="fn">DstPort</span>())
+            }
+        }
+    }(i)
+}
+
+<span class="cmt">// 等待所有 worker 完成（SniffChan 关闭通道）</span>
+wg.<span class="fn">Wait</span>()
+fmt.<span class="fn">Println</span>(<span class="str">"所有 worker 已完成。"</span>)</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <code>SniffChan()</code> 创建的通道缓冲区大小为 <strong>64</strong>。
+          这意味着捕获协程可以缓冲最多 64 个数据包而不会阻塞。
+          如果 worker 处理速度慢于捕获速度，数据包会先缓冲；
+          缓冲区满时，捕获协程会阻塞直到 worker 消费一个数据包。
+        </div>
+      </div>
+
+      <!-- 8. Sniff 与 SniffChan 对比 -->
+      <div class="section" id="sniff-vs-sniffchan">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>Sniff 与 SniffChan — 如何选择</h3>
+        </div>
+        <p>两种 API 使用相同的底层捕获机制，根据处理模式选择即可。</p>
+
+        <div class="table-wrapper"><table><thead><tr><th>特性</th><th><code>Sniff()</code> — 回调</th><th><code>SniffChan()</code> — 通道</th></tr></thead><tbody>
+          <tr><td>处理模型</td><td>同步回调</td><td>异步通道 + 协程</td></tr>
+          <tr><td>停止方式</td><td>处理函数返回 <code>false</code></td><td>调用 <code>stop()</code> 函数</td></tr>
+          <tr><td>并发</td><td>单协程（顺序处理）</td><td>多 worker 通过通道并发</td></tr>
+          <tr><td>缓冲</td><td>无缓冲（内联处理）</td><td>64 个数据包缓冲</td></tr>
+          <tr><td>适用场景</td><td>简单日志、计数、快速脚本</td><td>重型处理、worker pool、流水线架构</td></tr>
+          <tr><td>错误处理</td><td>直接返回 <code>error</code></td><td>错误导致通道关闭</td></tr>
+        </tbody></table></div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 提示</div>
+          简单脚本用 <code>Sniff()</code>；需要并发处理、通过 <code>select</code> 自定义停止条件、
+          或与其他 Go 通道系统集成时用 <code>SniffChan()</code>。
+        </div>
+      </div>
+
+      <!-- 9. 组合 — Count + Timeout + Filter -->
       <div class="section" id="sniff-combined">
         <div class="section-title">
           <div class="section-dot violet"></div>
