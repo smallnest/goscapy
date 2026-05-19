@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>完整指南 — goscapy</title>
+  <meta name="description" content="goscapy 完整使用指南：包结构、Builder API 参考、快捷函数、层绑定、协议注册、嗅探、平台差异等。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+  <div id="sidebar"></div>
+
+  <main id="mainContent" class="main-content">
+    <div class="content-wrapper">
+
+      <h1 id="top">完整指南</h1>
+      <p class="text-muted" style="font-size:1.05rem;margin-bottom:var(--space-2xl);">
+        关于 goscapy 的一切 — 从包结构到高级协议注册。
+      </p>
+
+      <!-- ==================== 包结构 ==================== -->
+      <h2 id="包结构总览">包结构总览</h2>
+
+      <p>goscapy 按功能划分为专注的包：</p>
+
+      <div class="table-wrapper anim-scale-in">
+        <table>
+          <thead><tr><th>包</th><th>导入路径</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>goscapy</code></td><td><code>pkg/goscapy</code></td><td>Builder API 和快捷函数 — 主入口</td></tr>
+            <tr><td><code>packet</code></td><td><code>pkg/packet</code></td><td>核心 Packet/Layer 类型、Build、Dissect、字段绑定、协议注册</td></tr>
+            <tr><td><code>layers</code></td><td><code>pkg/layers</code></td><td>协议层定义（Ethernet、ARP、IP、TCP、UDP、ICMP、IPv6、Dot1Q、VXLAN、GRE、DNS、DHCP、Raw）</td></tr>
+            <tr><td><code>fields</code></td><td><code>pkg/fields</code></td><td>字段类型系统 — 序列化、反序列化、TLV 选项</td></tr>
+            <tr><td><code>sendrecv</code></td><td><code>pkg/sendrecv</code></td><td>原始套接字发送/接收（Send、Sendp、Recv、SendRecv）</td></tr>
+            <tr><td><code>sniff</code></td><td><code>pkg/sniff</code></td><td>数据包嗅探，支持 BPF 过滤器</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="admonition tip">
+        <div class="admonition-title">💡 提示</div>
+        大多数用户只需要 <code>goscapy</code>（构建器 + 快捷函数）和 <code>packet</code>（解析 + 发送）。其他包按需导入。
+      </div>
+
+      <!-- ==================== Builder API ==================== -->
+      <h2 id="builder-api">Builder API 参考</h2>
+
+      <p>
+        每个协议都有一个 Builder，提供流畅的 setter 方法。使用 <code>.Over()</code> 串联各层，
+        最后调用 <code>.Build()</code> 完成构建。通用模式：
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"..."</span>).<span class="fn">DstMAC</span>(<span class="str">"..."</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().<span class="fn">SrcIP</span>(<span class="str">"..."</span>).<span class="fn">DstIP</span>(<span class="str">"..."</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().<span class="fn">SrcPort</span>(<span class="num">80</span>).<span class="fn">DstPort</span>(<span class="num">8080</span>)).
+    <span class="fn">Build</span>()</pre>
+        </div>
+      </div>
+
+      <h3 id="builder-ethernet">EthernetBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>SrcMAC(mac)</code></td><td><code>string</code></td><td>源 MAC 地址</td></tr>
+            <tr><td><code>DstMAC(mac)</code></td><td><code>string</code></td><td>目标 MAC 地址</td></tr>
+            <tr><td><code>Type(t)</code></td><td><code>uint16</code></td><td>EtherType（由绑定自动设置）</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-ip">IPBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>源 IPv4 地址</td></tr>
+            <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>目标 IPv4 地址</td></tr>
+            <tr><td><code>TTL(ttl)</code></td><td><code>uint8</code></td><td>生存时间（默认 64）</td></tr>
+            <tr><td><code>Proto(p)</code></td><td><code>uint8</code></td><td>协议号（由绑定自动设置）</td></tr>
+            <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>标识字段</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-tcp">TCPBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>SrcPort(p)</code></td><td><code>uint16</code></td><td>源端口</td></tr>
+            <tr><td><code>DstPort(p)</code></td><td><code>uint16</code></td><td>目标端口</td></tr>
+            <tr><td><code>Flags(f)</code></td><td><code>uint8</code></td><td>TCP 标志（SYN=0x02, ACK=0x10 等）</td></tr>
+            <tr><td><code>Seq(s)</code></td><td><code>uint32</code></td><td>序列号</td></tr>
+            <tr><td><code>Ack(a)</code></td><td><code>uint32</code></td><td>确认号</td></tr>
+            <tr><td><code>Window(w)</code></td><td><code>uint16</code></td><td>窗口大小</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-udp">UDPBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>SrcPort(p)</code></td><td><code>uint16</code></td><td>源端口</td></tr>
+            <tr><td><code>DstPort(p)</code></td><td><code>uint16</code></td><td>目标端口</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-icmp">ICMPBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>Type(t)</code></td><td><code>uint8</code></td><td>ICMP 类型（8=Echo Request, 0=Echo Reply）</td></tr>
+            <tr><td><code>Code(c)</code></td><td><code>uint8</code></td><td>ICMP 代码</td></tr>
+            <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>标识符（用于 Echo）</td></tr>
+            <tr><td><code>Seq(seq)</code></td><td><code>uint16</code></td><td>序列号（用于 Echo）</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-arp">ARPBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>Op(op)</code></td><td><code>uint16</code></td><td>操作（1=请求, 2=应答）</td></tr>
+            <tr><td><code>SrcMAC(mac)</code></td><td><code>string</code></td><td>发送方硬件地址</td></tr>
+            <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>发送方协议地址</td></tr>
+            <tr><td><code>DstMAC(mac)</code></td><td><code>string</code></td><td>目标硬件地址</td></tr>
+            <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>目标协议地址</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-ipv6">IPv6Builder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>源 IPv6 地址</td></tr>
+            <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>目标 IPv6 地址</td></tr>
+            <tr><td><code>NH(nh)</code></td><td><code>uint8</code></td><td>下一头部（由绑定自动设置）</td></tr>
+            <tr><td><code>HLim(hlim)</code></td><td><code>uint8</code></td><td>跳数限制</td></tr>
+            <tr><td><code>TC(tc)</code></td><td><code>uint8</code></td><td>流量类别</td></tr>
+            <tr><td><code>FL(fl)</code></td><td><code>uint32</code></td><td>流标签</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-icmpv6">ICMPv6Builder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>Type(t)</code></td><td><code>uint8</code></td><td>ICMPv6 类型（128=Echo Request, 129=Reply）</td></tr>
+            <tr><td><code>Code(c)</code></td><td><code>uint8</code></td><td>ICMPv6 代码</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-dot1q">Dot1QBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>VID(vid)</code></td><td><code>uint16</code></td><td>VLAN ID（0–4095）</td></tr>
+            <tr><td><code>PCP(pcp)</code></td><td><code>uint8</code></td><td>优先级代码点（0–7）</td></tr>
+            <tr><td><code>DEI(dei)</code></td><td><code>bool</code></td><td>丢弃合格指示</td></tr>
+            <tr><td><code>Type(etype)</code></td><td><code>uint16</code></td><td>内部 EtherType</td></tr>
+            <tr><td><code>TPID(tpid)</code></td><td><code>uint16</code></td><td>标签协议 ID（默认 0x8100）</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-vxlan">VXLANBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>VNI(vni)</code></td><td><code>uint32</code></td><td>VXLAN 网络标识符</td></tr>
+            <tr><td><code>Flags(f)</code></td><td><code>uint8</code></td><td>标志字节（默认 0x08 = I 标志）</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议（内部载荷）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-gre">GREBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>ProtocolType(pt)</code></td><td><code>uint16</code></td><td>协议类型（0x0800=IP, 0x6558=Ethernet）</td></tr>
+            <tr><td><code>Key(k)</code></td><td><code>uint32</code></td><td>Key 字段（设置 K 标志）</td></tr>
+            <tr><td><code>Seq(s)</code></td><td><code>uint32</code></td><td>序列号（设置 S 标志）</td></tr>
+            <tr><td><code>SetChecksum(c)</code></td><td><code>uint16</code></td><td>校验和（设置 C 标志）</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议（内部载荷）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-dns">DNSBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>事务 ID</td></tr>
+            <tr><td><code>Flags(f)</code></td><td><code>uint16</code></td><td>DNS 标志</td></tr>
+            <tr><td><code>QDCount(n)</code></td><td><code>uint16</code></td><td>问题数</td></tr>
+            <tr><td><code>ANCount(n)</code></td><td><code>uint16</code></td><td>回答数</td></tr>
+            <tr><td><code>Questions(qs)</code></td><td><code>[]dns.DNSQuestion</code></td><td>DNS 问题列表（自动构建消息）</td></tr>
+            <tr><td><code>Data(data)</code></td><td><code>[]byte</code></td><td>原始 DNS 消息数据</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="builder-dhcp">DHCPBuilder</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>方法</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>Op(op)</code></td><td><code>uint8</code></td><td>操作（1=BOOTREQUEST, 2=BOOTREPLY）</td></tr>
+            <tr><td><code>XID(xid)</code></td><td><code>uint32</code></td><td>事务 ID</td></tr>
+            <tr><td><code>MessageType(mt)</code></td><td><code>uint8</code></td><td>DHCP 消息类型（1=Discover, 2=Offer, …）</td></tr>
+            <tr><td><code>CIAddr(ip)</code></td><td><code>string</code></td><td>客户端 IP 地址</td></tr>
+            <tr><td><code>YIAddr(ip)</code></td><td><code>string</code></td><td>你的 IP 地址（来自服务器）</td></tr>
+            <tr><td><code>SIAddr(ip)</code></td><td><code>string</code></td><td>服务器 IP 地址</td></tr>
+            <tr><td><code>GIAddr(ip)</code></td><td><code>string</code></td><td>网关 IP 地址</td></tr>
+            <tr><td><code>CHAddr(addr)</code></td><td><code>[]byte</code></td><td>客户端硬件地址</td></tr>
+            <tr><td><code>Options(data)</code></td><td><code>[]byte</code></td><td>原始 DHCP 选项</td></tr>
+            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>叠加上层协议</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ==================== 快捷函数 ==================== -->
+      <h2 id="快捷函数参考">快捷函数参考</h2>
+
+      <p>
+        快捷函数通过一次调用构建常用的协议栈。返回值类型为 <code>([]byte, error)</code>。
+      </p>
+
+      <h3 id="shortcuts-ethernet">基于以太网</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>函数</th><th>签名</th></tr></thead>
+          <tbody>
+            <tr><td><code>EtherIP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, payload []byte)</code></td></tr>
+            <tr><td><code>EtherIPICMP</code></td><td><code>(dstMAC, dstIP string, icmpType, icmpCode uint8)</code></td></tr>
+            <tr><td><code>EtherIPTCP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</code></td></tr>
+            <tr><td><code>EtherIPUDP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16)</code></td></tr>
+            <tr><td><code>EtherARP</code></td><td><code>(srcMAC, dstMAC, psrc, pdst string, op uint16)</code></td></tr>
+            <tr><td><code>EtherDot1QIP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, vid uint16)</code></td></tr>
+            <tr><td><code>EtherIPUDPVXLAN</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, vni uint32, inner []byte)</code></td></tr>
+            <tr><td><code>EtherIPGRE</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, protoType uint16, key uint32, inner []byte)</code></td></tr>
+            <tr><td><code>EtherIPUDPDNS</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, dnsPort uint16, qs []dns.DNSQuestion)</code></td></tr>
+            <tr><td><code>EtherIPUDPDHCP</code></td><td><code>(srcMAC, dstMAC string, xid uint32, msgType uint8)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="shortcuts-ip">纯 IP（无以太网头）</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>函数</th><th>签名</th></tr></thead>
+          <tbody>
+            <tr><td><code>IPICMP</code></td><td><code>(srcIP, dstIP string, icmpType, icmpCode uint8)</code></td></tr>
+            <tr><td><code>IPTCP</code></td><td><code>(srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</code></td></tr>
+            <tr><td><code>IPUDP</code></td><td><code>(srcIP, dstIP string, srcPort, dstPort uint16)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="shortcuts-ipv6">IPv6</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>函数</th><th>签名</th></tr></thead>
+          <tbody>
+            <tr><td><code>IPv6ICMPv6Echo</code></td><td><code>(srcIP, dstIP string, id, seq uint16)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ==================== 层间绑定 ==================== -->
+      <h2 id="层间绑定">层间绑定</h2>
+
+      <p>
+        使用 <code>.Over()</code> 串联各层时，goscapy 会自动推断相邻层之间的字段。
+        例如，将 IP 叠加到以太网上会自动设置 <code>EtherType = 0x0800</code>。
+        将 TCP 叠加到 IP 上会设置 <code>IP.Proto = 6</code>。
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// EtherType 自动设置为 0x0800（IPv4）</span>
+<span class="cmt">// IP.Proto 自动设置为 1（ICMP）</span>
+raw, _ := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().<span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).<span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Build</span>()</pre>
+        </div>
+      </div>
+
+      <div class="admonition note">
+        <div class="admonition-title">📝 注意</div>
+        绑定在包初始化期间注册。你也可以使用 <code>packet.RegisterBinding(upper, lower, field, value)</code> 注册自定义绑定。
+      </div>
+
+      <!-- ==================== 协议注册 ==================== -->
+      <h2 id="协议注册系统">协议注册系统</h2>
+
+      <p>
+        goscapy 使用注册系统实现可扩展的协议支持。所有内置协议在 <code>init()</code> 期间自动注册。
+        你也可以注册自定义协议。
+      </p>
+
+      <h3 id="reg-key-field">Key Field（关键字段）</h3>
+      <p>
+        <strong>Key field</strong> 用于标识上层协议。对于 IP，key field 是 <code>proto</code> —
+        其值决定下一层（6=TCP, 17=UDP, 1=ICMP）。
+      </p>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre>packet.<span class="fn">RegisterKeyField</span>(<span class="str">"IP"</span>, <span class="str">"proto"</span>)</pre>
+        </div>
+      </div>
+
+      <h3 id="reg-next-layer">Next-Layer Mapping（下一层映射）</h3>
+      <p>将 key-field 值映射到特定的协议名称：</p>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre>packet.<span class="fn">RegisterNextLayer</span>(<span class="str">"IP"</span>, <span class="num">6</span>, <span class="str">"TCP"</span>)   <span class="cmt">// proto=6 → TCP</span>
+packet.<span class="fn">RegisterNextLayer</span>(<span class="str">"IP"</span>, <span class="num">17</span>, <span class="str">"UDP"</span>)  <span class="cmt">// proto=17 → UDP</span></pre>
+        </div>
+      </div>
+
+      <h3 id="reg-heuristic">Heuristic Dissectors（启发式解析器）</h3>
+      <p>用于通过端口号或其他启发式规则识别的协议：</p>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre><span class="cmt">// DHCP 通过 UDP 端口 67/68 检测</span>
+packet.<span class="fn">RegisterHeuristic</span>(<span class="str">"UDP"</span>, <span class="str">"dport"</span>, <span class="num">67</span>, <span class="str">"DHCP"</span>)
+packet.<span class="fn">RegisterHeuristic</span>(<span class="str">"UDP"</span>, <span class="str">"dport"</span>, <span class="num">68</span>, <span class="str">"DHCP"</span>)</pre>
+        </div>
+      </div>
+
+      <h3 id="reg-tunnel">Tunnel Payload（隧道载荷）</h3>
+      <p>隧道协议携带的内部载荷会被递归解析：</p>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre><span class="cmt">// VXLAN 携带内部以太网帧</span>
+packet.<span class="fn">RegisterTunnelPayload</span>(<span class="str">"VXLAN"</span>, <span class="str">"Ethernet"</span>)</pre>
+        </div>
+      </div>
+
+      <div class="admonition tip">
+        <div class="admonition-title">💡 提示</div>
+        解析管线支持最多 8 层嵌套隧道封装。
+      </div>
+
+      <!-- ==================== 自动校验和 ==================== -->
+      <h2 id="自动校验和">自动校验和</h2>
+
+      <p>
+        IP、TCP、UDP、ICMP、ICMPv6 和 IPv6 的校验和在 <code>.Build()</code> 期间通过构建钩子自动计算。
+        无需手动设置。
+      </p>
+
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>协议</th><th>自动计算的字段</th></tr></thead>
+          <tbody>
+            <tr><td>IP</td><td>总长度、头部校验和</td></tr>
+            <tr><td>TCP</td><td>校验和（含伪头部）</td></tr>
+            <tr><td>UDP</td><td>长度、校验和（含伪头部）</td></tr>
+            <tr><td>ICMP</td><td>校验和</td></tr>
+            <tr><td>IPv6</td><td>载荷长度</td></tr>
+            <tr><td>ICMPv6</td><td>校验和（含 IPv6 伪头部）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ==================== 构建钩子 ==================== -->
+      <h2 id="构建钩子">构建钩子</h2>
+
+      <p>
+        构建钩子在序列化期间运行自定义逻辑。它们可以根据上层载荷修改层字节。
+        所有内置的校验和计算都通过构建钩子实现。
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre><span class="cmt">// 注册自定义构建钩子</span>
+packet.<span class="fn">RegisterBuildHook</span>(<span class="str">"IP"</span>, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>, idx <span class="type">int</span>, upper []<span class="type">byte</span>) ([]<span class="type">byte</span>, <span class="type">error</span>) {
+    layer := pkt.<span class="fn">Layers</span>()[idx]
+    <span class="cmt">// 设置总长度字段</span>
+    layer.<span class="fn">Set</span>(<span class="str">"len"</span>, <span class="fn">uint16</span>(<span class="fn">len</span>(upper)+<span class="num">20</span>))
+    <span class="cmt">// 构建层字节</span>
+    <span class="kw">return</span> layer.<span class="fn">BuildBytes</span>()
+})</pre>
+        </div>
+      </div>
+
+      <!-- ==================== 解析器管线 ==================== -->
+      <h2 id="解析器管线">解析器管线</h2>
+
+      <p><code>Dissect</code> 函数通过以下步骤将原始字节解析为分层 Packet：</p>
+      <ol style="margin:var(--space-md) 0 var(--space-lg) var(--space-lg);line-height:2;">
+        <li>调用起始函数识别第一个协议</li>
+        <li>运行协议的解析器提取字段并确定头部大小</li>
+        <li>查找 key field 以确定下一个协议</li>
+        <li>如果没有 key-field 匹配，则回退到启发式规则</li>
+        <li>递归进入隧道载荷（如 VXLAN → 内部 Ethernet）</li>
+        <li>当无法识别更多层时停止</li>
+      </ol>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre><span class="cmt">// 从 Ethernet 开始解析</span>
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+
+<span class="cmt">// 或直接从 IP 开始</span>
+pkt, err := packet.<span class="fn">DissectByProto</span>(raw, <span class="str">"IP"</span>)
+
+<span class="cmt">// 访问各层</span>
+pkt.<span class="fn">String</span>()              <span class="cmt">// "Ethernet / IP / TCP"</span>
+pkt.<span class="fn">GetLayer</span>(<span class="str">"IP"</span>)        <span class="cmt">// 获取 IP 层</span>
+pkt.<span class="fn">HasLayer</span>(<span class="str">"TCP"</span>)       <span class="cmt">// true</span></pre>
+        </div>
+      </div>
+
+      <!-- ==================== 发送与接收 ==================== -->
+      <h2 id="发送与接收">发送与接收</h2>
+
+      <h3 id="send-functions">发送函数</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>函数</th><th>层级</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>Send(pkt, iface)</code></td><td>L3</td><td>在 IP 层级发送；OS 添加以太网头</td></tr>
+            <tr><td><code>Sendp(pkt, iface)</code></td><td>L2</td><td>发送完整以太网帧；你控制一切</td></tr>
+            <tr><td><code>Recv(iface, timeout)</code></td><td>L2</td><td>接收一个数据包并关闭</td></tr>
+            <tr><td><code>SendRecv(pkt, iface, timeout)</code></td><td>L3+L2</td><td>发送后收集所有响应</td></tr>
+            <tr><td><code>SendRecv1(pkt, iface, timeout)</code></td><td>L3+L2</td><td>发送后返回第一个响应</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="admonition note">
+        <div class="admonition-title">📝 注意</div>
+        <code>SendRecv</code> 在发送之前打开接收器，以避免在回环接口上错过快速响应。
+      </div>
+
+      <!-- ==================== 嗅探 ==================== -->
+      <h2 id="嗅探">嗅探</h2>
+
+      <h3 id="sniff-callback">回调 API</h3>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre>err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Filter:  <span class="str">"icmp"</span>,
+    Timeout: <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+    <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// true = 继续嗅探</span>
+})</pre>
+        </div>
+      </div>
+
+      <h3 id="sniff-channel">通道 API</h3>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre>ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface: <span class="str">"eth0"</span>,
+    Count: <span class="num">10</span>,
+})
+<span class="kw">defer</span> <span class="fn">stop</span>()
+<span class="kw">for</span> pkt := <span class="kw">range</span> ch {
+    fmt.<span class="fn">Println</span>(pkt)
+}</pre>
+        </div>
+      </div>
+
+      <!-- ==================== BPF 过滤器 ==================== -->
+      <h2 id="bpf-过滤器">BPF 过滤器</h2>
+
+      <p>
+        BPF（Berkeley Packet Filter）表达式被编译为内核级过滤器，实现最高性能。
+        编译需要系统 PATH 中有 <code>tcpdump</code>。
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+        <div class="code-body">
+<pre><span class="cmt">// 将过滤器字符串编译为 BPF 指令</span>
+instructions, err := sniff.<span class="fn">CompileFilter</span>(<span class="str">"tcp port 80 and host 192.168.1.1"</span>)
+
+<span class="cmt">// 使用预编译的指令（无需 tcpdump）</span>
+ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:        <span class="str">"eth0"</span>,
+    Instructions: instructions,
+    Count:        <span class="num">100</span>,
+})</pre>
+        </div>
+      </div>
+
+      <div class="admonition tip">
+        <div class="admonition-title">💡 提示</div>
+        在启动时使用 <code>CompileFilter</code> 预编译过滤器，避免运行时依赖 <code>tcpdump</code>。
+        在 <code>SniffConfig</code> 中使用 <code>Instructions</code> 代替 <code>Filter</code>。
+      </div>
+
+      <!-- ==================== 平台差异 ==================== -->
+      <h2 id="平台差异">平台差异</h2>
+
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>特性</th><th>macOS (Darwin)</th><th>Linux</th></tr></thead>
+          <tbody>
+            <tr><td>L2 发送/接收</td><td>BPF 设备（<code>/dev/bpf*</code>）</td><td><code>AF_PACKET</code> 套接字</td></tr>
+            <tr><td>L3 发送/接收</td><td><code>AF_INET</code> 原始套接字</td><td><code>AF_INET</code> 原始套接字</td></tr>
+            <tr><td>BPF 过滤器</td><td>内核 BPF（通过 <code>BIOCSETF</code>）</td><td><code>SO_ATTACH_FILTER</code></td></tr>
+            <tr><td>回环接口</td><td><code>lo0</code></td><td><code>lo</code></td></tr>
+            <tr><td>权限要求</td><td>root（<code>sudo</code>）</td><td>root（<code>sudo</code>）或 <code>CAP_NET_RAW</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="admonition note">
+        <div class="admonition-title">📝 注意</div>
+        使用 <code>sendrecv.LoopbackName()</code> 获取当前平台的正确回环接口名称。
+      </div>
+
+    </div>
+
+    <footer class="footer">
+      <div class="footer-links">
+        <a href="index.html">首页</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+        <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT 许可证</a>
+      </div>
+      <p>&copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。</p>
+    </footer>
+
+  </main>
+
+  <script src="../js/nav.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/animations.js"></script>
+</body>
+</html>
