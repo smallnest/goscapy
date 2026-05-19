@@ -9,316 +9,229 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+  <canvas id="particleCanvas"></canvas>
 
-  <div id="navbar"></div>
-  <div id="sidebar"></div>
+  <div class="container">
 
-  <main id="mainContent" class="main-content">
-    <div class="content-wrapper">
+    <div id="navbar"></div>
+    <div id="toc"></div>
 
-      <h1 id="top">Complete Guide</h1>
-      <p class="text-muted" style="font-size:1.05rem;margin-bottom:var(--space-2xl);">
-        Everything you need to know about goscapy — from package structure to advanced protocol registration.
-      </p>
+    <main id="mainContent">
 
-      <!-- ==================== Package Structure ==================== -->
-      <h2 id="package-structure">Package Structure</h2>
-
-      <p>goscapy is organized into focused packages:</p>
-
-      <div class="table-wrapper anim-scale-in">
-        <table>
-          <thead><tr><th>Package</th><th>Import Path</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>goscapy</code></td><td><code>pkg/goscapy</code></td><td>Builder API and shortcut functions — the main entry point</td></tr>
-            <tr><td><code>packet</code></td><td><code>pkg/packet</code></td><td>Core Packet/Layer types, Build, Dissect, field binding, protocol registration</td></tr>
-            <tr><td><code>layers</code></td><td><code>pkg/layers</code></td><td>Protocol layer definitions (Ethernet, ARP, IP, TCP, UDP, ICMP, IPv6, Dot1Q, VXLAN, GRE, DNS, DHCP, Raw)</td></tr>
-            <tr><td><code>fields</code></td><td><code>pkg/fields</code></td><td>Field type system — serialization, deserialization, TLV options</td></tr>
-            <tr><td><code>sendrecv</code></td><td><code>pkg/sendrecv</code></td><td>Raw socket send/receive (Send, Sendp, Recv, SendRecv)</td></tr>
-            <tr><td><code>sniff</code></td><td><code>pkg/sniff</code></td><td>Packet sniffing with BPF filter support</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="admonition tip">
-        <div class="admonition-title">💡 Tip</div>
-        Most users only need <code>goscapy</code> (builders + shortcuts) and <code>packet</code> (dissect + send). Import the others as needed.
-      </div>
-
-      <!-- ==================== Builder API ==================== -->
-      <h2 id="builder-api">Builder API Reference</h2>
-
-      <p>
-        Every protocol has a Builder with fluent setter methods. Chain layers with <code>.Over()</code>,
-        finalize with <code>.Build()</code>. The generic flow:
-      </p>
-
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header">
-          <span class="code-lang">go</span>
-          <button class="code-copy">Copy</button>
+      <!-- Package Structure -->
+      <div class="section" id="package-structure">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Package Structure</h3>
         </div>
-        <div class="code-body">
+        <p>goscapy is organized into focused packages:</p>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Package</th><th>Import Path</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>goscapy</code></td><td><code>pkg/goscapy</code></td><td>Builder API and shortcut functions — the main entry point</td></tr>
+              <tr><td><code>packet</code></td><td><code>pkg/packet</code></td><td>Core Packet/Layer types, Build, Dissect, field binding, protocol registration</td></tr>
+              <tr><td><code>layers</code></td><td><code>pkg/layers</code></td><td>Protocol layer definitions (Ethernet, ARP, IP, TCP, UDP, ICMP, IPv6, Dot1Q, VXLAN, GRE, DNS, DHCP, Raw)</td></tr>
+              <tr><td><code>fields</code></td><td><code>pkg/fields</code></td><td>Field type system — serialization, deserialization, TLV options</td></tr>
+              <tr><td><code>sendrecv</code></td><td><code>pkg/sendrecv</code></td><td>Raw socket send/receive (Send, Sendp, Recv, SendRecv)</td></tr>
+              <tr><td><code>sniff</code></td><td><code>pkg/sniff</code></td><td>Packet sniffing with BPF filter support</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          Most users only need <code>goscapy</code> (builders + shortcuts) and <code>packet</code> (dissect + send). Import the others as needed.
+        </div>
+      </div>
+
+      <!-- Builder API Reference -->
+      <div class="section" id="builder-api">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Builder API Reference</h3>
+        </div>
+        <p>Every protocol has a Builder with fluent setter methods. Chain layers with <code>.Over()</code>, finalize with <code>.Build()</code>.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre>raw, err := goscapy.<span class="fn">NewEthernet</span>().
     <span class="fn">SrcMAC</span>(<span class="str">"..."</span>).<span class="fn">DstMAC</span>(<span class="str">"..."</span>).
     <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().<span class="fn">SrcIP</span>(<span class="str">"..."</span>).<span class="fn">DstIP</span>(<span class="str">"..."</span>)).
     <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().<span class="fn">SrcPort</span>(<span class="num">80</span>).<span class="fn">DstPort</span>(<span class="num">8080</span>)).
     <span class="fn">Build</span>()</pre>
+          </div>
         </div>
+
+        <h3>EthernetBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>SrcMAC(mac)</code></td><td><code>string</code></td><td>Source MAC address</td></tr>
+          <tr><td><code>DstMAC(mac)</code></td><td><code>string</code></td><td>Destination MAC address</td></tr>
+          <tr><td><code>Type(t)</code></td><td><code>uint16</code></td><td>EtherType (auto-set by binding)</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>IPBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>Source IPv4 address</td></tr>
+          <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>Destination IPv4 address</td></tr>
+          <tr><td><code>TTL(ttl)</code></td><td><code>uint8</code></td><td>Time to live (default 64)</td></tr>
+          <tr><td><code>Proto(p)</code></td><td><code>uint8</code></td><td>Protocol number (auto-set by binding)</td></tr>
+          <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>Identification field</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>TCPBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>SrcPort(p)</code></td><td><code>uint16</code></td><td>Source port</td></tr>
+          <tr><td><code>DstPort(p)</code></td><td><code>uint16</code></td><td>Destination port</td></tr>
+          <tr><td><code>Flags(f)</code></td><td><code>uint8</code></td><td>TCP flags (SYN=0x02, ACK=0x10, etc.)</td></tr>
+          <tr><td><code>Seq(s)</code></td><td><code>uint32</code></td><td>Sequence number</td></tr>
+          <tr><td><code>Ack(a)</code></td><td><code>uint32</code></td><td>Acknowledgment number</td></tr>
+          <tr><td><code>Window(w)</code></td><td><code>uint16</code></td><td>Window size</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>UDPBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>SrcPort(p)</code></td><td><code>uint16</code></td><td>Source port</td></tr>
+          <tr><td><code>DstPort(p)</code></td><td><code>uint16</code></td><td>Destination port</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>ICMPBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>Type(t)</code></td><td><code>uint8</code></td><td>ICMP type (8=Echo Request, 0=Echo Reply)</td></tr>
+          <tr><td><code>Code(c)</code></td><td><code>uint8</code></td><td>ICMP code</td></tr>
+          <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>Identifier (for Echo)</td></tr>
+          <tr><td><code>Seq(seq)</code></td><td><code>uint16</code></td><td>Sequence number (for Echo)</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>ARPBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>Op(op)</code></td><td><code>uint16</code></td><td>Operation (1=Request, 2=Reply)</td></tr>
+          <tr><td><code>SrcMAC(mac)</code></td><td><code>string</code></td><td>Sender hardware address</td></tr>
+          <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>Sender protocol address</td></tr>
+          <tr><td><code>DstMAC(mac)</code></td><td><code>string</code></td><td>Target hardware address</td></tr>
+          <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>Target protocol address</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>IPv6Builder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>Source IPv6 address</td></tr>
+          <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>Destination IPv6 address</td></tr>
+          <tr><td><code>NH(nh)</code></td><td><code>uint8</code></td><td>Next header (auto-set by binding)</td></tr>
+          <tr><td><code>HLim(hlim)</code></td><td><code>uint8</code></td><td>Hop limit</td></tr>
+          <tr><td><code>TC(tc)</code></td><td><code>uint8</code></td><td>Traffic class</td></tr>
+          <tr><td><code>FL(fl)</code></td><td><code>uint32</code></td><td>Flow label</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>ICMPv6Builder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>Type(t)</code></td><td><code>uint8</code></td><td>ICMPv6 type (128=Echo Request, 129=Reply)</td></tr>
+          <tr><td><code>Code(c)</code></td><td><code>uint8</code></td><td>ICMPv6 code</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>Dot1QBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>VID(vid)</code></td><td><code>uint16</code></td><td>VLAN ID (0–4095)</td></tr>
+          <tr><td><code>PCP(pcp)</code></td><td><code>uint8</code></td><td>Priority code point (0–7)</td></tr>
+          <tr><td><code>DEI(dei)</code></td><td><code>bool</code></td><td>Drop eligible indicator</td></tr>
+          <tr><td><code>Type(etype)</code></td><td><code>uint16</code></td><td>Inner EtherType</td></tr>
+          <tr><td><code>TPID(tpid)</code></td><td><code>uint16</code></td><td>Tag Protocol ID (default 0x8100)</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>VXLANBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>VNI(vni)</code></td><td><code>uint32</code></td><td>VXLAN Network Identifier</td></tr>
+          <tr><td><code>Flags(f)</code></td><td><code>uint8</code></td><td>Flags byte (default 0x08 = I flag)</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer (inner payload)</td></tr>
+        </tbody></table></div>
+
+        <h3>GREBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>ProtocolType(pt)</code></td><td><code>uint16</code></td><td>Protocol type (0x0800=IP, 0x6558=Ethernet)</td></tr>
+          <tr><td><code>Key(k)</code></td><td><code>uint32</code></td><td>Key field (sets K flag)</td></tr>
+          <tr><td><code>Seq(s)</code></td><td><code>uint32</code></td><td>Sequence number (sets S flag)</td></tr>
+          <tr><td><code>SetChecksum(c)</code></td><td><code>uint16</code></td><td>Checksum (sets C flag)</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer (inner payload)</td></tr>
+        </tbody></table></div>
+
+        <h3>DNSBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>Transaction ID</td></tr>
+          <tr><td><code>Flags(f)</code></td><td><code>uint16</code></td><td>DNS flags</td></tr>
+          <tr><td><code>QDCount(n)</code></td><td><code>uint16</code></td><td>Question count</td></tr>
+          <tr><td><code>ANCount(n)</code></td><td><code>uint16</code></td><td>Answer count</td></tr>
+          <tr><td><code>Questions(qs)</code></td><td><code>[]dns.DNSQuestion</code></td><td>DNS questions (auto-builds message)</td></tr>
+          <tr><td><code>Data(data)</code></td><td><code>[]byte</code></td><td>Raw DNS message data</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
+
+        <h3>DHCPBuilder</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>Op(op)</code></td><td><code>uint8</code></td><td>Operation (1=BOOTREQUEST, 2=BOOTREPLY)</td></tr>
+          <tr><td><code>XID(xid)</code></td><td><code>uint32</code></td><td>Transaction ID</td></tr>
+          <tr><td><code>MessageType(mt)</code></td><td><code>uint8</code></td><td>DHCP message type (1=Discover, 2=Offer, …)</td></tr>
+          <tr><td><code>CIAddr(ip)</code></td><td><code>string</code></td><td>Client IP address</td></tr>
+          <tr><td><code>YIAddr(ip)</code></td><td><code>string</code></td><td>Your IP address (from server)</td></tr>
+          <tr><td><code>SIAddr(ip)</code></td><td><code>string</code></td><td>Server IP address</td></tr>
+          <tr><td><code>GIAddr(ip)</code></td><td><code>string</code></td><td>Gateway IP address</td></tr>
+          <tr><td><code>CHAddr(addr)</code></td><td><code>[]byte</code></td><td>Client hardware address</td></tr>
+          <tr><td><code>Options(data)</code></td><td><code>[]byte</code></td><td>Raw DHCP options</td></tr>
+          <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
+        </tbody></table></div>
       </div>
 
-      <h3 id="builder-ethernet">EthernetBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>SrcMAC(mac)</code></td><td><code>string</code></td><td>Source MAC address</td></tr>
-            <tr><td><code>DstMAC(mac)</code></td><td><code>string</code></td><td>Destination MAC address</td></tr>
-            <tr><td><code>Type(t)</code></td><td><code>uint16</code></td><td>EtherType (auto-set by binding)</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-ip">IPBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>Source IPv4 address</td></tr>
-            <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>Destination IPv4 address</td></tr>
-            <tr><td><code>TTL(ttl)</code></td><td><code>uint8</code></td><td>Time to live (default 64)</td></tr>
-            <tr><td><code>Proto(p)</code></td><td><code>uint8</code></td><td>Protocol number (auto-set by binding)</td></tr>
-            <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>Identification field</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-tcp">TCPBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>SrcPort(p)</code></td><td><code>uint16</code></td><td>Source port</td></tr>
-            <tr><td><code>DstPort(p)</code></td><td><code>uint16</code></td><td>Destination port</td></tr>
-            <tr><td><code>Flags(f)</code></td><td><code>uint8</code></td><td>TCP flags (SYN=0x02, ACK=0x10, etc.)</td></tr>
-            <tr><td><code>Seq(s)</code></td><td><code>uint32</code></td><td>Sequence number</td></tr>
-            <tr><td><code>Ack(a)</code></td><td><code>uint32</code></td><td>Acknowledgment number</td></tr>
-            <tr><td><code>Window(w)</code></td><td><code>uint16</code></td><td>Window size</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-udp">UDPBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>SrcPort(p)</code></td><td><code>uint16</code></td><td>Source port</td></tr>
-            <tr><td><code>DstPort(p)</code></td><td><code>uint16</code></td><td>Destination port</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-icmp">ICMPBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>Type(t)</code></td><td><code>uint8</code></td><td>ICMP type (8=Echo Request, 0=Echo Reply)</td></tr>
-            <tr><td><code>Code(c)</code></td><td><code>uint8</code></td><td>ICMP code</td></tr>
-            <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>Identifier (for Echo)</td></tr>
-            <tr><td><code>Seq(seq)</code></td><td><code>uint16</code></td><td>Sequence number (for Echo)</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-arp">ARPBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>Op(op)</code></td><td><code>uint16</code></td><td>Operation (1=Request, 2=Reply)</td></tr>
-            <tr><td><code>SrcMAC(mac)</code></td><td><code>string</code></td><td>Sender hardware address</td></tr>
-            <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>Sender protocol address</td></tr>
-            <tr><td><code>DstMAC(mac)</code></td><td><code>string</code></td><td>Target hardware address</td></tr>
-            <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>Target protocol address</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-ipv6">IPv6Builder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>SrcIP(ip)</code></td><td><code>string</code></td><td>Source IPv6 address</td></tr>
-            <tr><td><code>DstIP(ip)</code></td><td><code>string</code></td><td>Destination IPv6 address</td></tr>
-            <tr><td><code>NH(nh)</code></td><td><code>uint8</code></td><td>Next header (auto-set by binding)</td></tr>
-            <tr><td><code>HLim(hlim)</code></td><td><code>uint8</code></td><td>Hop limit</td></tr>
-            <tr><td><code>TC(tc)</code></td><td><code>uint8</code></td><td>Traffic class</td></tr>
-            <tr><td><code>FL(fl)</code></td><td><code>uint32</code></td><td>Flow label</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-icmpv6">ICMPv6Builder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>Type(t)</code></td><td><code>uint8</code></td><td>ICMPv6 type (128=Echo Request, 129=Reply)</td></tr>
-            <tr><td><code>Code(c)</code></td><td><code>uint8</code></td><td>ICMPv6 code</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-dot1q">Dot1QBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>VID(vid)</code></td><td><code>uint16</code></td><td>VLAN ID (0–4095)</td></tr>
-            <tr><td><code>PCP(pcp)</code></td><td><code>uint8</code></td><td>Priority code point (0–7)</td></tr>
-            <tr><td><code>DEI(dei)</code></td><td><code>bool</code></td><td>Drop eligible indicator</td></tr>
-            <tr><td><code>Type(etype)</code></td><td><code>uint16</code></td><td>Inner EtherType</td></tr>
-            <tr><td><code>TPID(tpid)</code></td><td><code>uint16</code></td><td>Tag Protocol ID (default 0x8100)</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-vxlan">VXLANBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>VNI(vni)</code></td><td><code>uint32</code></td><td>VXLAN Network Identifier</td></tr>
-            <tr><td><code>Flags(f)</code></td><td><code>uint8</code></td><td>Flags byte (default 0x08 = I flag)</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer (inner payload)</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-gre">GREBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>ProtocolType(pt)</code></td><td><code>uint16</code></td><td>Protocol type (0x0800=IP, 0x6558=Ethernet)</td></tr>
-            <tr><td><code>Key(k)</code></td><td><code>uint32</code></td><td>Key field (sets K flag)</td></tr>
-            <tr><td><code>Seq(s)</code></td><td><code>uint32</code></td><td>Sequence number (sets S flag)</td></tr>
-            <tr><td><code>SetChecksum(c)</code></td><td><code>uint16</code></td><td>Checksum (sets C flag)</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer (inner payload)</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-dns">DNSBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>ID(id)</code></td><td><code>uint16</code></td><td>Transaction ID</td></tr>
-            <tr><td><code>Flags(f)</code></td><td><code>uint16</code></td><td>DNS flags</td></tr>
-            <tr><td><code>QDCount(n)</code></td><td><code>uint16</code></td><td>Question count</td></tr>
-            <tr><td><code>ANCount(n)</code></td><td><code>uint16</code></td><td>Answer count</td></tr>
-            <tr><td><code>Questions(qs)</code></td><td><code>[]dns.DNSQuestion</code></td><td>DNS questions (auto-builds message)</td></tr>
-            <tr><td><code>Data(data)</code></td><td><code>[]byte</code></td><td>Raw DNS message data</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="builder-dhcp">DHCPBuilder</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Method</th><th>Parameter</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>Op(op)</code></td><td><code>uint8</code></td><td>Operation (1=BOOTREQUEST, 2=BOOTREPLY)</td></tr>
-            <tr><td><code>XID(xid)</code></td><td><code>uint32</code></td><td>Transaction ID</td></tr>
-            <tr><td><code>MessageType(mt)</code></td><td><code>uint8</code></td><td>DHCP message type (1=Discover, 2=Offer, …)</td></tr>
-            <tr><td><code>CIAddr(ip)</code></td><td><code>string</code></td><td>Client IP address</td></tr>
-            <tr><td><code>YIAddr(ip)</code></td><td><code>string</code></td><td>Your IP address (from server)</td></tr>
-            <tr><td><code>SIAddr(ip)</code></td><td><code>string</code></td><td>Server IP address</td></tr>
-            <tr><td><code>GIAddr(ip)</code></td><td><code>string</code></td><td>Gateway IP address</td></tr>
-            <tr><td><code>CHAddr(addr)</code></td><td><code>[]byte</code></td><td>Client hardware address</td></tr>
-            <tr><td><code>Options(data)</code></td><td><code>[]byte</code></td><td>Raw DHCP options</td></tr>
-            <tr><td><code>Over(upper)</code></td><td><code>LayerBuilder</code></td><td>Stack an upper layer</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- ==================== Shortcut Functions ==================== -->
-      <h2 id="shortcut-functions">Shortcut Functions Reference</h2>
-
-      <p>
-        Shortcut functions build common protocol stacks in one call. They return <code>([]byte, error)</code>.
-      </p>
-
-      <h3 id="shortcuts-ethernet">Ethernet-based</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Function</th><th>Signature</th></tr></thead>
-          <tbody>
-            <tr><td><code>EtherIP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, payload []byte)</code></td></tr>
-            <tr><td><code>EtherIPICMP</code></td><td><code>(dstMAC, dstIP string, icmpType, icmpCode uint8)</code></td></tr>
-            <tr><td><code>EtherIPTCP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</code></td></tr>
-            <tr><td><code>EtherIPUDP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16)</code></td></tr>
-            <tr><td><code>EtherARP</code></td><td><code>(srcMAC, dstMAC, psrc, pdst string, op uint16)</code></td></tr>
-            <tr><td><code>EtherDot1QIP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, vid uint16)</code></td></tr>
-            <tr><td><code>EtherIPUDPVXLAN</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, vni uint32, inner []byte)</code></td></tr>
-            <tr><td><code>EtherIPGRE</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, protoType uint16, key uint32, inner []byte)</code></td></tr>
-            <tr><td><code>EtherIPUDPDNS</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, dnsPort uint16, qs []dns.DNSQuestion)</code></td></tr>
-            <tr><td><code>EtherIPUDPDHCP</code></td><td><code>(srcMAC, dstMAC string, xid uint32, msgType uint8)</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="shortcuts-ip">IP-only (no Ethernet)</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Function</th><th>Signature</th></tr></thead>
-          <tbody>
-            <tr><td><code>IPICMP</code></td><td><code>(srcIP, dstIP string, icmpType, icmpCode uint8)</code></td></tr>
-            <tr><td><code>IPTCP</code></td><td><code>(srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</code></td></tr>
-            <tr><td><code>IPUDP</code></td><td><code>(srcIP, dstIP string, srcPort, dstPort uint16)</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 id="shortcuts-ipv6">IPv6</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Function</th><th>Signature</th></tr></thead>
-          <tbody>
-            <tr><td><code>IPv6ICMPv6Echo</code></td><td><code>(srcIP, dstIP string, id, seq uint16)</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- ==================== Layer Binding ==================== -->
-      <h2 id="layer-binding">Layer Binding</h2>
-
-      <p>
-        When you stack layers with <code>.Over()</code>, goscapy automatically infers fields
-        between adjacent layers. For example, placing IP over Ethernet automatically sets
-        <code>EtherType = 0x0800</code>. Placing TCP over IP sets <code>IP.Proto = 6</code>.
-      </p>
-
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header">
-          <span class="code-lang">go</span>
-          <button class="code-copy">Copy</button>
+      <!-- Shortcut Functions Reference -->
+      <div class="section" id="shortcut-functions">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>Shortcut Functions Reference</h3>
         </div>
-        <div class="code-body">
+        <p>Shortcut functions build common protocol stacks in one call. They return <code>([]byte, error)</code>.</p>
+
+        <h3>Ethernet-based</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Signature</th></tr></thead><tbody>
+          <tr><td><code>EtherIP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, payload []byte)</code></td></tr>
+          <tr><td><code>EtherIPICMP</code></td><td><code>(dstMAC, dstIP string, icmpType, icmpCode uint8)</code></td></tr>
+          <tr><td><code>EtherIPTCP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</code></td></tr>
+          <tr><td><code>EtherIPUDP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16)</code></td></tr>
+          <tr><td><code>EtherARP</code></td><td><code>(srcMAC, dstMAC, psrc, pdst string, op uint16)</code></td></tr>
+          <tr><td><code>EtherDot1QIP</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, vid uint16)</code></td></tr>
+          <tr><td><code>EtherIPUDPVXLAN</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, vni uint32, inner []byte)</code></td></tr>
+          <tr><td><code>EtherIPGRE</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, protoType uint16, key uint32, inner []byte)</code></td></tr>
+          <tr><td><code>EtherIPUDPDNS</code></td><td><code>(srcMAC, dstMAC, srcIP, dstIP string, dnsPort uint16, qs []dns.DNSQuestion)</code></td></tr>
+          <tr><td><code>EtherIPUDPDHCP</code></td><td><code>(srcMAC, dstMAC string, xid uint32, msgType uint8)</code></td></tr>
+        </tbody></table></div>
+
+        <h3>IP-only (no Ethernet)</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Signature</th></tr></thead><tbody>
+          <tr><td><code>IPICMP</code></td><td><code>(srcIP, dstIP string, icmpType, icmpCode uint8)</code></td></tr>
+          <tr><td><code>IPTCP</code></td><td><code>(srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</code></td></tr>
+          <tr><td><code>IPUDP</code></td><td><code>(srcIP, dstIP string, srcPort, dstPort uint16)</code></td></tr>
+        </tbody></table></div>
+
+        <h3>IPv6</h3>
+        <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Signature</th></tr></thead><tbody>
+          <tr><td><code>IPv6ICMPv6Echo</code></td><td><code>(srcIP, dstIP string, id, seq uint16)</code></td></tr>
+        </tbody></table></div>
+      </div>
+
+      <!-- Layer Binding -->
+      <div class="section" id="layer-binding">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>Layer Binding</h3>
+        </div>
+        <p>When you stack layers with <code>.Over()</code>, goscapy automatically infers fields between adjacent layers. For example, placing IP over Ethernet automatically sets <code>EtherType = 0x0800</code>.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre><span class="cmt">// EtherType is auto-set to 0x0800 (IPv4)</span>
 <span class="cmt">// IP.Proto is auto-set to 1 (ICMP)</span>
 raw, _ := goscapy.<span class="fn">NewEthernet</span>().
@@ -327,139 +240,119 @@ raw, _ := goscapy.<span class="fn">NewEthernet</span>().
     <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().<span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).<span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
     <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
     <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          Bindings are registered during package initialization. You can also register custom bindings with <code>packet.RegisterBinding(upper, lower, field, value)</code>.
         </div>
       </div>
 
-      <div class="admonition note">
-        <div class="admonition-title">📝 Note</div>
-        Bindings are registered during package initialization. You can also register custom bindings
-        with <code>packet.RegisterBinding(upper, lower, field, value)</code>.
-      </div>
+      <!-- Protocol Registration -->
+      <div class="section" id="protocol-registration">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>Protocol Registration</h3>
+        </div>
+        <p>goscapy uses a registration system for extensible protocol support. All built-in protocols register themselves during <code>init()</code>.</p>
 
-      <!-- ==================== Protocol Registration ==================== -->
-      <h2 id="protocol-registration">Protocol Registration</h2>
-
-      <p>
-        goscapy uses a registration system for extensible protocol support. All built-in protocols
-        register themselves during <code>init()</code>. You can register custom protocols too.
-      </p>
-
-      <h3 id="reg-key-field">Key Field</h3>
-      <p>
-        A <strong>key field</strong> identifies which upper-layer protocol follows. For IP, the key field
-        is <code>proto</code> — its value determines the next layer (6=TCP, 17=UDP, 1=ICMP).
-      </p>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+        <h3>Key Field</h3>
+        <p>A <strong>key field</strong> identifies which upper-layer protocol follows. For IP, the key field is <code>proto</code>.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre>packet.<span class="fn">RegisterKeyField</span>(<span class="str">"IP"</span>, <span class="str">"proto"</span>)</pre>
+          </div>
         </div>
-      </div>
 
-      <h3 id="reg-next-layer">Next-Layer Mapping</h3>
-      <p>
-        Maps a key-field value to a specific protocol name:
-      </p>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+        <h3>Next-Layer Mapping</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre>packet.<span class="fn">RegisterNextLayer</span>(<span class="str">"IP"</span>, <span class="num">6</span>, <span class="str">"TCP"</span>)   <span class="cmt">// proto=6 → TCP</span>
 packet.<span class="fn">RegisterNextLayer</span>(<span class="str">"IP"</span>, <span class="num">17</span>, <span class="str">"UDP"</span>)  <span class="cmt">// proto=17 → UDP</span></pre>
+          </div>
         </div>
-      </div>
 
-      <h3 id="reg-heuristic">Heuristic Dissectors</h3>
-      <p>
-        For protocols identified by port numbers or other heuristic rules:
-      </p>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+        <h3>Heuristic Dissectors</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre><span class="cmt">// DHCP detected by UDP ports 67/68</span>
 packet.<span class="fn">RegisterHeuristic</span>(<span class="str">"UDP"</span>, <span class="str">"dport"</span>, <span class="num">67</span>, <span class="str">"DHCP"</span>)
 packet.<span class="fn">RegisterHeuristic</span>(<span class="str">"UDP"</span>, <span class="str">"dport"</span>, <span class="num">68</span>, <span class="str">"DHCP"</span>)</pre>
+          </div>
         </div>
-      </div>
 
-      <h3 id="reg-tunnel">Tunnel Payload</h3>
-      <p>
-        Tunnel protocols carry inner payloads that are dissected recursively:
-      </p>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+        <h3>Tunnel Payload</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre><span class="cmt">// VXLAN carries inner Ethernet frames</span>
 packet.<span class="fn">RegisterTunnelPayload</span>(<span class="str">"VXLAN"</span>, <span class="str">"Ethernet"</span>)</pre>
+          </div>
+        </div>
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          The dissection pipeline supports up to 8 levels of nested tunnel encapsulation.
         </div>
       </div>
 
-      <div class="admonition tip">
-        <div class="admonition-title">💡 Tip</div>
-        The dissection pipeline supports up to 8 levels of nested tunnel encapsulation.
+      <!-- Auto Checksums -->
+      <div class="section" id="auto-checksums">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>Auto Checksums</h3>
+        </div>
+        <p>Checksums for IP, TCP, UDP, ICMP, ICMPv6, and IPv6 are computed automatically during <code>.Build()</code> via build hooks.</p>
+        <div class="table-wrapper"><table><thead><tr><th>Protocol</th><th>Auto-computed Fields</th></tr></thead><tbody>
+          <tr><td>IP</td><td>Total length, header checksum</td></tr>
+          <tr><td>TCP</td><td>Checksum (with pseudo-header)</td></tr>
+          <tr><td>UDP</td><td>Length, checksum (with pseudo-header)</td></tr>
+          <tr><td>ICMP</td><td>Checksum</td></tr>
+          <tr><td>IPv6</td><td>Payload length</td></tr>
+          <tr><td>ICMPv6</td><td>Checksum (with IPv6 pseudo-header)</td></tr>
+        </tbody></table></div>
       </div>
 
-      <!-- ==================== Auto Checksums ==================== -->
-      <h2 id="auto-checksums">Auto Checksums</h2>
-
-      <p>
-        Checksums for IP, TCP, UDP, ICMP, ICMPv6, and IPv6 are computed automatically
-        during <code>.Build()</code> via build hooks. You never need to set them manually.
-      </p>
-
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Protocol</th><th>Auto-computed Fields</th></tr></thead>
-          <tbody>
-            <tr><td>IP</td><td>Total length, header checksum</td></tr>
-            <tr><td>TCP</td><td>Checksum (with pseudo-header)</td></tr>
-            <tr><td>UDP</td><td>Length, checksum (with pseudo-header)</td></tr>
-            <tr><td>ICMP</td><td>Checksum</td></tr>
-            <tr><td>IPv6</td><td>Payload length</td></tr>
-            <tr><td>ICMPv6</td><td>Checksum (with IPv6 pseudo-header)</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- ==================== Build Hooks ==================== -->
-      <h2 id="build-hooks">Build Hooks</h2>
-
-      <p>
-        Build hooks run custom logic during serialization. They can modify layer bytes
-        based on the upper-layer payload. All built-in checksums use build hooks internally.
-      </p>
-
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+      <!-- Build Hooks -->
+      <div class="section" id="build-hooks">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>Build Hooks</h3>
+        </div>
+        <p>Build hooks run custom logic during serialization. All built-in checksums use build hooks internally.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre><span class="cmt">// Register a custom build hook</span>
 packet.<span class="fn">RegisterBuildHook</span>(<span class="str">"IP"</span>, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>, idx <span class="type">int</span>, upper []<span class="type">byte</span>) ([]<span class="type">byte</span>, <span class="type">error</span>) {
     layer := pkt.<span class="fn">Layers</span>()[idx]
-    <span class="cmt">// Set total length field</span>
     layer.<span class="fn">Set</span>(<span class="str">"len"</span>, <span class="fn">uint16</span>(<span class="fn">len</span>(upper)+<span class="num">20</span>))
-    <span class="cmt">// Build the layer bytes</span>
     <span class="kw">return</span> layer.<span class="fn">BuildBytes</span>()
 })</pre>
+          </div>
         </div>
       </div>
 
-      <!-- ==================== Dissector Pipeline ==================== -->
-      <h2 id="dissector-pipeline">Dissector Pipeline</h2>
-
-      <p>
-        The <code>Dissect</code> function parses raw bytes into a layered Packet by:
-      </p>
-      <ol style="margin:var(--space-md) 0 var(--space-lg) var(--space-lg);line-height:2;">
-        <li>Calling the start function to identify the first protocol</li>
-        <li>Running the protocol's dissector to extract fields and determine header size</li>
-        <li>Looking up the key field to find the next protocol</li>
-        <li>Falling back to heuristic rules if no key-field match</li>
-        <li>Recursing into tunnel payloads (e.g. VXLAN → inner Ethernet)</li>
-        <li>Stopping when no more layers can be identified</li>
-      </ol>
-
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+      <!-- Dissector Pipeline -->
+      <div class="section" id="dissector-pipeline">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Dissector Pipeline</h3>
+        </div>
+        <p>The <code>Dissect</code> function parses raw bytes into a layered Packet:</p>
+        <ol>
+          <li>Calling the start function to identify the first protocol</li>
+          <li>Running the protocol's dissector to extract fields and determine header size</li>
+          <li>Looking up the key field to find the next protocol</li>
+          <li>Falling back to heuristic rules if no key-field match</li>
+          <li>Recursing into tunnel payloads (e.g. VXLAN → inner Ethernet)</li>
+          <li>Stopping when no more layers can be identified</li>
+        </ol>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre><span class="cmt">// Dissect starting from Ethernet</span>
 pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
 
@@ -470,38 +363,39 @@ pkt, err := packet.<span class="fn">DissectByProto</span>(raw, <span class="str"
 pkt.<span class="fn">String</span>()              <span class="cmt">// "Ethernet / IP / TCP"</span>
 pkt.<span class="fn">GetLayer</span>(<span class="str">"IP"</span>)        <span class="cmt">// get IP layer</span>
 pkt.<span class="fn">HasLayer</span>(<span class="str">"TCP"</span>)       <span class="cmt">// true</span></pre>
+          </div>
         </div>
       </div>
 
-      <!-- ==================== Send & Receive ==================== -->
-      <h2 id="send-receive">Send &amp; Receive</h2>
-
-      <h3 id="send-functions">Send Functions</h3>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Function</th><th>Level</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>Send(pkt, iface)</code></td><td>L3</td><td>Send at IP level; OS adds Ethernet header</td></tr>
-            <tr><td><code>Sendp(pkt, iface)</code></td><td>L2</td><td>Send full Ethernet frame; you control everything</td></tr>
-            <tr><td><code>Recv(iface, timeout)</code></td><td>L2</td><td>Receive one packet and close</td></tr>
-            <tr><td><code>SendRecv(pkt, iface, timeout)</code></td><td>L3+L2</td><td>Send then collect all responses</td></tr>
-            <tr><td><code>SendRecv1(pkt, iface, timeout)</code></td><td>L3+L2</td><td>Send then return first response</td></tr>
-          </tbody>
-        </table>
+      <!-- Send & Receive -->
+      <div class="section" id="send-receive">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Send &amp; Receive</h3>
+        </div>
+        <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Level</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>Send(pkt, iface)</code></td><td>L3</td><td>Send at IP level; OS adds Ethernet header</td></tr>
+          <tr><td><code>Sendp(pkt, iface)</code></td><td>L2</td><td>Send full Ethernet frame; you control everything</td></tr>
+          <tr><td><code>Recv(iface, timeout)</code></td><td>L2</td><td>Receive one packet and close</td></tr>
+          <tr><td><code>SendRecv(pkt, iface, timeout)</code></td><td>L3+L2</td><td>Send then collect all responses</td></tr>
+          <tr><td><code>SendRecv1(pkt, iface, timeout)</code></td><td>L3+L2</td><td>Send then return first response</td></tr>
+        </tbody></table></div>
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <code>SendRecv</code> opens the receiver <strong>before</strong> sending to avoid missing fast responses on loopback.
+        </div>
       </div>
 
-      <div class="admonition note">
-        <div class="admonition-title">📝 Note</div>
-        <code>SendRecv</code> opens the receiver <strong>before</strong> sending to avoid missing fast responses on loopback.
-      </div>
-
-      <!-- ==================== Sniffing ==================== -->
-      <h2 id="sniffing">Sniffing</h2>
-
-      <h3 id="sniff-callback">Callback API</h3>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+      <!-- Sniffing -->
+      <div class="section" id="sniffing">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>Sniffing</h3>
+        </div>
+        <h3>Callback API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre>err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
     Iface:   <span class="str">"eth0"</span>,
     Filter:  <span class="str">"icmp"</span>,
@@ -510,13 +404,12 @@ pkt.<span class="fn">HasLayer</span>(<span class="str">"TCP"</span>)       <span
     fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
     <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// true = continue</span>
 })</pre>
+          </div>
         </div>
-      </div>
-
-      <h3 id="sniff-channel">Channel API</h3>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+        <h3>Channel API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre>ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
     Iface: <span class="str">"eth0"</span>,
     Count: <span class="num">10</span>,
@@ -525,20 +418,20 @@ pkt.<span class="fn">HasLayer</span>(<span class="str">"TCP"</span>)       <span
 <span class="kw">for</span> pkt := <span class="kw">range</span> ch {
     fmt.<span class="fn">Println</span>(pkt)
 }</pre>
+          </div>
         </div>
       </div>
 
-      <!-- ==================== BPF Filters ==================== -->
-      <h2 id="bpf-filters">BPF Filters</h2>
-
-      <p>
-        BPF (Berkeley Packet Filter) expressions are compiled to kernel-level filters
-        for maximum performance. Requires <code>tcpdump</code> on PATH for compilation.
-      </p>
-
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-        <div class="code-body">
+      <!-- BPF Filters -->
+      <div class="section" id="bpf-filters">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>BPF Filters</h3>
+        </div>
+        <p>BPF expressions are compiled to kernel-level filters for maximum performance. Requires <code>tcpdump</code> on PATH for compilation.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
 <pre><span class="cmt">// Compile a filter string to BPF instructions</span>
 instructions, err := sniff.<span class="fn">CompileFilter</span>(<span class="str">"tcp port 80 and host 192.168.1.1"</span>)
 
@@ -548,50 +441,48 @@ ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">Sni
     Instructions: instructions,
     Count:        <span class="num">100</span>,
 })</pre>
+          </div>
+        </div>
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          Pre-compile filters with <code>CompileFilter</code> at startup to avoid runtime dependency on <code>tcpdump</code>.
         </div>
       </div>
 
-      <div class="admonition tip">
-        <div class="admonition-title">💡 Tip</div>
-        Pre-compile filters with <code>CompileFilter</code> at startup to avoid runtime dependency on <code>tcpdump</code>.
-        Pass <code>Instructions</code> instead of <code>Filter</code> in <code>SniffConfig</code>.
+      <!-- Platform Differences -->
+      <div class="section" id="platform-differences">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>Platform Differences</h3>
+        </div>
+        <div class="table-wrapper"><table><thead><tr><th>Feature</th><th>macOS (Darwin)</th><th>Linux</th></tr></thead><tbody>
+          <tr><td>L2 Send/Recv</td><td>BPF device (<code>/dev/bpf*</code>)</td><td><code>AF_PACKET</code> socket</td></tr>
+          <tr><td>L3 Send/Recv</td><td><code>AF_INET</code> raw socket</td><td><code>AF_INET</code> raw socket</td></tr>
+          <tr><td>BPF Filter</td><td>Kernel BPF (via <code>BIOCSETF</code>)</td><td><code>SO_ATTACH_FILTER</code></td></tr>
+          <tr><td>Loopback</td><td><code>lo0</code></td><td><code>lo</code></td></tr>
+          <tr><td>Privileges</td><td>root (<code>sudo</code>)</td><td>root (<code>sudo</code>) or <code>CAP_NET_RAW</code></td></tr>
+        </tbody></table></div>
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          Use <code>sendrecv.LoopbackName()</code> to get the correct loopback interface name for the current platform.
+        </div>
       </div>
 
-      <!-- ==================== Platform Differences ==================== -->
-      <h2 id="platform-differences">Platform Differences</h2>
+    </main>
 
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Feature</th><th>macOS (Darwin)</th><th>Linux</th></tr></thead>
-          <tbody>
-            <tr><td>L2 Send/Recv</td><td>BPF device (<code>/dev/bpf*</code>)</td><td><code>AF_PACKET</code> socket</td></tr>
-            <tr><td>L3 Send/Recv</td><td><code>AF_INET</code> raw socket</td><td><code>AF_INET</code> raw socket</td></tr>
-            <tr><td>BPF Filter</td><td>Kernel BPF (via <code>BIOCSETF</code>)</td><td><code>SO_ATTACH_FILTER</code></td></tr>
-            <tr><td>Loopback</td><td><code>lo0</code></td><td><code>lo</code></td></tr>
-            <tr><td>Privileges</td><td>root (<code>sudo</code>)</td><td>root (<code>sudo</code>) or <code>CAP_NET_RAW</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="admonition note">
-        <div class="admonition-title">📝 Note</div>
-        Use <code>sendrecv.LoopbackName()</code> to get the correct loopback interface name for the current platform.
-      </div>
-
-    </div>
-
-    <footer class="footer">
-      <div class="footer-links">
+    <p class="footer">
+      <span class="footer-links">
         <a href="index.html">Home</a>
         <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
         <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
         <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT License</a>
-      </div>
-      <p>&copy; 2025 goscapy contributors. Licensed under MIT.</p>
-    </footer>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
 
-  </main>
+  </div>
 
+  <script src="../js/particles.js"></script>
   <script src="../js/nav.js"></script>
   <script src="../js/sidebar.js"></script>
   <script src="../js/animations.js"></script>

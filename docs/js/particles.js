@@ -1,6 +1,6 @@
 /**
- * particles.js — Canvas particle background animation
- * Renders ~60 colorful particles with connecting lines on hero canvas
+ * particles.js — Canvas particle background with warm palette colors
+ * Renders ~60 particles with connecting lines on fixed background canvas
  */
 (function () {
   'use strict';
@@ -14,21 +14,23 @@
   var PARTICLE_COUNT = 60;
   var CONNECTION_DIST = 140;
 
+  var COLORS = [
+    'rgba(217, 119, 87, ',   // Terracotta
+    'rgba(91, 138, 114, ',   // Sage
+    'rgba(139, 111, 138, ',  // Plum
+    'rgba(74, 111, 165, ',   // Blue
+    'rgba(201, 100, 100, ',  // Rose
+    'rgba(45, 156, 219, ',   // Teal
+    'rgba(124, 92, 191, '    // Violet
+  ];
+
   function resize() {
-    var parent = canvas.parentElement;
-    canvas.width = parent.offsetWidth;
-    canvas.height = parent.offsetHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
   }
 
   function createParticle() {
-    var colors = [
-      'rgba(0, 173, 216, ',   // primary
-      'rgba(0, 230, 118, ',    // accent
-      'rgba(88, 166, 255, ',   // link blue
-      'rgba(210, 168, 255, ',  // purple
-      'rgba(255, 167, 38, '    // orange
-    ];
-    var colorBase = colors[Math.floor(Math.random() * colors.length)];
+    var colorBase = COLORS[Math.floor(Math.random() * COLORS.length)];
     return {
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -36,7 +38,7 @@
       vy: (Math.random() - 0.5) * 0.6,
       radius: Math.random() * 2 + 1,
       colorBase: colorBase,
-      alpha: Math.random() * 0.5 + 0.3
+      alpha: Math.random() * 0.4 + 0.2
     };
   }
 
@@ -62,11 +64,11 @@
         var dy = particles[i].y - particles[j].y;
         var dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < CONNECTION_DIST) {
-          var alpha = (1 - dist / CONNECTION_DIST) * 0.15;
+          var alpha = (1 - dist / CONNECTION_DIST) * 0.12;
           ctx.beginPath();
           ctx.moveTo(particles[i].x, particles[i].y);
           ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = 'rgba(0, 173, 216, ' + alpha + ')';
+          ctx.strokeStyle = 'rgba(139, 134, 128, ' + alpha + ')';
           ctx.lineWidth = 0.5;
           ctx.stroke();
         }
@@ -79,7 +81,6 @@
       var p = particles[i];
       p.x += p.vx;
       p.y += p.vy;
-
       if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
       if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
     }
@@ -100,8 +101,7 @@
   });
 
   // Pause when not visible
-  var heroEl = canvas.closest('.hero');
-  if (heroEl && 'IntersectionObserver' in window) {
+  if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (entries) {
       if (entries[0].isIntersecting) {
         if (!animId) animate();
@@ -110,7 +110,7 @@
         animId = null;
       }
     });
-    io.observe(heroEl);
+    io.observe(document.body);
   }
 
   init();

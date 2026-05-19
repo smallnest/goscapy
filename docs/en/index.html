@@ -8,185 +8,153 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
   <link rel="stylesheet" href="../css/style.css">
 </head>
-<body class="page-full">
+<body>
+  <canvas id="particleCanvas"></canvas>
 
-  <!-- Navbar -->
-  <div id="navbar"></div>
+  <div class="container">
 
-  <!-- Main Content -->
-  <main id="mainContent" class="main-content">
+    <!-- Header -->
+    <div id="navbar"></div>
 
-    <!-- ==================== Hero ==================== -->
-    <section class="hero">
-      <canvas class="hero-canvas" id="particleCanvas"></canvas>
-      <div class="hero-content">
-        <div class="hero-badge">🚀 Pure Go • Zero Dependencies</div>
-        <h1 class="hero-title">Craft Network Packets<br>with Go</h1>
-        <p class="hero-subtitle">
-          A powerful Go library for crafting, dissecting, sending, receiving, and sniffing
-          network packets. Type-safe builders and one-liner shortcuts.
-        </p>
-        <div class="hero-actions">
-          <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener" class="btn btn-primary">
-            ⭐ GitHub
-          </a>
-          <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener" class="btn btn-outline">
-            📖 Go Reference
-          </a>
-        </div>
-      </div>
-    </section>
+    <!-- TOC -->
+    <div id="toc"></div>
 
-    <!-- ==================== Features ==================== -->
-    <section class="section" id="features">
-      <div class="section-header anim-fade-in">
-        <span class="section-tag">Features</span>
-        <h2 class="section-title">Everything You Need for Packet Engineering</h2>
-        <p class="section-desc">
-          From crafting to sniffing — goscapy covers the full packet lifecycle with a clean, idiomatic Go API.
-        </p>
-      </div>
-      <div class="features-grid">
-        <!-- 1. Builder API -->
-        <div class="feature-card anim-flip-in stagger-1">
-          <div class="feature-card-inner">
-            <div class="feature-icon">🔨</div>
-            <h3 class="feature-title">Builder API</h3>
-            <p class="feature-desc">Fluent method chaining for type-safe, explicit packet construction with compile-time guarantees.</p>
-          </div>
+    <main id="mainContent">
+
+      <!-- Features -->
+      <div class="section" id="features">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Features</h3>
         </div>
-        <!-- 2. Shortcut Functions -->
-        <div class="feature-card anim-flip-in stagger-2">
-          <div class="feature-card-inner">
-            <div class="feature-icon">⚡</div>
-            <h3 class="feature-title">Shortcut Functions</h3>
-            <p class="feature-desc">One-liners for common protocol stacks with sensible defaults. Build packets in a single function call.</p>
+        <p>Everything you need for packet engineering — from crafting to sniffing with a clean, idiomatic Go API.</p>
+        <div class="cards">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot terracotta"></div>
+              <h4>🔨 Builder API</h4>
+            </div>
+            <p>Fluent method chaining for type-safe, explicit packet construction with compile-time guarantees.</p>
           </div>
-        </div>
-        <!-- 3. Packet Dissect -->
-        <div class="feature-card anim-flip-in stagger-3">
-          <div class="feature-card-inner">
-            <div class="feature-icon">🔬</div>
-            <h3 class="feature-title">Packet Dissect</h3>
-            <p class="feature-desc">Parse raw bytes into structured packets with automatic protocol detection and layer extraction.</p>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot sage"></div>
+              <h4>⚡ Shortcut Functions</h4>
+            </div>
+            <p>One-liners for common protocol stacks with sensible defaults. Build packets in a single function call.</p>
           </div>
-        </div>
-        <!-- 4. Send & Receive -->
-        <div class="feature-card anim-flip-in stagger-4">
-          <div class="feature-card-inner">
-            <div class="feature-icon">📡</div>
-            <h3 class="feature-title">Send &amp; Receive</h3>
-            <p class="feature-desc">Send and receive packets via raw sockets at both L2 (Ethernet) and L3 (IP) levels.</p>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot plum"></div>
+              <h4>🔬 Packet Dissect</h4>
+            </div>
+            <p>Parse raw bytes into structured packets with automatic protocol detection and layer extraction.</p>
           </div>
-        </div>
-        <!-- 5. Sniffing -->
-        <div class="feature-card anim-flip-in stagger-5">
-          <div class="feature-card-inner">
-            <div class="feature-icon">👃</div>
-            <h3 class="feature-title">Sniffing</h3>
-            <p class="feature-desc">Capture live traffic with callback or channel-based APIs, plus BPF filter support.</p>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot blue"></div>
+              <h4>📡 Send &amp; Receive</h4>
+            </div>
+            <p>Send and receive packets via raw sockets at both L2 (Ethernet) and L3 (IP) levels.</p>
           </div>
-        </div>
-        <!-- 6. Auto Checksums -->
-        <div class="feature-card anim-flip-in stagger-6">
-          <div class="feature-card-inner">
-            <div class="feature-icon">✅</div>
-            <h3 class="feature-title">Auto Checksums</h3>
-            <p class="feature-desc">IP, TCP, UDP, and ICMP checksums are computed automatically during serialization.</p>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot amber"></div>
+              <h4>👃 Sniffing</h4>
+            </div>
+            <p>Capture live traffic with callback or channel-based APIs, plus BPF filter support.</p>
           </div>
-        </div>
-        <!-- 7. Layer Binding -->
-        <div class="feature-card anim-flip-in stagger-7">
-          <div class="feature-card-inner">
-            <div class="feature-icon">🔗</div>
-            <h3 class="feature-title">Layer Binding</h3>
-            <p class="feature-desc">Automatic field inference between adjacent layers — IP over Ethernet sets EtherType automatically.</p>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot teal"></div>
+              <h4>✅ Auto Checksums</h4>
+            </div>
+            <p>IP, TCP, UDP, and ICMP checksums are computed automatically during serialization.</p>
           </div>
-        </div>
-        <!-- 8. Cross-Platform -->
-        <div class="feature-card anim-flip-in stagger-8">
-          <div class="feature-card-inner">
-            <div class="feature-icon">💻</div>
-            <h3 class="feature-title">Cross-Platform</h3>
-            <p class="feature-desc">Works on macOS (Darwin) and Linux with platform-specific raw socket implementations.</p>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot violet"></div>
+              <h4>🔗 Layer Binding</h4>
+            </div>
+            <p>Automatic field inference between adjacent layers — IP over Ethernet sets EtherType automatically.</p>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-dot coral"></div>
+              <h4>💻 Cross-Platform</h4>
+            </div>
+            <p>Works on macOS (Darwin) and Linux with platform-specific raw socket implementations.</p>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- ==================== Supported Protocols ==================== -->
-    <section class="section" id="protocols">
-      <div class="section-header anim-fade-in">
-        <span class="section-tag">Protocols</span>
-        <h2 class="section-title">Supported Protocols</h2>
-        <p class="section-desc">Comprehensive coverage across the network stack layers.</p>
-      </div>
-      <div class="table-wrapper anim-scale-in table-anim">
-        <table>
-          <thead>
-            <tr>
-              <th>Layer</th>
-              <th>Protocols</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="layer-badge layer-link">Link</span></td>
-              <td>Ethernet (CSMA/CD), ARP</td>
-            </tr>
-            <tr>
-              <td><span class="layer-badge layer-network">Network</span></td>
-              <td>IPv4</td>
-            </tr>
-            <tr>
-              <td><span class="layer-badge layer-transport">Transport</span></td>
-              <td>TCP, UDP, ICMP</td>
-            </tr>
-            <tr>
-              <td><span class="layer-badge layer-payload">Payload</span></td>
-              <td>Raw bytes</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ==================== Installation ==================== -->
-    <section class="section" id="install">
-      <div class="section-header anim-fade-in">
-        <span class="section-tag">Install</span>
-        <h2 class="section-title">Get Started in Seconds</h2>
-        <p class="section-desc">Add goscapy to your project with a single command.</p>
-      </div>
-      <div class="code-block anim-slide-in-left">
-        <div class="code-header">
-          <span class="code-lang">bash</span>
-          <button class="code-copy">Copy</button>
+      <!-- Supported Protocols -->
+      <div class="section" id="protocols">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Supported Protocols</h3>
         </div>
-        <div class="code-body">
+        <p>Comprehensive coverage across the network stack layers.</p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Layer</th><th>Protocols</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="layer-badge layer-link">Link</span></td>
+                <td>Ethernet (CSMA/CD), ARP</td>
+              </tr>
+              <tr>
+                <td><span class="layer-badge layer-network">Network</span></td>
+                <td>IPv4</td>
+              </tr>
+              <tr>
+                <td><span class="layer-badge layer-transport">Transport</span></td>
+                <td>TCP, UDP, ICMP</td>
+              </tr>
+              <tr>
+                <td><span class="layer-badge layer-payload">Payload</span></td>
+                <td>Raw bytes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Installation -->
+      <div class="section" id="install">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>Get Started in Seconds</h3>
+        </div>
+        <p>Add goscapy to your project with a single command.</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="code-copy">Copy</button>
+          </div>
+          <div class="code-body">
 <pre><span class="cmt"># Install the latest version</span>
 <span class="kw">go</span> get github.com/smallnest/goscapy</pre>
+          </div>
         </div>
       </div>
-    </section>
 
-    <!-- ==================== Quick Start ==================== -->
-    <section class="section" id="quickstart">
-      <div class="section-header anim-fade-in">
-        <span class="section-tag">Quick Start</span>
-        <h2 class="section-title">Build a Packet in One Line</h2>
-        <p class="section-desc">See how easy it is to craft network packets with goscapy.</p>
-      </div>
-      <div class="quickstart">
-        <!-- Builder API -->
-        <div class="quickstart-item anim-slide-in-left">
-          <div class="quickstart-label">🔨 Builder API</div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">go</span>
-              <button class="code-copy">Copy</button>
-            </div>
-            <div class="code-body">
+      <!-- Quick Start -->
+      <div class="section" id="quickstart">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>Build a Packet in One Line</h3>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">go</span>
+            <button class="code-copy">Copy</button>
+          </div>
+          <div class="code-body">
 <pre><span class="cmt">// Ethernet + IP + ICMP Echo Request</span>
 pkt, err := <span class="fn">goscapy.NewEthernet</span>().
     <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
@@ -197,64 +165,72 @@ pkt, err := <span class="fn">goscapy.NewEthernet</span>().
     <span class="fn">Over</span>(<span class="fn">goscapy.NewICMP</span>().
         <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
     <span class="fn">Build</span>()</pre>
-            </div>
           </div>
         </div>
-        <!-- Shortcut Function -->
-        <div class="quickstart-item anim-slide-in-right">
-          <div class="quickstart-label">⚡ Shortcut</div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">go</span>
-              <button class="code-copy">Copy</button>
-            </div>
-            <div class="code-body">
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">go</span>
+            <button class="code-copy">Copy</button>
+          </div>
+          <div class="code-body">
 <pre><span class="cmt">// Same packet, in one line</span>
 pkt, err := <span class="fn">goscapy.EtherIPICMP</span>(
     <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
     <span class="str">"8.8.8.8"</span>,
     <span class="num">8</span>, <span class="num">0</span>,
 )</pre>
-            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Dissect example -->
-      <div style="max-width:var(--max-content);margin:var(--space-xl) auto 0;">
-        <div class="quickstart-item anim-fade-in">
-          <div class="quickstart-label">🔬 Dissect Raw Bytes</div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">go</span>
-              <button class="code-copy">Copy</button>
-            </div>
-            <div class="code-body">
+        <h3 style="margin-top:1rem;">🔬 Dissect Raw Bytes</h3>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">go</span>
+            <button class="code-copy">Copy</button>
+          </div>
+          <div class="code-body">
 <pre><span class="cmt">// Parse raw bytes into structured packet</span>
 raw := []<span class="type">byte</span>{<span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, ...}
 pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
 fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span></pre>
-            </div>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- ==================== Footer ==================== -->
-    <footer class="footer">
-      <div class="footer-links">
+      <!-- Links -->
+      <div class="section" id="links">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>Resources</h3>
+        </div>
+        <p>
+          <a href="quickstart.html">📖 Quick Start Guide</a> ·
+          <a href="guide.html">📚 Complete Guide</a> ·
+          <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">⭐ GitHub</a> ·
+          <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">📖 Go Reference</a>
+        </p>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <p class="footer">
+      <span class="footer-links">
         <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
         <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
         <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT License</a>
-      </div>
-      <p>&copy; 2025 goscapy contributors. Licensed under MIT.</p>
-    </footer>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
 
-  </main>
+  </div>
 
-  <!-- Scripts (order matters) -->
+  <!-- Scripts -->
   <script src="../js/particles.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sidebar.js"></script>
   <script src="../js/animations.js"></script>
 </body>
 </html>

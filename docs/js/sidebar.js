@@ -1,75 +1,62 @@
 /**
- * sidebar.js — Auto-generate sidebar from h2/h3 headings + scroll spy
- * Looks for <div id="sidebar"></div> and <main id="mainContent">
+ * sidebar.js — Inline TOC generator with scroll spy
+ * Scans page h2 headings and generates an inline TOC card
+ * Looks for <div id="toc"></div>
  */
 (function () {
   'use strict';
 
-  const sidebar = document.getElementById('sidebar');
-  const main = document.getElementById('mainContent');
-  if (!sidebar || !main) return;
+  var tocEl = document.getElementById('toc');
+  if (!tocEl) return;
 
-  sidebar.classList.add('sidebar');
+  var main = document.getElementById('mainContent');
+  if (!main) main = document.body;
 
-  // Collect headings
-  const headings = main.querySelectorAll('h2, h3');
+  var headings = main.querySelectorAll('h2');
   if (headings.length === 0) return;
 
-  const title = document.createElement('div');
-  title.className = 'sidebar-title';
-  title.textContent = document.documentElement.lang === 'zh' ? '目录' : 'On This Page';
-  sidebar.appendChild(title);
+  var currentLang = (document.documentElement.lang || 'en').startsWith('zh') ? 'zh' : 'en';
+  var tocTitle = currentLang === 'zh' ? '目录' : 'On This Page';
 
-  const nav = document.createElement('ul');
-  nav.className = 'sidebar-nav';
+  tocEl.className = 'toc';
 
-  const items = [];
+  var html = '<h3>' + tocTitle + '</h3><ul>';
+  var items = [];
+
   headings.forEach(function (h, i) {
-    // Ensure id
     if (!h.id) {
       h.id = 'section-' + i;
     }
-    const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.href = '#' + h.id;
-    a.textContent = h.textContent;
-    if (h.tagName === 'H3') {
-      a.classList.add('indent-3');
-    }
-    li.appendChild(a);
-    nav.appendChild(li);
-    items.push({ el: h, link: a });
+    html += '<li><a href="#' + h.id + '" data-section="' + h.id + '">' + h.textContent + '</a></li>';
+    items.push({ el: h, id: h.id });
   });
 
-  sidebar.appendChild(nav);
+  html += '</ul>';
+  tocEl.innerHTML = html;
 
   // Scroll spy via IntersectionObserver
   var activeLink = null;
-  var observer = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (entry.isIntersecting) {
-        if (activeLink) activeLink.classList.remove('active');
-        var found = items.find(function (it) { return it.el === entry.target; });
-        if (found) {
-          found.link.classList.add('active');
-          activeLink = found.link;
+  var links = tocEl.querySelectorAll('a');
+
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          if (activeLink) activeLink.classList.remove('active');
+          var link = tocEl.querySelector('a[data-section="' + entry.target.id + '"]');
+          if (link) {
+            link.classList.add('active');
+            activeLink = link;
+          }
         }
-      }
+      });
+    }, {
+      rootMargin: '-80px 0px -60% 0px',
+      threshold: 0
     });
-  }, {
-    rootMargin: '-80px 0px -60% 0px',
-    threshold: 0
-  });
 
-  items.forEach(function (it) {
-    observer.observe(it.el);
-  });
-
-  // Mobile sidebar toggle
-  var hamburger = document.getElementById('hamburger');
-  if (hamburger) {
-    hamburger.addEventListener('click', function () {
-      sidebar.classList.toggle('open');
+    items.forEach(function (it) {
+      observer.observe(it.el);
     });
   }
 })();

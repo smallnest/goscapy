@@ -1,115 +1,274 @@
 /**
- * animations.js — Intersection Observer scroll-triggered animations
- * Adds 'is-visible' class when elements enter the viewport
- *
- * Supports: anim-fade-in, anim-slide-in-left, anim-slide-in-right,
- *           anim-flip-in, anim-scale-in
- * Plus stagger-N delay classes
+ * animations.js — Anime.js powered scroll animations + hover effects
+ * Loads anime.js from CDN and sets up IntersectionObserver for reveal animations
  */
 (function () {
   'use strict';
 
-  var ANIM_CLASSES = [
-    'anim-fade-in',
-    'anim-slide-in-left',
-    'anim-slide-in-right',
-    'anim-flip-in',
-    'anim-scale-in'
-  ];
+  // Load anime.js from CDN
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js';
+  script.onload = init;
+  document.head.appendChild(script);
 
-  function initAnimations() {
-    var elements = [];
-    ANIM_CLASSES.forEach(function (cls) {
-      var els = document.querySelectorAll('.' + cls);
-      els.forEach(function (el) { elements.push(el); });
-    });
+  function init() {
+    pageLoadAnimations();
+    scrollObserver();
+    hoverEffects();
+    initCodeCopy();
+  }
 
-    if (elements.length === 0) return;
-
-    if (!('IntersectionObserver' in window)) {
-      // Fallback: just make everything visible
-      elements.forEach(function (el) { el.classList.add('is-visible'); });
-      return;
+  // ---------- Page Load Animations ----------
+  function pageLoadAnimations() {
+    // Header fade in
+    var header = document.querySelector('.header');
+    if (header) {
+      anime({
+        targets: header,
+        opacity: [0, 1],
+        translateY: [-20, 0],
+        duration: 800,
+        easing: 'easeOutCubic'
+      });
     }
 
+    // Pulse dot elastic scale
+    var pulseDot = document.querySelector('.pulse-dot');
+    if (pulseDot) {
+      anime({
+        targets: pulseDot,
+        scale: [0, 1],
+        duration: 800,
+        easing: 'easeOutElastic(1, .6)',
+        delay: 300
+      });
+    }
+
+    // Title slide from left
+    var h1 = document.querySelector('.header h1');
+    if (h1) {
+      anime({
+        targets: h1,
+        opacity: [0, 1],
+        translateX: [-30, 0],
+        duration: 700,
+        easing: 'easeOutCubic',
+        delay: 200
+      });
+    }
+
+    // Subtitle stagger
+    var subtitles = document.querySelectorAll('.subtitle');
+    if (subtitles.length) {
+      anime({
+        targets: subtitles,
+        opacity: [0, 1],
+        translateY: [10, 0],
+        duration: 600,
+        delay: anime.stagger(100, { start: 400 }),
+        easing: 'easeOutCubic'
+      });
+    }
+
+    // TOC slide in
+    var toc = document.querySelector('.toc');
+    if (toc) {
+      anime({
+        targets: toc,
+        opacity: [0, 1],
+        translateX: [-20, 0],
+        duration: 700,
+        easing: 'easeOutCubic',
+        delay: 600
+      });
+    }
+  }
+
+  // ---------- Scroll Observer ----------
+  function scrollObserver() {
+    if (!('IntersectionObserver' in window)) return;
+
+    // Sections fade up
+    observe('.section', function (el) {
+      anime({
+        targets: el,
+        opacity: [0, 1],
+        translateY: [30, 0],
+        duration: 700,
+        easing: 'easeOutCubic'
+      });
+    });
+
+    // Cards flip in with stagger
+    var cardContainers = document.querySelectorAll('.cards');
+    cardContainers.forEach(function (container) {
+      observeDirect(container, function () {
+        var cards = container.querySelectorAll('.card');
+        anime({
+          targets: cards,
+          opacity: [0, 1],
+          rotateY: [15, 0],
+          translateX: [30, 0],
+          duration: 600,
+          delay: anime.stagger(80),
+          easing: 'easeOutCubic'
+        });
+      });
+    });
+
+    // Tables row-by-row
+    document.querySelectorAll('table').forEach(function (table) {
+      var rows = table.querySelectorAll('tbody tr');
+      if (rows.length === 0) return;
+      rows.forEach(function (row) {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(10px)';
+      });
+      observe(table, function () {
+        anime({
+          targets: rows,
+          opacity: [0, 1],
+          translateY: [10, 0],
+          duration: 400,
+          delay: anime.stagger(60),
+          easing: 'easeOutCubic'
+        });
+      });
+    });
+
+    // Code blocks slide from left
+    observe('.code-block', function (el) {
+      anime({
+        targets: el,
+        opacity: [0, 1],
+        translateX: [-20, 0],
+        duration: 600,
+        easing: 'easeOutCubic'
+      });
+    });
+
+    // Notes/tips slide from left with border growing
+    observe('.note, .tip', function (el) {
+      anime({
+        targets: el,
+        opacity: [0, 1],
+        translateX: [-15, 0],
+        duration: 600,
+        easing: 'easeOutCubic'
+      });
+    });
+
+    // Section dots elastic scale
+    observe('.section-dot', function (el) {
+      anime({
+        targets: el,
+        scale: [0, 1],
+        duration: 600,
+        easing: 'easeOutElastic(1, .6)'
+      });
+    });
+
+    // Diagram boxes scale in
+    observe('.diagram-box', function (el) {
+      anime({
+        targets: el,
+        opacity: [0, 1],
+        scale: [0.95, 1],
+        duration: 600,
+        easing: 'easeOutCubic'
+      });
+    });
+
+    // Flow steps
+    var flowArrows = document.querySelectorAll('.flow-arrow');
+    flowArrows.forEach(function (flow) {
+      observeDirect(flow, function () {
+        anime({
+          targets: flow.querySelectorAll('.flow-step'),
+          opacity: [0, 1],
+          scale: [0.8, 1],
+          duration: 500,
+          delay: anime.stagger(100),
+          easing: 'easeOutBack'
+        });
+      });
+    });
+  }
+
+  function observe(selector, callback) {
+    var els = document.querySelectorAll(selector);
+    if (els.length === 0) return;
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
+          callback(entry.target);
           observer.unobserve(entry.target);
         }
       });
-    }, {
-      rootMargin: '0px 0px -60px 0px',
-      threshold: 0.1
-    });
-
-    elements.forEach(function (el) {
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.1 });
+    els.forEach(function (el) {
+      el.style.opacity = '0';
       observer.observe(el);
     });
   }
 
-  // Table row staggered animation
-  function initTableAnimations() {
-    var tables = document.querySelectorAll('.table-anim tbody tr');
-    if (tables.length === 0) return;
-
-    if (!('IntersectionObserver' in window)) {
-      tables.forEach(function (tr) { tr.classList.add('is-visible'); });
-      return;
-    }
-
+  function observeDirect(el, callback) {
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
+          callback();
           observer.unobserve(entry.target);
         }
       });
-    }, {
-      rootMargin: '0px 0px -40px 0px',
-      threshold: 0.1
-    });
-
-    tables.forEach(function (tr, i) {
-      tr.style.opacity = '0';
-      tr.style.transform = 'translateY(10px)';
-      tr.style.transition = 'opacity .4s ease ' + (i * 0.06) + 's, transform .4s ease ' + (i * 0.06) + 's';
-      observer.observe(tr);
-    });
-
-    // Add is-visible styles
-    var style = document.createElement('style');
-    style.textContent = '.table-anim tbody tr.is-visible { opacity: 1 !important; transform: translateY(0) !important; }';
-    document.head.appendChild(style);
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.1 });
+    el.style.opacity = '0';
+    observer.observe(el);
   }
 
-  // Admonition slide-in
-  function initAdmonitionAnimations() {
-    var admonitions = document.querySelectorAll('.admonition.anim-fade-in');
-    if (admonitions.length === 0) return;
-
-    if (!('IntersectionObserver' in window)) {
-      admonitions.forEach(function (el) { el.classList.add('is-visible'); });
-      return;
-    }
-
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          observer.unobserve(entry.target);
-        }
+  // ---------- Hover Effects ----------
+  function hoverEffects() {
+    // Card hover — scale + shadow (CSS handles this, but add anime.js flair)
+    document.querySelectorAll('.card').forEach(function (card) {
+      card.addEventListener('mouseenter', function () {
+        anime({
+          targets: card,
+          scale: 1.03,
+          duration: 300,
+          easing: 'easeOutCubic'
+        });
       });
-    }, {
-      rootMargin: '0px 0px -40px 0px',
-      threshold: 0.2
+      card.addEventListener('mouseleave', function () {
+        anime({
+          targets: card,
+          scale: 1,
+          duration: 300,
+          easing: 'easeOutCubic'
+        });
+      });
     });
 
-    admonitions.forEach(function (el) { observer.observe(el); });
+    // Inline code pop
+    document.querySelectorAll('.inline-code, p > code, li > code').forEach(function (code) {
+      code.addEventListener('mouseenter', function () {
+        anime({
+          targets: code,
+          scale: 1.08,
+          duration: 200,
+          easing: 'easeOutCubic'
+        });
+      });
+      code.addEventListener('mouseleave', function () {
+        anime({
+          targets: code,
+          scale: 1,
+          duration: 200,
+          easing: 'easeOutCubic'
+        });
+      });
+    });
   }
 
-  // Copy code button
+  // ---------- Code Copy ----------
   function initCodeCopy() {
     document.addEventListener('click', function (e) {
       if (e.target.classList.contains('code-copy')) {
@@ -126,20 +285,5 @@
         });
       }
     });
-  }
-
-  // Init on DOMContentLoaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      initAnimations();
-      initTableAnimations();
-      initAdmonitionAnimations();
-      initCodeCopy();
-    });
-  } else {
-    initAnimations();
-    initTableAnimations();
-    initAdmonitionAnimations();
-    initCodeCopy();
   }
 })();
