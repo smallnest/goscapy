@@ -95,90 +95,86 @@
   function scrollObserver() {
     if (!('IntersectionObserver' in window)) return;
 
-    // Sections fade up
-    observe('.section', function (el) {
-      anime({
-        targets: el,
-        opacity: [0, 1],
-        translateY: [30, 0],
-        duration: 700,
-        easing: 'easeOutCubic'
-      });
-    });
+    // Sections fade up + reveal inner cards/tables/notes together
+    document.querySelectorAll('.section').forEach(function (section) {
+      var innerCards = section.querySelectorAll('.card');
+      var innerNotes = section.querySelectorAll('.note, .tip');
+      var innerCodeBlocks = section.querySelectorAll('.code-block');
+      var innerDots = section.querySelectorAll('.section-dot');
+      var innerTables = section.querySelectorAll('table tbody tr');
 
-    // Cards flip in with stagger
-    var cardContainers = document.querySelectorAll('.cards');
-    cardContainers.forEach(function (container) {
-      observeDirect(container, function () {
-        var cards = container.querySelectorAll('.card');
-        anime({
-          targets: cards,
-          opacity: [0, 1],
-          rotateY: [15, 0],
-          translateX: [30, 0],
-          duration: 600,
-          delay: anime.stagger(80),
-          easing: 'easeOutCubic'
-        });
-      });
-    });
-
-    // Tables row-by-row
-    document.querySelectorAll('table').forEach(function (table) {
-      var rows = table.querySelectorAll('tbody tr');
-      if (rows.length === 0) return;
-      rows.forEach(function (row) {
-        row.style.opacity = '0';
-        row.style.transform = 'translateY(10px)';
-      });
       var observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
           if (entry.isIntersecting) {
+            // Fade in section
             anime({
-              targets: rows,
+              targets: section,
               opacity: [0, 1],
-              translateY: [10, 0],
-              duration: 400,
-              delay: anime.stagger(60),
+              translateY: [30, 0],
+              duration: 700,
               easing: 'easeOutCubic'
             });
+            // Cards stagger flip
+            if (innerCards.length) {
+              anime({
+                targets: innerCards,
+                opacity: [0, 1],
+                rotateY: [15, 0],
+                translateX: [30, 0],
+                duration: 600,
+                delay: anime.stagger(80, { start: 200 }),
+                easing: 'easeOutCubic'
+              });
+            }
+            // Notes/tips slide
+            if (innerNotes.length) {
+              anime({
+                targets: innerNotes,
+                opacity: [0, 1],
+                translateX: [-15, 0],
+                duration: 600,
+                delay: anime.stagger(100, { start: 300 }),
+                easing: 'easeOutCubic'
+              });
+            }
+            // Code blocks slide
+            if (innerCodeBlocks.length) {
+              anime({
+                targets: innerCodeBlocks,
+                opacity: [0, 1],
+                translateX: [-20, 0],
+                duration: 600,
+                delay: anime.stagger(100, { start: 300 }),
+                easing: 'easeOutCubic'
+              });
+            }
+            // Section dots elastic
+            if (innerDots.length) {
+              anime({
+                targets: innerDots,
+                scale: [0, 1],
+                duration: 600,
+                delay: anime.stagger(50),
+                easing: 'easeOutElastic(1, .6)'
+              });
+            }
+            // Table rows stagger
+            if (innerTables.length) {
+              anime({
+                targets: innerTables,
+                opacity: [0, 1],
+                translateY: [10, 0],
+                duration: 400,
+                delay: anime.stagger(60, { start: 400 }),
+                easing: 'easeOutCubic'
+              });
+            }
             observer.unobserve(entry.target);
           }
         });
-      }, { rootMargin: '0px 0px -40px 0px', threshold: 0.1 });
-      observer.observe(table);
-    });
-
-    // Code blocks slide from left
-    observe('.code-block', function (el) {
-      anime({
-        targets: el,
-        opacity: [0, 1],
-        translateX: [-20, 0],
-        duration: 600,
-        easing: 'easeOutCubic'
-      });
-    });
-
-    // Notes/tips slide from left with border growing
-    observe('.note, .tip', function (el) {
-      anime({
-        targets: el,
-        opacity: [0, 1],
-        translateX: [-15, 0],
-        duration: 600,
-        easing: 'easeOutCubic'
-      });
-    });
-
-    // Section dots elastic scale
-    observe('.section-dot', function (el) {
-      anime({
-        targets: el,
-        scale: [0, 1],
-        duration: 600,
-        easing: 'easeOutElastic(1, .6)'
-      });
+      }, { rootMargin: '0px 0px -40px 0px', threshold: 0.05 });
+      section.style.opacity = '0';
+      observer.observe(section);
     });
 
     // Diagram boxes scale in
@@ -218,7 +214,7 @@
           observer.unobserve(entry.target);
         }
       });
-    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.1 });
+    }, { rootMargin: '0px 0px -40px 0px', threshold: 0.05 });
     els.forEach(function (el) {
       el.style.opacity = '0';
       observer.observe(el);
@@ -233,7 +229,7 @@
           observer.unobserve(entry.target);
         }
       });
-    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.1 });
+    }, { rootMargin: '0px 0px -40px 0px', threshold: 0.05 });
     el.style.opacity = '0';
     observer.observe(el);
   }
