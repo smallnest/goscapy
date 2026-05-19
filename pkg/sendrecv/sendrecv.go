@@ -1,16 +1,31 @@
 package sendrecv
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
+// ErrTimeout is returned by Receiver.Recv when the read timeout is exceeded.
+// Sniffing loops can use errors.Is(err, ErrTimeout) to distinguish timeouts
+// from fatal errors.
+var ErrTimeout = errors.New("sendrecv: recv timeout")
+
+// BPFInstruction represents a single classic BPF instruction.
+// It mirrors the layout of struct bpf_insn (BSD/macOS) and struct sock_filter (Linux).
+type BPFInstruction struct {
+	Code uint16
+	Jt   uint8
+	Jf   uint8
+	K    uint32
+}
+
 // Receiver reads raw packets from a network interface.
 type Receiver interface {
 	// Recv reads one raw packet, dissects it, and returns the parsed Packet.
-	// Returns an error if the timeout is exceeded.
+	// Returns ErrTimeout if the timeout is exceeded.
 	Recv(timeout time.Duration) (*packet.Packet, error)
 	// Close releases the receiver's resources.
 	Close() error
@@ -21,6 +36,17 @@ type Receiver interface {
 func OpenReceiver(iface string) (Receiver, error) {
 	return openReceiver(iface)
 }
+
+// OpenFilteredReceiver opens a raw-packet receiver on the given interface
+// with the specified BPF filter applied at the kernel level.
+// Pass nil or empty instructions to capture all packets.
+func OpenFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver, error) {
+	return openFilteredReceiver(iface, instructions)
+}
+
+// LoopbackName returns the name of the loopback interface on the current platform
+// ("lo0" on macOS, "lo" on Linux).
+func LoopbackName() string { return loopbackName() }
 
 // Send sends a packet at L3 (IP level) on the given interface.
 // The OS handles L2 framing (Ethernet header).
@@ -104,6 +130,7 @@ func SendRecv1(pkt *packet.Packet, iface string, timeout time.Duration) (*packet
 //
 // Each platform file must implement:
 //   openReceiver(iface string) (Receiver, error)
+//   openFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver, error)
 //   sendL3(pkt *packet.Packet, iface string) error
 //   sendL2(pkt *packet.Packet, iface string) error
 //   loopbackName() string
