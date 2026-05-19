@@ -72,7 +72,8 @@
     var pageName = path.split('/').pop() || 'index.html';
     // If we're in examples subdir, keep the same sub-path
     var currentExamples = /\/(en|zh)\/examples\//.test(path) ? 'examples/' : '';
-    var target = '../' + altLang + '/' + currentExamples + pageName;
+    var up = inSubdir ? '../../' : '../';
+    var target = up + altLang + '/' + currentExamples + pageName;
     window.location.href = target;
   });
 })();
