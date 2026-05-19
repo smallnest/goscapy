@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/smallnest/goscapy/pkg/packet"
+
+	// Register DNS layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/dns"
 )
 
 func init() {
@@ -111,9 +114,6 @@ func init() {
 
 	// ---- Heuristic registrations (port-based, EtherType-based) ----
 
-	// DNS: UDP port 53.
-	packet.RegisterHeuristic("UDP", "dport", uint16(53), "DNS")
-	packet.RegisterHeuristic("UDP", "sport", uint16(53), "DNS")
 	// DHCP: UDP port 67 (server) or 68 (client).
 	packet.RegisterHeuristic("UDP", "dport", uint16(67), "DHCP")
 	packet.RegisterHeuristic("UDP", "sport", uint16(67), "DHCP")
