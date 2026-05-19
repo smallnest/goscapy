@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Basic Examples — goscapy</title>
+  <meta name="description" content="Complete code examples for building, dissecting, and serializing packets with goscapy: Ethernet/IP/TCP/UDP/ICMP/ARP.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. Ethernet + IP + ICMP -->
+      <div class="section" id="ethernet-ip-icmp">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Ethernet + IP + ICMP Echo Request</h3>
+        </div>
+        <p>Build an ICMP Echo Request packet at the Ethernet level. The most common packet for ping utilities.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"10.0.0.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"10.0.0.2"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">0x1234</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPICMP(dstMAC, dstIP string, icmpType, icmpCode uint8)</span>
+<span class="cmt">// Defaults: srcMAC="00:00:00:00:00:00", srcIP="0.0.0.0", id=0, seq=0</span>
+raw, err := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"10.0.0.2"</span>, <span class="num">8</span>, <span class="num">0</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span>
+
+eth := packet.<span class="fn">Ethernet</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"SrcMAC: %s → DstMAC: %s\n"</span>, eth.<span class="fn">SrcMAC</span>(), eth.<span class="fn">DstMAC</span>())
+
+ip := packet.<span class="fn">IP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"%s → %s  TTL=%d\n"</span>, ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>(), ip.<span class="fn">TTL</span>())</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (42 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Ethernet (14 bytes)</span>
+ff ff ff ff ff ff 00 11 22 33 44 55 08 00
+<span class="cmt">// IP (20 bytes)</span>
+45 00 00 1c 00 00 00 00 40 01 <span class="num">66 df</span> 0a 00 00 01 0a 00 00 02
+<span class="cmt">// ICMP (8 bytes)</span>
+08 00 <span class="num">e5 ca</span> 12 34 00 01</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Ethernet + IP + TCP -->
+      <div class="section" id="ethernet-ip-tcp">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Ethernet + IP + TCP SYN</h3>
+        </div>
+        <p>Build a TCP SYN packet — the first step of the TCP three-way handshake.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn).
+        <span class="fn">Seq</span>(<span class="num">1000</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPTCP(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</span>
+raw, err := goscapy.<span class="fn">EtherIPTCP</span>(
+    <span class="str">"00:11:22:33:44:55"</span>, <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"8.8.8.8"</span>,
+    <span class="num">12345</span>, <span class="num">80</span>, layers.TCPSyn,
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / TCP"</span>
+
+tcp := packet.<span class="fn">TCP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"Port %d → %d  Flags=0x%02x  Seq=%d\n"</span>,
+    tcp.<span class="fn">SrcPort</span>(), tcp.<span class="fn">DstPort</span>(), tcp.<span class="fn">Flags</span>(), tcp.<span class="fn">Seq</span>())</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (54 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Ethernet (14 bytes)</span>
+ff ff ff ff ff ff 00 11 22 33 44 55 08 00
+<span class="cmt">// IP (20 bytes)</span>
+45 00 00 28 00 00 00 00 40 06 <span class="num">a9 12</span> c0 a8 01 01 08 08 08 08
+<span class="cmt">// TCP (20 bytes)</span>
+30 39 00 50 00 00 03 e8 00 00 00 00 50 02 20 00 <span class="num">45 e1</span> 00 00</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Ethernet + IP + UDP -->
+      <div class="section" id="ethernet-ip-udp">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>Ethernet + IP + UDP</h3>
+        </div>
+        <p>Build a UDP datagram — used for DNS queries, video streaming, and other connectionless protocols.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">53</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPUDP(srcMAC, dstMAC, srcIP, dstIP string, srcPort, dstPort uint16)</span>
+raw, err := goscapy.<span class="fn">EtherIPUDP</span>(
+    <span class="str">"00:11:22:33:44:55"</span>, <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"8.8.8.8"</span>,
+    <span class="num">12345</span>, <span class="num">53</span>,
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / UDP"</span>
+
+udp := packet.<span class="fn">UDP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"Port %d → %d  Len=%d\n"</span>,
+    udp.<span class="fn">SrcPort</span>(), udp.<span class="fn">DstPort</span>(), udp.<span class="fn">Len</span>())</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (42 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Ethernet (14 bytes)</span>
+ff ff ff ff ff ff 00 11 22 33 44 55 08 00
+<span class="cmt">// IP (20 bytes)</span>
+45 00 00 1c 00 00 00 00 40 11 <span class="num">a9 14</span> c0 a8 01 01 08 08 08 08
+<span class="cmt">// UDP (8 bytes)</span>
+30 39 00 35 00 08 <span class="num">15 d5</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Ethernet + ARP -->
+      <div class="section" id="ethernet-arp">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>Ethernet + ARP Request</h3>
+        </div>
+        <p>Build an ARP "who-has" request — used to discover the MAC address for a given IP on the local network.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewARP</span>().
+        <span class="fn">Op</span>(layers.ARPWhoHas).
+        <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstMAC</span>(<span class="str">"00:00:00:00:00:00"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.100"</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherARP(srcMAC, dstMAC, psrc, pdst string, op uint16)</span>
+raw, err := goscapy.<span class="fn">EtherARP</span>(
+    <span class="str">"aa:bb:cc:dd:ee:ff"</span>, <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"192.168.1.100"</span>,
+    layers.ARPWhoHas,
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / ARP"</span>
+
+arp := packet.<span class="fn">ARP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"Op=%d  %s/%s → %s/%s\n"</span>,
+    arp.<span class="fn">Op</span>(), arp.<span class="fn">SrcMAC</span>(), arp.<span class="fn">SrcIP</span>(), arp.<span class="fn">DstMAC</span>(), arp.<span class="fn">DstIP</span>())</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (42 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Ethernet (14 bytes)</span>
+ff ff ff ff ff ff aa bb cc dd ee ff 08 06
+<span class="cmt">// ARP (28 bytes)</span>
+00 01 08 00 06 04 00 01
+aa bb cc dd ee ff c0 a8 01 01
+00 00 00 00 00 00 c0 a8 01 64</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. IP + ICMP (no Ethernet) -->
+      <div class="section" id="ip-icmp">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>IP + ICMP (no Ethernet)</h3>
+        </div>
+        <p>Build an ICMP packet starting at the IP layer — useful with L3 <code>Send()</code> where the OS adds the Ethernet header.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"10.0.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"10.0.0.2"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPICMP(srcIP, dstIP string, icmpType, icmpCode uint8)</span>
+raw, err := goscapy.<span class="fn">IPICMP</span>(<span class="str">"10.0.0.1"</span>, <span class="str">"10.0.0.2"</span>, <span class="num">8</span>, <span class="num">0</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Use DissectIP (no Ethernet header)</span>
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIP)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IP / ICMP"</span>
+
+ip := packet.<span class="fn">IP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"%s → %s  Proto=%d\n"</span>, ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>(), ip.<span class="fn">Proto</span>())</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (28 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IP (20 bytes)</span>
+45 00 00 1c 00 00 00 00 40 01 <span class="num">66 cd</span> 0a 00 00 01 0a 00 00 02
+<span class="cmt">// ICMP (8 bytes)</span>
+08 00 <span class="num">f5 dc</span> 00 00 00 00</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. IP + TCP (no Ethernet) -->
+      <div class="section" id="ip-tcp">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>IP + TCP (no Ethernet)</h3>
+        </div>
+        <p>Build a TCP SYN starting at the IP layer — use with <code>Send()</code> for L3 delivery.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn).
+        <span class="fn">Seq</span>(<span class="num">1000</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPTCP(srcIP, dstIP string, srcPort, dstPort uint16, flags uint8)</span>
+raw, err := goscapy.<span class="fn">IPTCP</span>(<span class="str">"192.168.1.1"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">12345</span>, <span class="num">80</span>, layers.TCPSyn)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIP)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IP / TCP"</span>
+
+tcp := packet.<span class="fn">TCP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"Port %d → %d  SYN=%v\n"</span>,
+    tcp.<span class="fn">SrcPort</span>(), tcp.<span class="fn">DstPort</span>(), tcp.<span class="fn">Flags</span>()&layers.TCPSyn != <span class="num">0</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (40 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IP (20 bytes)</span>
+45 00 00 28 00 00 00 00 40 06 <span class="num">a9 12</span> c0 a8 01 01 08 08 08 08
+<span class="cmt">// TCP (20 bytes)</span>
+30 39 00 50 00 00 03 e8 00 00 00 00 50 02 20 00 <span class="num">45 e1</span> 00 00</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. IP + UDP (no Ethernet) -->
+      <div class="section" id="ip-udp">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>IP + UDP (no Ethernet)</h3>
+        </div>
+        <p>Build a UDP datagram starting at the IP layer — ideal for <code>Send()</code> based workflows.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">53</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPUDP(srcIP, dstIP string, srcPort, dstPort uint16)</span>
+raw, err := goscapy.<span class="fn">IPUDP</span>(<span class="str">"192.168.1.1"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">12345</span>, <span class="num">53</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIP)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IP / UDP"</span>
+
+udp := packet.<span class="fn">UDP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"Port %d → %d  Len=%d\n"</span>,
+    udp.<span class="fn">SrcPort</span>(), udp.<span class="fn">DstPort</span>(), udp.<span class="fn">Len</span>())</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Serialized Hex (28 bytes)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">hex</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IP (20 bytes)</span>
+45 00 00 1c 00 00 00 00 40 11 <span class="num">a9 14</span> c0 a8 01 01 08 08 08 08
+<span class="cmt">// UDP (8 bytes)</span>
+30 39 00 35 00 08 <span class="num">15 d5</span></pre>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../index.html">Home</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
+
+  </div>
+
+  <script src="../js/particles.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/animations.js"></script>
+</body>
+</html>

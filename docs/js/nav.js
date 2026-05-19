@@ -17,20 +17,27 @@
     ? 'Go Network Packet Crafting Library'
     : 'Go 网络数据包构建库';
 
+  // Detect if we're in a subdirectory (e.g. en/examples/)
+  var path = window.location.pathname;
+  var inSubdir = /\/(en|zh)\/examples\//.test(path);
+  var prefix = inSubdir ? '../' : '';
+
   // Nav items
   var navItems;
   if (currentLang === 'en') {
     navItems = [
-      { label: 'Home', href: 'index.html' },
-      { label: 'Quick Start', href: 'quickstart.html' },
-      { label: 'Guide', href: 'guide.html' },
+      { label: 'Home', href: prefix + 'index.html' },
+      { label: 'Quick Start', href: prefix + 'quickstart.html' },
+      { label: 'Guide', href: prefix + 'guide.html' },
+      { label: 'Examples', href: prefix + 'examples/basic.html' },
       { label: 'GitHub', href: 'https://github.com/smallnest/goscapy', external: true }
     ];
   } else {
     navItems = [
-      { label: '首页', href: 'index.html' },
-      { label: '快速开始', href: 'quickstart.html' },
-      { label: '完整指南', href: 'guide.html' },
+      { label: '首页', href: prefix + 'index.html' },
+      { label: '快速开始', href: prefix + 'quickstart.html' },
+      { label: '完整指南', href: prefix + 'guide.html' },
+      { label: '示例', href: prefix + 'examples/basic.html' },
       { label: 'GitHub', href: 'https://github.com/smallnest/goscapy', external: true }
     ];
   }
@@ -61,7 +68,11 @@
 
   // Language switch
   document.getElementById('langSwitch').addEventListener('click', function () {
-    var target = currentLang === 'en' ? '../zh/index.html' : '../en/index.html';
+    // Determine current page name
+    var pageName = path.split('/').pop() || 'index.html';
+    // If we're in examples subdir, keep the same sub-path
+    var currentExamples = /\/(en|zh)\/examples\//.test(path) ? 'examples/' : '';
+    var target = '../' + altLang + '/' + currentExamples + pageName;
     window.location.href = target;
   });
 })();
