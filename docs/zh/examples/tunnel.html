@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隧道封装示例 — goscapy</title>
+  <meta name="description" content="使用 goscapy 构建 GRE、VXLAN、Dot1Q (VLAN) 和 QinQ 隧道数据包的代码示例。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. Ethernet + IP + GRE + 内层 IP -->
+      <div class="section" id="ethernet-ip-gre-ip">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Ethernet + IP + GRE + 内层 IP</h3>
+        </div>
+        <p>构建封装内层 IP 载荷的 GRE 隧道数据包。GRE 常用于站点间 VPN 和覆盖网络。设置 <code>.Key()</code>、<code>.Seq()</code> 或 <code>.SetChecksum()</code> 会自动启用对应的 GRE 标志位（K、S、C 位）。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers/gre"</span>
+)
+
+<span class="cmt">// 构建待封装的内层 IP 数据包</span>
+innerPayload, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"10.1.0.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"10.2.0.1"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Build</span>()
+
+<span class="cmt">// 外层 GRE 隧道：Ethernet + IP + GRE + 内层 IP</span>
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"66:77:88:99:aa:bb"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.2.1"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewGRE</span>().
+        <span class="fn">ProtocolType</span>(gre.ProtoIP).       <span class="cmt">// 0x0800 = 封装 IP</span>
+        <span class="fn">Key</span>(<span class="num">0x00001000</span>).                   <span class="cmt">// 自动设置 K 标志</span>
+        <span class="fn">Seq</span>(<span class="num">42</span>).                          <span class="cmt">// 自动设置 S 标志</span>
+        <span class="fn">Payload</span>(innerPayload)).            <span class="cmt">// 内层 IP 数据包原始字节</span>
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPGRE(srcMAC, dstMAC, srcIP, dstIP string, protoType uint16, key uint32, innerPayload []byte)</span>
+<span class="cmt">// key=0 表示不包含 Key 字段；非零值自动设置 K 标志</span>
+raw, err := goscapy.<span class="fn">EtherIPGRE</span>(
+    <span class="str">"00:11:22:33:44:55"</span>, <span class="str">"66:77:88:99:aa:bb"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"192.168.2.1"</span>,
+    gre.ProtoIP,       <span class="cmt">// ProtocolType = 0x0800 (IP)</span>
+    <span class="num">0x00001000</span>,        <span class="cmt">// Key 值</span>
+    innerPayload,      <span class="cmt">// 内层 IP + ICMP 字节</span>
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / GRE"</span>
+
+<span class="cmt">// 访问 GRE 字段</span>
+greLayer := packet.<span class="fn">Layer</span>(pkt, <span class="str">"GRE"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"ProtoType=0x%04x  HasKey=%v  HasSeq=%v\n"</span>,
+    gre.<span class="fn">GetProtocolType</span>(greLayer),
+    gre.<span class="fn">HasKey</span>(greLayer),
+    gre.<span class="fn">HasSeq</span>(greLayer))
+<span class="kw">if</span> gre.<span class="fn">HasKey</span>(greLayer) {
+    fmt.<span class="fn">Printf</span>(<span class="str">"Key=0x%08x\n"</span>, gre.<span class="fn">GetKey</span>(greLayer))
+}
+<span class="kw">if</span> gre.<span class="fn">HasSeq</span>(greLayer) {
+    fmt.<span class="fn">Printf</span>(<span class="str">"Seq=%d\n"</span>, gre.<span class="fn">GetSeq</span>(greLayer))
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>注意：</strong>GRE 条件字段（<code>Key</code>、<code>Seq</code>、<code>Checksum</code>）仅在显式设置时才包含在序列化输出中。通过 Builder 设置字段时会自动启用 GRE 头中对应的标志位。
+        </div>
+      </div>
+
+      <!-- 2. GRE 带校验和 -->
+      <div class="section" id="gre-checksum">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>GRE 带校验和字段</h3>
+        </div>
+        <p>GRE 支持可选的校验和字段用于完整性验证。设置 <code>.SetChecksum()</code> 会启用 C 标志并在头部中包含校验和字段。使用 <code>.Build()</code> 时，校验和值可以设为 <code>0</code> — 序列化时会自动计算。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// GRE 包含所有可选字段：Checksum + Key + Sequence</span>
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"66:77:88:99:aa:bb"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.2.1"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewGRE</span>().
+        <span class="fn">ProtocolType</span>(gre.ProtoEthernet).  <span class="cmt">// 0x6558 = 封装 Ethernet</span>
+        <span class="fn">SetChecksum</span>(<span class="num">0</span>).                   <span class="cmt">// 自动计算；启用 C 标志</span>
+        <span class="fn">Key</span>(<span class="num">0xABCD0001</span>).
+        <span class="fn">Seq</span>(<span class="num">100</span>).
+        <span class="fn">Payload</span>(innerEthernetFrame)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 GRE 头部布局</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">text</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// GRE 头部（C+K+S 标志设置时，变长）</span>
+<span class="cmt">//</span>
+<span class="cmt">//   Flags (2 字节): C=1, R=0, K=1, S=1</span>
+<span class="cmt">//   ProtocolType (2 字节): 0x6558 (Ethernet) 或 0x0800 (IP)</span>
+<span class="cmt">//   Checksum + Reserved1 (4 字节) — 仅当 C=1</span>
+<span class="cmt">//   Key (4 字节) — 仅当 K=1</span>
+<span class="cmt">//   Sequence (4 字节) — 仅当 S=1</span>
+<span class="cmt">//</span>
+<span class="cmt">// 最小 GRE 头部 = 4 字节 (flags + protocol type)</span>
+<span class="cmt">// 包含所有可选字段 = 16 字节</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Ethernet + IP + UDP + VXLAN + 内层 Ethernet -->
+      <div class="section" id="ethernet-ip-udp-vxlan">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>Ethernet + IP + UDP + VXLAN + 内层 Ethernet</h3>
+        </div>
+        <p>构建 VXLAN 隧道数据包 — 数据中心网络虚拟化的事实标准。VXLAN 将二层以太网帧封装在 UDP 数据报中，通过 24 位 VNI（VXLAN 网络标识符）进行区分。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 待封装的内层以太网帧</span>
+innerFrame, _ := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:01"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"aa:bb:cc:dd:ee:02"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"10.1.0.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"10.1.0.2"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).<span class="fn">DstPort</span>(<span class="num">80</span>)).
+    <span class="fn">Build</span>()
+
+<span class="cmt">// 外层 VXLAN 隧道</span>
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"66:77:88:99:aa:bb"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.2.1"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">4789</span>).       <span class="cmt">// 标准 VXLAN UDP 端口</span>
+        <span class="fn">DstPort</span>(<span class="num">4789</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewVXLAN</span>().
+        <span class="fn">VNI</span>(<span class="num">100500</span>).             <span class="cmt">// 24 位 VXLAN 网络标识符</span>
+        <span class="fn">Payload</span>(innerFrame)).      <span class="cmt">// 内层以太网帧</span>
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPUDPVXLAN(srcMAC, dstMAC, srcIP, dstIP string, vni uint32, innerPayload []byte)</span>
+<span class="cmt">// 默认使用 UDP 端口 4789 作为源端口和目标端口</span>
+raw, err := goscapy.<span class="fn">EtherIPUDPVXLAN</span>(
+    <span class="str">"00:11:22:33:44:55"</span>, <span class="str">"66:77:88:99:aa:bb"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"192.168.2.1"</span>,
+    <span class="num">100500</span>,          <span class="cmt">// VNI</span>
+    innerFrame,      <span class="cmt">// 内层以太网帧字节</span>
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers/vxlan"</span>
+
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / UDP / VXLAN"</span>
+
+<span class="cmt">// 访问 VXLAN 字段</span>
+vxlanLayer := packet.<span class="fn">Layer</span>(pkt, <span class="str">"VXLAN"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"VNI=%d  Flags=0x%02x\n"</span>,
+    vxlan.<span class="fn">GetVNI</span>(vxlanLayer),
+    vxlan.<span class="fn">GetFlags</span>(vxlanLayer))</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <strong>提示：</strong>VXLAN 的 <code>VNI</code> 是 24 位值（0–16,777,215）。I 标志（flags 字节的第 3 位）在有效 VXLAN 数据包中始终设置，由 Builder 自动处理。
+        </div>
+      </div>
+
+      <!-- 4. Ethernet + Dot1Q + IP -->
+      <div class="section" id="ethernet-dot1q-ip">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>Ethernet + Dot1Q (VLAN) + IP</h3>
+        </div>
+        <p>构建 802.1Q VLAN 标记数据包。Dot1Q 在以太网头部和载荷之间插入 4 字节的 shim，携带 VLAN ID (VID)、优先级代码点 (PCP) 和丢弃合格指示符 (DEI)。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers/dot1q"</span>
+
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDot1Q</span>().
+        <span class="fn">VID</span>(<span class="num">100</span>).            <span class="cmt">// VLAN ID (0–4095)</span>
+        <span class="fn">PCP</span>(<span class="num">5</span>).             <span class="cmt">// 优先级代码点 (0–7)</span>
+        <span class="fn">DEI</span>(<span class="kw">false</span>).          <span class="cmt">// 丢弃合格指示符</span>
+        <span class="fn">Type</span>(<span class="num">0x0800</span>)).      <span class="cmt">// 内层 EtherType = IPv4</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"10.0.0.1"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).<span class="fn">DstPort</span>(<span class="num">80</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherDot1QIP(srcMAC, dstMAC, srcIP, dstIP string, vid uint16)</span>
+<span class="cmt">// 默认：PCP=0, DEI=false, Type=0x0800 (IPv4), TPID=0x8100</span>
+raw, err := goscapy.<span class="fn">EtherDot1QIP</span>(
+    <span class="str">"00:11:22:33:44:55"</span>, <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"10.0.0.1"</span>,
+    <span class="num">100</span>,  <span class="cmt">// VLAN ID</span>
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / Dot1Q / IP / TCP"</span>
+
+<span class="cmt">// 访问 Dot1Q 字段</span>
+dot1qLayer := packet.<span class="fn">Layer</span>(pkt, <span class="str">"Dot1Q"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"VID=%d  PCP=%d  DEI=%v  Type=0x%04x\n"</span>,
+    dot1q.<span class="fn">GetVID</span>(dot1qLayer),
+    dot1q.<span class="fn">GetPCP</span>(dot1qLayer),
+    dot1q.<span class="fn">GetDEI</span>(dot1qLayer),
+    dot1q.<span class="fn">GetType</span>(dot1qLayer))</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">📦 Dot1Q 头部布局 (4 字节)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">text</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Dot1Q 4 字节标签插入在以太网 src/dst MAC 之后</span>
+<span class="cmt">//</span>
+<span class="cmt">//   TPID (2 字节): 0x8100 (802.1Q) 或 0x88A8 (802.1ad/QinQ)</span>
+<span class="cmt">//   TCI (2 字节):</span>
+<span class="cmt">//     PCP  (3 位) — 优先级代码点 (0–7)</span>
+<span class="cmt">//     DEI  (1 位) — 丢弃合格指示符</span>
+<span class="cmt">//     VID (12 位) — VLAN 标识符 (0–4095)</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. QinQ (双层 VLAN) -->
+      <div class="section" id="qinq">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>QinQ — 双层 VLAN 标签</h3>
+        </div>
+        <p>QinQ (802.1ad) 堆叠两个 VLAN 标签 — 外层服务标签 (S-tag) 使用 TPID <code>0x88A8</code>，内层客户标签 (C-tag) 使用 TPID <code>0x8100</code>。这允许服务提供商透明地隧道传输客户 VLAN。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDot1Q</span>().           <span class="cmt">// 外层 S-tag (服务)</span>
+        <span class="fn">TPID</span>(dot1q.TPID8021AD).      <span class="cmt">// 0x88A8 = 802.1ad</span>
+        <span class="fn">VID</span>(<span class="num">2000</span>).
+        <span class="fn">PCP</span>(<span class="num">3</span>).
+        <span class="fn">DEI</span>(<span class="kw">false</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDot1Q</span>().           <span class="cmt">// 内层 C-tag (客户)</span>
+        <span class="fn">TPID</span>(dot1q.TPID8021Q).       <span class="cmt">// 0x8100 = 802.1Q</span>
+        <span class="fn">VID</span>(<span class="num">100</span>).
+        <span class="fn">PCP</span>(<span class="num">0</span>).
+        <span class="fn">DEI</span>(<span class="kw">false</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"10.0.0.1"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / Dot1Q / Dot1Q / IP / ICMP"</span>
+
+<span class="cmt">// 访问外层 S-tag</span>
+outerTag := packet.<span class="fn">Layer</span>(pkt, <span class="str">"Dot1Q"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"S-Tag: VID=%d  PCP=%d\n"</span>,
+    dot1q.<span class="fn">GetVID</span>(outerTag), dot1q.<span class="fn">GetPCP</span>(outerTag))
+
+<span class="cmt">// 访问内层 C-tag（第二个 Dot1Q 层）</span>
+dot1qLayers := packet.<span class="fn">Layers</span>(pkt, <span class="str">"Dot1Q"</span>)
+<span class="kw">if</span> <span class="fn">len</span>(dot1qLayers) > <span class="num">1</span> {
+    innerTag := dot1qLayers[<span class="num">1</span>]
+    fmt.<span class="fn">Printf</span>(<span class="str">"C-Tag: VID=%d  PCP=%d\n"</span>,
+        dot1q.<span class="fn">GetVID</span>(innerTag), dot1q.<span class="fn">GetPCP</span>(innerTag))
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>注意：</strong>外层 Dot1Q 使用 <code>TPID8021AD</code>（<code>0x88A8</code>）以区别于单标签帧。内层标签使用标准 <code>TPID8021Q</code>（<code>0x8100</code>）。解析引擎会自动识别嵌套的 Dot1Q 层。
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../zh/index.html">首页</a>
+        <a href="basic.html">基础示例</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>
