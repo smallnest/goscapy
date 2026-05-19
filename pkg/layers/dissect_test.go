@@ -5,6 +5,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/smallnest/goscapy/pkg/layers/dot1q"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -757,5 +758,95 @@ func TestDissectErrorInField(t *testing.T) {
 	_, err := packet.Dissect(raw, ethernetStartFn)
 	if err == nil {
 		t.Fatal("expected error for truncated IP header")
+	}
+}
+
+func TestDissectDot1Q(t *testing.T) {
+	// Dissect Dot1Q(vlan=100, pcp=3) / IP / ICMP.
+	// Dot1Q is 6 bytes: tpid(2) + tci(2) + type(2).
+	raw := []byte{
+		// Dot1Q (6 bytes)
+		0x81, 0x00, 0x60, 0x64, 0x08, 0x00, // TPID=0x8100, TCI=PCP=3,VID=100, type=0x0800
+		// IP (20 bytes): len=28, proto=1
+		0x45, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x00, 0x40, 0x01, 0x00, 0x00,
+		0x0a, 0x00, 0x00, 0x01, 0x0a, 0x00, 0x00, 0x02,
+		// ICMP (8 bytes)
+		0x08, 0x00, 0x00, 0x00, 0x12, 0x34, 0x00, 0x01,
+	}
+
+	pkt, err := packet.DissectByProto(raw, "Dot1Q")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !pkt.HasLayer("Dot1Q") {
+		t.Fatal("Dot1Q layer not found")
+	}
+	if !pkt.HasLayer("IP") {
+		t.Fatal("IP layer not found")
+	}
+	if !pkt.HasLayer("ICMP") {
+		t.Fatal("ICMP layer not found")
+	}
+
+	dot1qLayer := pkt.GetLayer("Dot1Q")
+	if dot1q.GetVID(dot1qLayer) != 100 {
+		t.Errorf("VID = %d", dot1q.GetVID(dot1qLayer))
+	}
+	if dot1q.GetPCP(dot1qLayer) != 3 {
+		t.Errorf("PCP = %d", dot1q.GetPCP(dot1qLayer))
+	}
+}
+
+func TestDissectQinQ(t *testing.T) {
+	// Dissect QinQ: outer(0x88A8, vid=200) / inner(0x8100, vid=100) / IP.
+	// Each Dot1Q is 6 bytes: tpid(2) + tci(2) + type(2).
+	raw := []byte{
+		// Outer Dot1Q (6 bytes)
+		0x88, 0xA8, 0x00, 0xC8, 0x81, 0x00, // TPID=0x88A8, TCI=VID=200, type=0x8100
+		// Inner Dot1Q (6 bytes)
+		0x81, 0x00, 0x00, 0x64, 0x08, 0x00, // TPID=0x8100, TCI=VID=100, type=0x0800
+		// IP (20 bytes)
+		0x45, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00,
+		0x40, 0x00, 0x00, 0x00,
+		0x0a, 0x00, 0x00, 0x01, 0x0a, 0x00, 0x00, 0x02,
+	}
+
+	pkt, err := packet.DissectByProto(raw, "Dot1Q")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layers := pkt.Layers()
+	if len(layers) < 3 {
+		t.Fatalf("expected at least 3 layers, got %d: %v", len(layers), pkt.String())
+	}
+
+	if layers[0].Proto() != "Dot1Q" {
+		t.Errorf("layer 0 = %s, want Dot1Q", layers[0].Proto())
+	}
+	if layers[1].Proto() != "Dot1Q" {
+		t.Errorf("layer 1 = %s, want Dot1Q", layers[1].Proto())
+	}
+	if layers[2].Proto() != "IP" {
+		t.Errorf("layer 2 = %s, want IP", layers[2].Proto())
+	}
+
+	outer := layers[0]
+	if dot1q.GetVID(outer) != 200 {
+		t.Errorf("outer VID = %d, want 200", dot1q.GetVID(outer))
+	}
+	tpid, _ := outer.Get("tpid")
+	if tpid.(uint16) != 0x88A8 {
+		t.Errorf("outer TPID = %#x", tpid)
+	}
+
+	inner := layers[1]
+	if dot1q.GetVID(inner) != 100 {
+		t.Errorf("inner VID = %d, want 100", dot1q.GetVID(inner))
+	}
+	tpid2, _ := inner.Get("tpid")
+	if tpid2.(uint16) != 0x8100 {
+		t.Errorf("inner TPID = %#x", tpid2)
 	}
 }
