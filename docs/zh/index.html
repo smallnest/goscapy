@@ -85,6 +85,106 @@
         </div>
       </div>
 
+      <!-- 对比示例: Ping -->
+      <div class="section" id="comparison">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>三种方式写 Ping — 感受 goscapy 的简洁</h3>
+        </div>
+        <p>同样的任务 — 构建 ICMP 回显请求、发送、接收回复 — 分别用 Python Scapy、goscapy 和 Go 标准库实现。看看 goscapy 如何将 Scapy 的优雅带入 Go。</p>
+
+        <div class="compare-grid">
+          <!-- Python Scapy -->
+          <div class="compare-card">
+            <div class="compare-header">
+              <span class="compare-lang">🐍 Python Scapy</span>
+              <span class="compare-lines">~4 行</span>
+            </div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">python</span><button class="code-copy">Copy</button></div>
+              <div class="code-body">
+<pre><span class="kw">from</span> scapy.all <span class="kw">import</span> *
+
+<span class="cmt"># 一行搞定：构建 + 发送 + 接收</span>
+ans = sr1(IP(dst=<span class="str">"8.8.8.8"</span>) /
+          ICMP(), timeout=<span class="num">3</span>)
+ans.<span class="fn">show</span>()</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- goscapy -->
+          <div class="compare-card compare-highlight">
+            <div class="compare-header">
+              <span class="compare-lang">🦎 goscapy（本项目）</span>
+              <span class="compare-lines">~6 行</span>
+            </div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+              <div class="code-body">
+<pre><span class="cmt">// 构建 + 发送 + 接收第一个回复</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+
+_, resp, _ := sendrecv.<span class="fn">SendRecv1</span>(
+    pkt, <span class="str">"eth0"</span>, <span class="num">3</span>*time.Second)
+fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Go stdlib -->
+          <div class="compare-card">
+            <div class="compare-header">
+              <span class="compare-lang">🔵 Go net（标准库）</span>
+              <span class="compare-lines">~30+ 行</span>
+            </div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+              <div class="code-body">
+<pre><span class="cmt">// 手动构造 ICMP 头</span>
+<span class="kw">type</span> icmpMsg <span class="kw">struct</span> {
+    Type <span class="type">uint8</span>
+    Code <span class="type">uint8</span>
+    Chksum <span class="type">uint16</span>
+    ID   <span class="type">uint16</span>
+    Seq  <span class="type">uint16</span>
+}
+
+<span class="cmt">// 手动序列化二进制...</span>
+<span class="cmt">// 手动计算校验和...</span>
+<span class="cmt">// 用 net.ListenPacket 打开原始套接字...</span>
+<span class="cmt">// 处理平台差异...</span>
+<span class="cmt">// 手动解析响应二进制...</span>
+<span class="cmt">// 约 30 行样板代码</span>
+<span class="cmt">// 无分层解析</span>
+<span class="cmt">// 无自动校验和</span>
+<span class="cmt">// 无跨平台抽象</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrapper" style="margin-top:1.5rem;">
+          <table>
+            <thead>
+              <tr><th>特性</th><th>🐍 Scapy</th><th>🦎 goscapy</th><th>🔵 Go 标准库</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>构建 ICMP 包</td><td>1 行</td><td>1 条链式调用</td><td>手动结构体 + 序列化</td></tr>
+              <tr><td>校验和</td><td>自动 ✅</td><td>自动 ✅</td><td>手动 ❌</td></tr>
+              <tr><td>发送 + 接收</td><td><code>sr1()</code></td><td><code>SendRecv1()</code></td><td>套接字 + 读取循环</td></tr>
+              <tr><td>解析响应</td><td>自动 ✅</td><td>自动 ✅</td><td>手动解析 ❌</td></tr>
+              <tr><td>性能</td><td>解释执行 🐢</td><td>编译执行 ⚡</td><td>编译执行 ⚡</td></tr>
+              <tr><td>类型安全</td><td>动态类型</td><td>编译时检查 ✅</td><td>手动保证</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 支持的协议 -->
       <div class="section" id="protocols">
         <div class="section-title">

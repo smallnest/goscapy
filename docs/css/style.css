@@ -866,3 +866,83 @@ ol {
     margin-left: 0;
   }
 }
+
+/* ---------- Comparison Grid ---------- */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+
+.compare-card {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e8e2d9;
+  padding: 0;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.compare-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+.compare-highlight {
+  border: 2px solid #D97757;
+  box-shadow: 0 2px 12px rgba(217,119,87,0.15);
+}
+
+.compare-highlight:hover {
+  box-shadow: 0 4px 20px rgba(217,119,87,0.25);
+}
+
+.compare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #f0ebe3;
+  background: #fdfbf8;
+}
+
+.compare-lang {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1a1a1a;
+}
+
+.compare-lines {
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: 500;
+  background: #f5f0e8;
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+}
+
+.compare-card .code-block {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.compare-card .code-header {
+  padding: 0.5rem 1rem;
+}
+
+.compare-card .code-body {
+  padding: 0 1rem 1rem;
+}
+
+.compare-card pre {
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}

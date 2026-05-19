@@ -85,6 +85,106 @@
         </div>
       </div>
 
+      <!-- Comparison: Ping Example -->
+      <div class="section" id="comparison">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>Ping in 3 Libraries — Compare the Simplicity</h3>
+        </div>
+        <p>The same task — build an ICMP Echo Request, send it, receive the reply — written in Python Scapy, goscapy, and raw Go standard library. See how goscapy brings Scapy's elegance to Go.</p>
+
+        <div class="compare-grid">
+          <!-- Python Scapy -->
+          <div class="compare-card">
+            <div class="compare-header">
+              <span class="compare-lang">🐍 Python Scapy</span>
+              <span class="compare-lines">~4 lines</span>
+            </div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">python</span><button class="code-copy">Copy</button></div>
+              <div class="code-body">
+<pre><span class="kw">from</span> scapy.all <span class="kw">import</span> *
+
+<span class="cmt"># Build + send + receive in one line</span>
+ans = sr1(IP(dst=<span class="str">"8.8.8.8"</span>) /
+          ICMP(), timeout=<span class="num">3</span>)
+ans.<span class="fn">show</span>()</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- goscapy -->
+          <div class="compare-card compare-highlight">
+            <div class="compare-header">
+              <span class="compare-lang">🦎 goscapy (this project)</span>
+              <span class="compare-lines">~6 lines</span>
+            </div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+              <div class="code-body">
+<pre><span class="cmt">// Build + send + receive first reply</span>
+pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+
+_, resp, _ := sendrecv.<span class="fn">SendRecv1</span>(
+    pkt, <span class="str">"eth0"</span>, <span class="num">3</span>*time.Second)
+fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Go stdlib -->
+          <div class="compare-card">
+            <div class="compare-header">
+              <span class="compare-lang">🔵 Go net (stdlib)</span>
+              <span class="compare-lines">~30+ lines</span>
+            </div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+              <div class="code-body">
+<pre><span class="cmt">// Manual ICMP header construction</span>
+<span class="kw">type</span> icmpMsg <span class="kw">struct</span> {
+    Type <span class="type">uint8</span>
+    Code <span class="type">uint8</span>
+    Chksum <span class="type">uint16</span>
+    ID   <span class="type">uint16</span>
+    Seq  <span class="type">uint16</span>
+}
+
+<span class="cmt">// Marshal binary by hand...</span>
+<span class="cmt">// Compute checksum manually...</span>
+<span class="cmt">// Open raw socket with net.ListenPacket...</span>
+<span class="cmt">// Handle platform differences...</span>
+<span class="cmt">// Parse response binary by hand...</span>
+<span class="cmt">// ~30 lines of boilerplate</span>
+<span class="cmt">// No layer dissection</span>
+<span class="cmt">// No auto checksums</span>
+<span class="cmt">// No cross-platform abstraction</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrapper" style="margin-top:1.5rem;">
+          <table>
+            <thead>
+              <tr><th>Feature</th><th>🐍 Scapy</th><th>🦎 goscapy</th><th>🔵 Go stdlib</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Build ICMP packet</td><td>1 line</td><td>1 chain</td><td>Manual struct + marshal</td></tr>
+              <tr><td>Checksum</td><td>Auto ✅</td><td>Auto ✅</td><td>Manual ❌</td></tr>
+              <tr><td>Send + receive</td><td><code>sr1()</code></td><td><code>SendRecv1()</code></td><td>Socket + read loop</td></tr>
+              <tr><td>Dissect response</td><td>Auto ✅</td><td>Auto ✅</td><td>Manual parsing ❌</td></tr>
+              <tr><td>Performance</td><td>Interpreted 🐢</td><td>Compiled ⚡</td><td>Compiled ⚡</td></tr>
+              <tr><td>Type safety</td><td>Dynamic</td><td>Compile-time ✅</td><td>Manual</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Supported Protocols -->
       <div class="section" id="protocols">
         <div class="section-title">
