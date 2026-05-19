@@ -9,6 +9,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/dns"
 	// Register DHCP layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/dhcp"
+	// Register Dot1Q layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/dot1q"
 )
 
 func init() {
@@ -19,6 +21,14 @@ func init() {
 	packet.RegisterBinding("ARP", "Ethernet", "type", uint16(0x0806))
 	// RARP over Ethernet → Ether.type = 0x8035
 	packet.RegisterBinding("RARP", "Ethernet", "type", uint16(0x8035))
+	// Dot1Q over Ethernet → Ether.type = 0x8100
+	packet.RegisterBinding("Dot1Q", "Ethernet", "type", uint16(0x8100))
+	// IP over Dot1Q → Dot1Q.type = 0x0800
+	packet.RegisterBinding("IP", "Dot1Q", "type", uint16(0x0800))
+	// ARP over Dot1Q → Dot1Q.type = 0x0806
+	packet.RegisterBinding("ARP", "Dot1Q", "type", uint16(0x0806))
+	// IPv6 over Dot1Q → Dot1Q.type = 0x86DD
+	packet.RegisterBinding("IPv6", "Dot1Q", "type", uint16(0x86DD))
 	// TCP over IP → IP.proto = 6
 	packet.RegisterBinding("TCP", "IP", "proto", uint8(6))
 	// UDP over IP → IP.proto = 17
@@ -129,6 +139,7 @@ func init() {
 	packet.RegisterHeuristic("Ethernet", "type", uint16(0x86DD), "IPv6")
 	// Dot1Q: Ethernet type 0x8100 (single VLAN) and 0x88A8 (QinQ outer).
 	packet.RegisterHeuristic("Ethernet", "type", uint16(0x8100), "Dot1Q")
+	packet.RegisterHeuristic("Ethernet", "type", uint16(0x88A8), "Dot1Q")
 
 	// ---- Tunnel payload registrations ----
 
