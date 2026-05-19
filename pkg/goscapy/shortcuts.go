@@ -2,6 +2,7 @@ package goscapy
 
 import (
 	"github.com/smallnest/goscapy/pkg/layers"
+	"github.com/smallnest/goscapy/pkg/layers/dns"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -84,3 +85,65 @@ type rawBuilder struct {
 }
 
 func (rb *rawBuilder) Layer() *packet.Layer { return rb.layer }
+
+// IPv6ICMPv6Echo builds an IPv6 + ICMPv6 Echo Request packet.
+func IPv6ICMPv6Echo(srcIP, dstIP string, id, seq uint16) ([]byte, error) {
+	return NewIPv6().SrcIP(srcIP).DstIP(dstIP).NH(58).
+		Over(NewICMPv6().Type(128).Code(0)).
+		Over(&rawBuilder{layers.NewICMPv6Echo(id, seq)}).
+		Build()
+}
+
+// EtherDot1QIP builds an Ethernet + Dot1Q + IPv4 packet with a VLAN tag.
+func EtherDot1QIP(srcMAC, dstMAC, srcIP, dstIP string, vid uint16) ([]byte, error) {
+	return NewEthernet().SrcMAC(srcMAC).DstMAC(dstMAC).
+		Over(NewDot1Q().VID(vid)).
+		Over(NewIP().SrcIP(srcIP).DstIP(dstIP)).
+		Build()
+}
+
+// EtherIPUDPVXLAN builds an Ethernet + IP + UDP + VXLAN packet with an inner payload.
+// Uses UDP port 4789 (standard VXLAN port) for both source and destination.
+func EtherIPUDPVXLAN(srcMAC, dstMAC, srcIP, dstIP string, vni uint32, innerPayload []byte) ([]byte, error) {
+	return NewEthernet().SrcMAC(srcMAC).DstMAC(dstMAC).
+		Over(NewIP().SrcIP(srcIP).DstIP(dstIP)).
+		Over(NewUDP().SrcPort(4789).DstPort(4789)).
+		Over(NewVXLAN().VNI(vni)).
+		Over(&rawBuilder{layers.NewRawWith(innerPayload)}).
+		Build()
+}
+
+// EtherIPGRE builds an Ethernet + IP + GRE packet with an inner payload.
+// protoType sets the GRE Protocol Type (0x0800=IP, 0x6558=Ethernet).
+// If key is non-zero, the K flag is set and the key field is included.
+func EtherIPGRE(srcMAC, dstMAC, srcIP, dstIP string, protoType uint16, key uint32, innerPayload []byte) ([]byte, error) {
+	greBuilder := NewGRE().ProtocolType(protoType)
+	if key != 0 {
+		greBuilder.Key(key)
+	}
+	return NewEthernet().SrcMAC(srcMAC).DstMAC(dstMAC).
+		Over(NewIP().SrcIP(srcIP).DstIP(dstIP)).
+		Over(greBuilder).
+		Over(&rawBuilder{layers.NewRawWith(innerPayload)}).
+		Build()
+}
+
+// EtherIPUDPDNS builds an Ethernet + IP + UDP + DNS query packet.
+func EtherIPUDPDNS(srcMAC, dstMAC, srcIP, dstIP string, dnsPort uint16, questions []dns.DNSQuestion) ([]byte, error) {
+	return NewEthernet().SrcMAC(srcMAC).DstMAC(dstMAC).
+		Over(NewIP().SrcIP(srcIP).DstIP(dstIP)).
+		Over(NewUDP().SrcPort(12345).DstPort(dnsPort)).
+		Over(NewDNS().Questions(questions)).
+		Build()
+}
+
+// EtherIPUDPDHCP builds an Ethernet + IP + UDP + DHCP packet.
+// Uses broadcast IP (255.255.255.255) and DHCP client/server ports (68/67).
+// Default: BOOTREQUEST with specified message type (e.g. dhcp.DHCPDISCOVER).
+func EtherIPUDPDHCP(srcMAC, dstMAC string, xid uint32, msgType uint8) ([]byte, error) {
+	return NewEthernet().SrcMAC(srcMAC).DstMAC(dstMAC).
+		Over(NewIP().SrcIP("0.0.0.0").DstIP("255.255.255.255")).
+		Over(NewUDP().SrcPort(68).DstPort(67)).
+		Over(NewDHCP().XID(xid).MessageType(msgType)).
+		Build()
+}
