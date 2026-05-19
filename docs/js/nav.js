@@ -1,6 +1,6 @@
 /**
- * nav.js — Simple header injection with brand + pulse dot + language switch
- * Injects a header into any page that includes <div id="navbar"></div>
+ * nav.js — Header with brand + page nav links + language switch
+ * Injects into any page that includes <div id="navbar"></div>
  */
 (function () {
   'use strict';
@@ -17,14 +17,42 @@
     ? 'Go Network Packet Crafting Library'
     : 'Go 网络数据包构建库';
 
+  // Nav items
+  var navItems;
+  if (currentLang === 'en') {
+    navItems = [
+      { label: 'Home', href: 'index.html' },
+      { label: 'Quick Start', href: 'quickstart.html' },
+      { label: 'Guide', href: 'guide.html' },
+      { label: 'GitHub', href: 'https://github.com/smallnest/goscapy', external: true }
+    ];
+  } else {
+    navItems = [
+      { label: '首页', href: 'index.html' },
+      { label: '快速开始', href: 'quickstart.html' },
+      { label: '完整指南', href: 'guide.html' },
+      { label: 'GitHub', href: 'https://github.com/smallnest/goscapy', external: true }
+    ];
+  }
+
+  var navLinksHTML = navItems.map(function (item) {
+    var target = item.external ? ' target="_blank" rel="noopener"' : '';
+    return '<a href="' + item.href + '"' + target + '>' + item.label + '</a>';
+  }).join('');
+
   navbar.className = 'header';
   navbar.innerHTML =
     '<div class="header-row">' +
-      '<div class="pulse-dot" id="pulseDot"></div>' +
-      '<h1>' + title + '</h1>' +
-      '<button class="lang-switch" id="langSwitch" title="Switch language">' +
-        '\u{1F310} ' + altLabel +
-      '</button>' +
+      '<div class="header-left">' +
+        '<div class="pulse-dot" id="pulseDot"></div>' +
+        '<h1>' + title + '</h1>' +
+      '</div>' +
+      '<nav class="header-nav">' +
+        navLinksHTML +
+        '<button class="lang-switch" id="langSwitch" title="Switch language">' +
+          '\u{1F310} ' + altLabel +
+        '</button>' +
+      '</nav>' +
     '</div>' +
     '<p class="subtitle">' + subtitle + '</p>' +
     '<p class="subtitle" style="margin-top:0.25rem;">' +

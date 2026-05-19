@@ -60,8 +60,50 @@ img {
 .header-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.header-nav a {
+  color: #8B8680;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+  position: relative;
+}
+
+.header-nav a:hover {
+  color: #D97757;
+}
+
+.header-nav a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1.5px;
+  background: #D97757;
+  transition: width 0.2s;
+}
+
+.header-nav a:hover::after {
+  width: 100%;
 }
 
 .pulse-dot {
@@ -728,6 +770,21 @@ ol {
 
   .header-row {
     flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .header-left {
+    width: 100%;
+  }
+
+  .header-nav {
+    width: 100%;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .header-nav a {
+    font-size: 0.75rem;
   }
 
   .lang-switch {
