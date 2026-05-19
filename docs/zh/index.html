@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>goscapy — Go 网络数据包构建库</title>
+  <meta name="description" content="纯 Go 语言实现的网络数据包构建、解析、发送、接收和嗅探库，提供类型安全的 Builder API 和一行式快捷函数。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="page-full">
+
+  <!-- 导航栏 -->
+  <div id="navbar"></div>
+
+  <!-- 主要内容 -->
+  <main id="mainContent" class="main-content">
+
+    <!-- ==================== Hero ==================== -->
+    <section class="hero">
+      <canvas class="hero-canvas" id="particleCanvas"></canvas>
+      <div class="hero-content">
+        <div class="hero-badge">🚀 纯 Go 实现 • 零外部依赖</div>
+        <h1 class="hero-title">用 Go 构建网络数据包</h1>
+        <p class="hero-subtitle">
+          强大的 Go 语言网络数据包构建、解析、发送、接收和嗅探库。
+          类型安全的 Builder API，支持一行式快捷函数。
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener" class="btn btn-primary">
+            ⭐ GitHub
+          </a>
+          <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener" class="btn btn-outline">
+            📖 Go Reference
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 核心特性 ==================== -->
+    <section class="section" id="features">
+      <div class="section-header anim-fade-in">
+        <span class="section-tag">核心特性</span>
+        <h2 class="section-title">数据包工程所需的一切</h2>
+        <p class="section-desc">
+          从构建到嗅探 — goscapy 用简洁、地道的 Go API 覆盖完整的数据包生命周期。
+        </p>
+      </div>
+      <div class="features-grid">
+        <!-- 1. Builder API -->
+        <div class="feature-card anim-flip-in stagger-1">
+          <div class="feature-card-inner">
+            <div class="feature-icon">🔨</div>
+            <h3 class="feature-title">Builder API</h3>
+            <p class="feature-desc">流畅的方法链式调用，实现类型安全、显式的数据包构建，编译时即可保证正确性。</p>
+          </div>
+        </div>
+        <!-- 2. 快捷函数 -->
+        <div class="feature-card anim-flip-in stagger-2">
+          <div class="feature-card-inner">
+            <div class="feature-icon">⚡</div>
+            <h3 class="feature-title">快捷函数</h3>
+            <p class="feature-desc">针对常用协议栈的一行式构建函数，内置合理默认值，一个函数调用即可构建数据包。</p>
+          </div>
+        </div>
+        <!-- 3. 数据包解析 -->
+        <div class="feature-card anim-flip-in stagger-3">
+          <div class="feature-card-inner">
+            <div class="feature-icon">🔬</div>
+            <h3 class="feature-title">数据包解析</h3>
+            <p class="feature-desc">将原始字节解析为结构化数据包，支持自动协议检测和分层提取。</p>
+          </div>
+        </div>
+        <!-- 4. 发送与接收 -->
+        <div class="feature-card anim-flip-in stagger-4">
+          <div class="feature-card-inner">
+            <div class="feature-icon">📡</div>
+            <h3 class="feature-title">发送与接收</h3>
+            <p class="feature-desc">通过原始套接字在 L2（以太网）和 L3（IP）层级发送和接收数据包。</p>
+          </div>
+        </div>
+        <!-- 5. 嗅探 -->
+        <div class="feature-card anim-flip-in stagger-5">
+          <div class="feature-card-inner">
+            <div class="feature-icon">👃</div>
+            <h3 class="feature-title">数据包嗅探</h3>
+            <p class="feature-desc">支持回调和通道两种方式的实时流量捕获，内置 BPF 过滤器支持。</p>
+          </div>
+        </div>
+        <!-- 6. 自动校验和 -->
+        <div class="feature-card anim-flip-in stagger-6">
+          <div class="feature-card-inner">
+            <div class="feature-icon">✅</div>
+            <h3 class="feature-title">自动校验和</h3>
+            <p class="feature-desc">IP、TCP、UDP 和 ICMP 校验和在序列化时自动计算，无需手动处理。</p>
+          </div>
+        </div>
+        <!-- 7. 层绑定 -->
+        <div class="feature-card anim-flip-in stagger-7">
+          <div class="feature-card-inner">
+            <div class="feature-icon">🔗</div>
+            <h3 class="feature-title">层绑定</h3>
+            <p class="feature-desc">相邻层之间自动推断字段 — IP 叠加在以太网上会自动设置 EtherType。</p>
+          </div>
+        </div>
+        <!-- 8. 跨平台 -->
+        <div class="feature-card anim-flip-in stagger-8">
+          <div class="feature-card-inner">
+            <div class="feature-icon">💻</div>
+            <h3 class="feature-title">跨平台</h3>
+            <p class="feature-desc">支持 macOS（Darwin）和 Linux，使用平台特定的原始套接字实现。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 支持的协议 ==================== -->
+    <section class="section" id="protocols">
+      <div class="section-header anim-fade-in">
+        <span class="section-tag">协议支持</span>
+        <h2 class="section-title">支持的协议</h2>
+        <p class="section-desc">全面覆盖网络协议栈各层。</p>
+      </div>
+      <div class="table-wrapper anim-scale-in table-anim">
+        <table>
+          <thead>
+            <tr>
+              <th>层级</th>
+              <th>协议</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="layer-badge layer-link">链路层</span></td>
+              <td>Ethernet（CSMA/CD）、ARP</td>
+            </tr>
+            <tr>
+              <td><span class="layer-badge layer-network">网络层</span></td>
+              <td>IPv4</td>
+            </tr>
+            <tr>
+              <td><span class="layer-badge layer-transport">传输层</span></td>
+              <td>TCP、UDP、ICMP</td>
+            </tr>
+            <tr>
+              <td><span class="layer-badge layer-payload">载荷层</span></td>
+              <td>Raw 原始字节</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== 安装 ==================== -->
+    <section class="section" id="install">
+      <div class="section-header anim-fade-in">
+        <span class="section-tag">安装</span>
+        <h2 class="section-title">几秒即可开始</h2>
+        <p class="section-desc">只需一条命令即可将 goscapy 添加到你的项目中。</p>
+      </div>
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">bash</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt"># 安装最新版本</span>
+<span class="kw">go</span> get github.com/smallnest/goscapy</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 快速开始 ==================== -->
+    <section class="section" id="quickstart">
+      <div class="section-header anim-fade-in">
+        <span class="section-tag">快速开始</span>
+        <h2 class="section-title">一行代码构建数据包</h2>
+        <p class="section-desc">看看使用 goscapy 构建网络数据包有多简单。</p>
+      </div>
+      <div class="quickstart">
+        <!-- Builder API -->
+        <div class="quickstart-item anim-slide-in-left">
+          <div class="quickstart-label">🔨 Builder API</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">go</span>
+              <button class="code-copy">Copy</button>
+            </div>
+            <div class="code-body">
+<pre><span class="cmt">// Ethernet + IP + ICMP Echo Request</span>
+pkt, err := <span class="fn">goscapy.NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(<span class="fn">goscapy.NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
+    <span class="fn">Over</span>(<span class="fn">goscapy.NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Build</span>()</pre>
+            </div>
+          </div>
+        </div>
+        <!-- 快捷函数 -->
+        <div class="quickstart-item anim-slide-in-right">
+          <div class="quickstart-label">⚡ 快捷函数</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">go</span>
+              <button class="code-copy">Copy</button>
+            </div>
+            <div class="code-body">
+<pre><span class="cmt">// 同样的数据包，一行搞定</span>
+pkt, err := <span class="fn">goscapy.EtherIPICMP</span>(
+    <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"8.8.8.8"</span>,
+    <span class="num">8</span>, <span class="num">0</span>,
+)</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 解析示例 -->
+      <div style="max-width:var(--max-content);margin:var(--space-xl) auto 0;">
+        <div class="quickstart-item anim-fade-in">
+          <div class="quickstart-label">🔬 解析原始字节</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">go</span>
+              <button class="code-copy">Copy</button>
+            </div>
+            <div class="code-body">
+<pre><span class="cmt">// 将原始字节解析为结构化数据包</span>
+raw := []<span class="type">byte</span>{<span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, ...}
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 页脚 ==================== -->
+    <footer class="footer">
+      <div class="footer-links">
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+        <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT 许可证</a>
+      </div>
+      <p>&copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。</p>
+    </footer>
+
+  </main>
+
+  <!-- 脚本（顺序重要） -->
+  <script src="../js/particles.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/animations.js"></script>
+</body>
+</html>
