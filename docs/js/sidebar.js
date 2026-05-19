@@ -12,7 +12,11 @@
   var main = document.getElementById('mainContent');
   if (!main) main = document.body;
 
+  // Prefer h2 headings; fall back to h3 inside .section-title (examples pages)
   var headings = main.querySelectorAll('h2');
+  if (headings.length === 0) {
+    headings = main.querySelectorAll('.section-title h3');
+  }
   if (headings.length === 0) return;
 
   var currentLang = (document.documentElement.lang || 'en').startsWith('zh') ? 'zh' : 'en';
