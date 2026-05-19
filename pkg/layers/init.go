@@ -23,6 +23,7 @@ func init() {
 
 	// Build hooks for derived field auto-computation.
 	packet.RegisterBuildHook("IP", ipBuildHook)
+	packet.RegisterBuildHook("IPv6", ipv6BuildHook)
 	packet.RegisterBuildHook("ICMP", icmpBuildHook)
 	packet.RegisterBuildHook("TCP", tcpBuildHook)
 	packet.RegisterBuildHook("UDP", udpBuildHook)
@@ -33,6 +34,11 @@ func init() {
 	packet.RegisterLayer("Ethernet", NewEthernet)
 	packet.RegisterLayer("ARP", NewARP)
 	packet.RegisterLayer("IP", NewIP)
+	packet.RegisterLayer("IPv6", NewIPv6)
+	packet.RegisterLayer("IPv6 Hop-by-Hop", NewIPv6HopByHop)
+	packet.RegisterLayer("IPv6 Routing", NewIPv6Routing)
+	packet.RegisterLayer("IPv6 Fragment", NewIPv6Fragment)
+	packet.RegisterLayer("IPv6 DestOpts", NewIPv6DestOpts)
 	packet.RegisterLayer("ICMP", NewICMP)
 	packet.RegisterLayer("TCP", NewTCP)
 	packet.RegisterLayer("UDP", NewUDP)
@@ -53,6 +59,34 @@ func init() {
 	packet.RegisterNextLayer("IP", 1, "ICMP") // ICMP
 	packet.RegisterNextLayer("IP", 6, "TCP")  // TCP
 	packet.RegisterNextLayer("IP", 17, "UDP") // UDP
+
+	// Register key fields for IPv6 and extension headers.
+	packet.RegisterKeyField("IPv6", "nh")
+	packet.RegisterKeyField("IPv6 Hop-by-Hop", "nh")
+	packet.RegisterKeyField("IPv6 Routing", "nh")
+	packet.RegisterKeyField("IPv6 Fragment", "nh")
+	packet.RegisterKeyField("IPv6 DestOpts", "nh")
+
+	// Register next-layer mappings: IPv6 nh → extension header or upper protocol.
+	packet.RegisterNextLayer("IPv6", 0, "IPv6 Hop-by-Hop")
+	packet.RegisterNextLayer("IPv6", 43, "IPv6 Routing")
+	packet.RegisterNextLayer("IPv6", 44, "IPv6 Fragment")
+	packet.RegisterNextLayer("IPv6", 60, "IPv6 DestOpts")
+	packet.RegisterNextLayer("IPv6", 58, "ICMP")
+	packet.RegisterNextLayer("IPv6", 6, "TCP")
+	packet.RegisterNextLayer("IPv6", 17, "UDP")
+
+	// Extension headers can chain to each other or to upper protocols.
+	packet.RegisterNextLayer("IPv6 Hop-by-Hop", 44, "IPv6 Fragment")
+	packet.RegisterNextLayer("IPv6 Hop-by-Hop", 58, "ICMP")
+	packet.RegisterNextLayer("IPv6 Hop-by-Hop", 6, "TCP")
+	packet.RegisterNextLayer("IPv6 Hop-by-Hop", 17, "UDP")
+	packet.RegisterNextLayer("IPv6 Fragment", 58, "ICMP")
+	packet.RegisterNextLayer("IPv6 Fragment", 6, "TCP")
+	packet.RegisterNextLayer("IPv6 Fragment", 17, "UDP")
+	packet.RegisterNextLayer("IPv6 DestOpts", 58, "ICMP")
+	packet.RegisterNextLayer("IPv6 DestOpts", 6, "TCP")
+	packet.RegisterNextLayer("IPv6 DestOpts", 17, "UDP")
 
 	// ---- Heuristic registrations (port-based, EtherType-based) ----
 
@@ -102,4 +136,9 @@ func init() {
 		dataofs, _ := layer.Get("dataofs")
 		return int(dataofs.(uint8)>>4) * 4
 	})
+
+	// IPv6 extension headers: (Hdr Ext Len + 1) * 8 bytes.
+	packet.RegisterHeaderSizeFunc("IPv6 Hop-by-Hop", extHdrSizeFn)
+	packet.RegisterHeaderSizeFunc("IPv6 Routing", extHdrSizeFn)
+	packet.RegisterHeaderSizeFunc("IPv6 DestOpts", extHdrSizeFn)
 }

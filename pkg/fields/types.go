@@ -364,6 +364,50 @@ func (f *IPField) Unpack(b []byte) (any, int, error) {
 	return ip, 4, nil
 }
 
+// IPv6Field is a 16-byte IPv6 address field.
+type IPv6Field struct{ Desc }
+
+// NewIPv6Field creates a 16-byte IPv6 address field.
+func NewIPv6Field(name string, defVal net.IP) *IPv6Field {
+	return &IPv6Field{Desc: Desc{name: name, size: 16, defVal: defVal}}
+}
+
+func (f *IPv6Field) Pack(val any) ([]byte, error) {
+	switch v := val.(type) {
+	case net.IP:
+		ip16 := v.To16()
+		if ip16 == nil {
+			return nil, fmt.Errorf("fields: %s requires IPv6 address, got %v", f.name, v)
+		}
+		return []byte(ip16), nil
+	case string:
+		ip := net.ParseIP(v)
+		if ip == nil {
+			return nil, fmt.Errorf("fields: %s invalid IP %q", f.name, v)
+		}
+		ip16 := ip.To16()
+		if ip16 == nil {
+			return nil, fmt.Errorf("fields: %s requires IPv6 address, got %v", f.name, v)
+		}
+		return []byte(ip16), nil
+	case []byte:
+		if len(v) != 16 {
+			return nil, fmt.Errorf("fields: %s IPv6 must be 16 bytes, got %d", f.name, len(v))
+		}
+		return v, nil
+	default:
+		return nil, fmt.Errorf("fields: %s expects net.IP, string, or []byte, got %T", f.name, val)
+	}
+}
+
+func (f *IPv6Field) Unpack(b []byte) (any, int, error) {
+	if err := validateSize(f.name, b, 16); err != nil {
+		return nil, 0, err
+	}
+	ip := net.IP(bytes.Clone(b[:16]))
+	return ip, 16, nil
+}
+
 // ---- string / payload fields ----
 
 // StrField is a variable-length string field whose size is determined
