@@ -31,6 +31,7 @@
       { label: 'Guide', href: prefix + 'guide.html' },
       { label: 'Examples', dropdown: [
         { label: 'Basic', href: prefix + 'examples/basic.html' },
+        { label: 'Send / Recv', href: prefix + 'examples/send-recv.html' },
         { label: 'Tunnel', href: prefix + 'examples/tunnel.html' },
         { label: 'DNS / DHCP', href: prefix + 'examples/app.html' },
         { label: 'IPv6 / ICMPv6', href: prefix + 'examples/ipv6.html' },
@@ -44,6 +45,7 @@
       { label: '完整指南', href: prefix + 'guide.html' },
       { label: '示例', dropdown: [
         { label: '基础组包', href: prefix + 'examples/basic.html' },
+        { label: '发送/接收', href: prefix + 'examples/send-recv.html' },
         { label: '隧道封装', href: prefix + 'examples/tunnel.html' },
         { label: 'DNS / DHCP', href: prefix + 'examples/app.html' },
         { label: 'IPv6 / ICMPv6', href: prefix + 'examples/ipv6.html' },
