@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
@@ -143,6 +144,186 @@ func TestParseFieldsExtraData(t *testing.T) {
 	}
 	if consumed != 1 {
 		t.Errorf("consumed = %d, want 1", consumed)
+	}
+}
+
+func TestRegisterHeuristic(t *testing.T) {
+	// Register a heuristic for a test protocol.
+	RegisterHeuristic("TestLower", "type", uint16(0x9999), "TestUpper")
+
+	// Verify key field was registered.
+	if dissectRegistry.keyField["TestLower"] != "type" {
+		t.Errorf("keyField not registered: got %q", dissectRegistry.keyField["TestLower"])
+	}
+
+	// Verify next layer mapping.
+	next, ok := dissectRegistry.nextLayer["TestLower"][0x9999]
+	if !ok || next != "TestUpper" {
+		t.Errorf("nextLayer mapping: ok=%v, next=%q", ok, next)
+	}
+
+	// Clean up.
+	delete(dissectRegistry.keyField, "TestLower")
+	delete(dissectRegistry.nextLayer, "TestLower")
+}
+
+func TestRegisterHeuristicMultipleValues(t *testing.T) {
+	RegisterHeuristic("MultiProto", "port", uint16(80), "HTTP")
+	RegisterHeuristic("MultiProto", "port", uint16(443), "HTTPS")
+
+	if dissectRegistry.nextLayer["MultiProto"][80] != "HTTP" {
+		t.Error("nextLayer[80] != HTTP")
+	}
+	if dissectRegistry.nextLayer["MultiProto"][443] != "HTTPS" {
+		t.Error("nextLayer[443] != HTTPS")
+	}
+
+	delete(dissectRegistry.keyField, "MultiProto")
+	delete(dissectRegistry.nextLayer, "MultiProto")
+}
+
+func TestRegisterTunnelPayload(t *testing.T) {
+	RegisterTunnelPayload("TunnelProto", "InnerProto")
+
+	inner, ok := dissectRegistry.tunnelPayload["TunnelProto"]
+	if !ok || inner != "InnerProto" {
+		t.Errorf("tunnelPayload: ok=%v, inner=%q", ok, inner)
+	}
+
+	delete(dissectRegistry.tunnelPayload, "TunnelProto")
+}
+
+func TestRegisterDissector(t *testing.T) {
+	called := false
+	fn := func(data []byte) (string, int, error) {
+		called = true
+		return "TestProto", 0, nil
+	}
+	RegisterDissector("TestProto", fn)
+
+	d, ok := dissectRegistry.dissectors["TestProto"]
+	if !ok {
+		t.Fatal("dissector not registered")
+	}
+	proto, skip, err := d([]byte{1, 2, 3})
+	if err != nil || proto != "TestProto" || skip != 0 {
+		t.Errorf("dissector: proto=%q, skip=%d, err=%v", proto, skip, err)
+	}
+	if !called {
+		t.Error("dissector not called")
+	}
+
+	delete(dissectRegistry.dissectors, "TestProto")
+}
+
+func TestDissectByProto(t *testing.T) {
+	// Register a simple layer and its dissector.
+	RegisterLayer("StartLayer", func() *Layer {
+		return NewLayer("StartLayer", []fields.Field{
+			fields.NewByteField("x", 0),
+		})
+	})
+	RegisterDissector("StartLayer", func(data []byte) (string, int, error) {
+		if len(data) < 1 {
+			return "", 0, fmt.Errorf("too short")
+		}
+		return "StartLayer", 0, nil
+	})
+
+	raw := []byte{0x42, 0xFF, 0xFF} // 1 byte for StartLayer + 2 extra → Raw
+	pkt, err := DissectByProto(raw, "StartLayer")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pkt.Len() != 2 {
+		t.Fatalf("got %d layers, want 2 (StartLayer + Raw)", pkt.Len())
+	}
+	if !pkt.HasLayer("StartLayer") {
+		t.Error("missing StartLayer")
+	}
+	if !pkt.HasLayer("Raw") {
+		t.Error("missing Raw layer for extra bytes")
+	}
+
+	// Clean up.
+	delete(dissectRegistry.factories, "StartLayer")
+	delete(dissectRegistry.dissectors, "StartLayer")
+}
+
+func TestDissectByProtoUnknownProtocol(t *testing.T) {
+	_, err := DissectByProto([]byte{1}, "NoSuchProto")
+	if err == nil {
+		t.Fatal("expected error for unknown protocol")
+	}
+}
+
+func TestDissectByProtoEmptyInput(t *testing.T) {
+	_, err := DissectByProto([]byte{}, "Ethernet")
+	if err == nil {
+		t.Fatal("expected error for empty input")
+	}
+}
+
+func TestMaxTunnelDepth(t *testing.T) {
+	// Register two layers that reference each other in a tunnel loop.
+	RegisterLayer("LoopA", func() *Layer {
+		return NewLayer("LoopA", []fields.Field{
+			fields.NewByteField("x", 0),
+		})
+	})
+	RegisterLayer("LoopB", func() *Layer {
+		return NewLayer("LoopB", []fields.Field{
+			fields.NewByteField("y", 0),
+		})
+	})
+	RegisterTunnelPayload("LoopA", "LoopB")
+	RegisterTunnelPayload("LoopB", "LoopA")
+
+	RegisterDissector("LoopA", func(data []byte) (string, int, error) {
+		return "LoopA", 0, nil
+	})
+
+	// This should fail with max tunnel depth exceeded.
+	_, err := DissectByProto([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, "LoopA")
+	if err == nil {
+		t.Fatal("expected error for max tunnel depth exceeded")
+	}
+
+	// Clean up.
+	delete(dissectRegistry.factories, "LoopA")
+	delete(dissectRegistry.factories, "LoopB")
+	delete(dissectRegistry.tunnelPayload, "LoopA")
+	delete(dissectRegistry.tunnelPayload, "LoopB")
+	delete(dissectRegistry.dissectors, "LoopA")
+}
+
+func TestToUint64(t *testing.T) {
+	tests := []struct {
+		input any
+		want  uint64
+	}{
+		{uint8(42), 42},
+		{uint16(1000), 1000},
+		{uint32(100000), 100000},
+		{uint64(9999999999), 9999999999},
+		{int(7), 7},
+		{int32(-1), 18446744073709551615},
+	}
+
+	for _, tt := range tests {
+		got := toUint64(tt.input)
+		if got != tt.want {
+			t.Errorf("toUint64(%v) = %d, want %d", tt.input, got, tt.want)
+		}
+	}
+
+	// Non-integer types should return 0.
+	if got := toUint64("hello"); got != 0 {
+		t.Errorf("toUint64(string) = %d, want 0", got)
+	}
+	if got := toUint64(nil); got != 0 {
+		t.Errorf("toUint64(nil) = %d, want 0", got)
 	}
 }
 
