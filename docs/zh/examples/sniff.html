@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>嗅探示例 — goscapy</title>
+  <meta name="description" content="使用 goscapy 捕获实时网络流量的完整代码示例：Sniff 回调、SniffChan 通道、BPF 过滤器、数量和超时限制。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. 基本嗅探 -->
+      <div class="section" id="basic-sniff">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>基本嗅探 — 捕获所有数据包</h3>
+        </div>
+        <p>使用回调 API 在指定接口上捕获所有数据包。每个数据包都会调用处理函数 —— 返回 <code>true</code> 继续，返回 <code>false</code> 停止。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Timeout: <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    <span class="cmt">// 打印每个数据包的层信息摘要</span>
+    fmt.<span class="fn">Printf</span>(<span class="str">"[%s] %s\n"</span>, time.Now().<span class="fn">Format</span>(<span class="str">"15:04:05"</span>), pkt.<span class="fn">String</span>())
+
+    <span class="cmt">// 访问特定协议层</span>
+    <span class="kw">if</span> ip := packet.<span class="fn">IP</span>(pkt); ip != <span class="kw">nil</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"  %s → %s\n"</span>, ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>())
+    }
+
+    <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// true = 继续捕获</span>
+})
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <code>Sniff()</code> 会阻塞，直到超时、达到数量限制或处理函数返回 <code>false</code>。
+          内部每次读取超时为 1 秒以保证响应性 —— <code>ErrTimeout</code> 会被内部处理并自动重试。
+        </div>
+      </div>
+
+      <!-- 2. 带过滤器嗅探 -->
+      <div class="section" id="sniff-filter">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>带 BPF 过滤器嗅探</h3>
+        </div>
+        <p>使用 <code>Filter</code> 字段只捕获匹配的数据包。过滤表达式使用与 <code>tcpdump</code> 相同的语法，编译为内核级 BPF 指令以获得最高效率。</p>
+
+        <h3 style="margin-top:1rem;">🔨 过滤字符串</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+<span class="cmt">// 只捕获 ICMP 数据包（ping）</span>
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   sendrecv.<span class="fn">LoopbackName</span>(),
+    Filter:  <span class="str">"icmp"</span>,
+    Timeout: <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    icmp := packet.<span class="fn">ICMP</span>(pkt)
+    <span class="kw">if</span> icmp != <span class="kw">nil</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"ICMP type=%d code=%d\n"</span>, icmp.<span class="fn">Type</span>(), icmp.<span class="fn">Code</span>())
+    }
+    <span class="kw">return</span> <span class="kw">true</span>
+})</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 预编译指令</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 在启动时预编译 —— 避免运行时依赖 tcpdump</span>
+instructions, _ := sniff.<span class="fn">CompileFilter</span>(<span class="str">"tcp port 80"</span>)
+
+<span class="cmt">// 使用预编译指令（优先级高于 Filter 字段）</span>
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:        <span class="str">"eth0"</span>,
+    Instructions: instructions, <span class="cmt">// 设置 Instructions 后 Filter 字段被忽略</span>
+    Timeout:      <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    tcp := packet.<span class="fn">TCP</span>(pkt)
+    <span class="kw">if</span> tcp != <span class="kw">nil</span> {
+        fmt.<span class="fn">Printf</span>(<span class="str">"HTTP: %d → %d\n"</span>, tcp.<span class="fn">SrcPort</span>(), tcp.<span class="fn">DstPort</span>())
+    }
+    <span class="kw">return</span> <span class="kw">true</span>
+})</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <strong>优先级：</strong> 同时设置 <code>Instructions</code> 和 <code>Filter</code> 时，<code>Instructions</code> 优先。
+          可以在启动时编译过滤器并重复使用，避免运行时依赖 <code>tcpdump</code>。
+        </div>
+      </div>
+
+      <!-- 3. 限制捕获数量 -->
+      <div class="section" id="sniff-count">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>嗅探 — 限制捕获数量</h3>
+        </div>
+        <p>使用 <code>Count</code> 字段捕获固定数量的数据包后自动停止。可结合 <code>Filter</code> 捕获 N 个匹配特定模式的数据包。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 精确捕获 5 个 ICMP 数据包后停止</span>
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:  sendrecv.<span class="fn">LoopbackName</span>(),
+    Filter: <span class="str">"icmp"</span>,
+    Count:  <span class="num">5</span>,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    ip := packet.<span class="fn">IP</span>(pkt)
+    icmp := packet.<span class="fn">ICMP</span>(pkt)
+    fmt.<span class="fn">Printf</span>(<span class="str">"%s → %s  ICMP type=%d\n"</span>,
+        ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>(), icmp.<span class="fn">Type</span>())
+    <span class="kw">return</span> <span class="kw">true</span>
+})</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 提示</div>
+          设置 <code>Count: 0</code>（默认值）表示无限制捕获。
+          可以同时设置 <code>Count</code> 和 <code>Timeout</code> —— 嗅探在<strong>任一</strong>条件满足时停止。
+        </div>
+      </div>
+
+      <!-- 4. 超时 -->
+      <div class="section" id="sniff-timeout">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>嗅探 — 带超时</h3>
+        </div>
+        <p>使用 <code>Timeout</code> 字段限制嗅探持续时间。设置 <code>Timeout: 0</code>（默认值）表示无限时长。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 捕获 TCP 流量，持续 30 秒</span>
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Filter:  <span class="str">"tcp"</span>,
+    Timeout: <span class="num">30</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    tcp := packet.<span class="fn">TCP</span>(pkt)
+    fmt.<span class="fn">Printf</span>(<span class="str">"TCP %d → %d flags=0x%02x\n"</span>,
+        tcp.<span class="fn">SrcPort</span>(), tcp.<span class="fn">DstPort</span>(), tcp.<span class="fn">Flags</span>())
+    <span class="kw">return</span> <span class="kw">true</span>
+})
+fmt.<span class="fn">Println</span>(<span class="str">"嗅探完成。"</span>)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. 处理函数返回 false 停止 -->
+      <div class="section" id="sniff-stop">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>嗅探 — 从处理函数中停止</h3>
+        </div>
+        <p>从处理函数返回 <code>false</code> 可立即停止嗅探。当你找到目标数据包时很有用。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+<span class="cmt">// 嗅探直到看到来自特定主机的 ICMP 回显回复</span>
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:  sendrecv.<span class="fn">LoopbackName</span>(),
+    Filter: <span class="str">"icmp"</span>,
+    Count:  <span class="num">100</span>, <span class="cmt">// 安全限制</span>
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    ip := packet.<span class="fn">IP</span>(pkt)
+    icmp := packet.<span class="fn">ICMP</span>(pkt)
+
+    <span class="cmt">// 检查是否为来自 127.0.0.1 的 ICMP 回显回复</span>
+    <span class="kw">if</span> icmp != <span class="kw">nil</span> &amp;&amp; icmp.<span class="fn">Type</span>() == layers.ICMPEchoReply {
+        fmt.<span class="fn">Printf</span>(<span class="str">"找到来自 %s 的回复！\n"</span>, ip.<span class="fn">SrcIP</span>())
+        <span class="kw">return</span> <span class="kw">false</span> <span class="cmt">// 立即停止嗅探</span>
+    }
+
+    fmt.<span class="fn">Println</span>(<span class="str">"等待回复..."</span>)
+    <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// 继续</span>
+})</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. SniffChan — 通道式嗅探 -->
+      <div class="section" id="sniffchan">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>SniffChan — 通道式嗅探</h3>
+        </div>
+        <p><code>SniffChan()</code> 返回一个数据包传输通道和一个停止函数。在与 Go 的 <code>select</code> 和通道模式集成时，比回调更方便。</p>
+
+        <h3 style="margin-top:1rem;">🔨 示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+<span class="cmt">// 开始嗅探 —— 返回通道和停止函数</span>
+ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Filter:  <span class="str">"tcp port 80"</span>,
+    Count:   <span class="num">10</span>,
+    Timeout: <span class="num">30</span> * time.Second,
+})
+<span class="kw">defer</span> <span class="fn">stop</span>() <span class="cmt">// 始终调用 stop 以释放资源</span>
+
+<span class="cmt">// 遍历通道接收数据包</span>
+<span class="kw">for</span> pkt := <span class="kw">range</span> ch {
+    fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+}
+fmt.<span class="fn">Println</span>(<span class="str">"通道关闭 —— 嗅探完成。"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 使用 Select 提前停止</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:  <span class="str">"eth0"</span>,
+    Filter: <span class="str">"tcp port 80"</span>,
+})
+
+<span class="cmt">// 使用 select 自定义停止条件</span>
+timeout := time.<span class="fn">After</span>(<span class="num">5</span> * time.Second)
+<span class="kw">for</span> {
+    <span class="kw">select</span> {
+    <span class="kw">case</span> pkt, ok := &lt;-ch:
+        <span class="kw">if</span> !ok {
+            fmt.<span class="fn">Println</span>(<span class="str">"完成。"</span>)
+            <span class="kw">return</span>
+        }
+        fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+    <span class="kw">case</span> &lt;-timeout:
+        fmt.<span class="fn">Println</span>(<span class="str">"自定义超时。"</span>)
+        <span class="fn">stop</span>()
+    }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. 组合 — Count + Timeout + Filter -->
+      <div class="section" id="sniff-combined">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>组合使用 — Count + Timeout + Filter</h3>
+        </div>
+        <p>所有配置选项可以组合使用。嗅探在<strong>任一</strong>条件满足时停止：达到数量限制、超时或处理函数返回 false。</p>
+
+        <h3 style="margin-top:1rem;">🔨 完整示例</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">package</span> main
+
+<span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"os"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+<span class="kw">func</span> <span class="fn">main</span>() {
+    <span class="cmt">// 在启动时预编译过滤器</span>
+    instructions, err := sniff.<span class="fn">CompileFilter</span>(<span class="str">"tcp port 80 or tcp port 443"</span>)
+    <span class="kw">if</span> err != <span class="kw">nil</span> {
+        fmt.<span class="fn">Fprintf</span>(os.Stderr, <span class="str">"编译过滤器: %v\n"</span>, err)
+        os.<span class="fn">Exit</span>(<span class="num">1</span>)
+    }
+
+    <span class="cmt">// 捕获最多 50 个 HTTP/HTTPS 数据包，持续 1 分钟</span>
+    captured := <span class="num">0</span>
+    err = sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+        Iface:        sendrecv.<span class="fn">LoopbackName</span>(),
+        Instructions: instructions,
+        Count:        <span class="num">50</span>,
+        Timeout:      <span class="num">60</span> * time.Second,
+    }, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+        captured++
+        ip := packet.<span class="fn">IP</span>(pkt)
+        tcp := packet.<span class="fn">TCP</span>(pkt)
+
+        <span class="cmt">// 判断流量方向</span>
+        dir := <span class="str">"→"</span>
+        <span class="kw">if</span> tcp.<span class="fn">DstPort</span>() == <span class="num">80</span> || tcp.<span class="fn">DstPort</span>() == <span class="num">443</span> {
+            dir = <span class="str">"→ 请求"</span>
+        } <span class="kw">else</span> {
+            dir = <span class="str">"← 响应"</span>
+        }
+
+        <span class="cmt">// 检查 SYN 标志</span>
+        flags := tcp.<span class="fn">Flags</span>()
+        <span class="kw">if</span> flags&amp;layers.TCPSyn != <span class="num">0</span> &amp;&amp; flags&amp;layers.TCPAck == <span class="num">0</span> {
+            fmt.<span class="fn">Printf</span>(<span class="str">"[%d] %s:%d %s %s:%d SYN\n"</span>,
+                captured, ip.<span class="fn">SrcIP</span>(), tcp.<span class="fn">SrcPort</span>(), dir, ip.<span class="fn">DstIP</span>(), tcp.<span class="fn">DstPort</span>())
+        } <span class="kw">else</span> {
+            fmt.<span class="fn">Printf</span>(<span class="str">"[%d] %s:%d %s %s:%d\n"</span>,
+                captured, ip.<span class="fn">SrcIP</span>(), tcp.<span class="fn">SrcPort</span>(), dir, ip.<span class="fn">DstIP</span>(), tcp.<span class="fn">DstPort</span>())
+        }
+
+        <span class="kw">return</span> <span class="kw">true</span>
+    })
+    <span class="kw">if</span> err != <span class="kw">nil</span> {
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    fmt.<span class="fn">Printf</span>(<span class="str">"共捕获 %d 个数据包。\n"</span>, captured)
+}</pre>
+          </div>
+        </div>
+
+        <div class="table-wrapper"><table><thead><tr><th>配置字段</th><th>默认值</th><th>说明</th></tr></thead><tbody>
+          <tr><td><code>Iface</code></td><td><em>（必填）</em></td><td>要嗅探的网络接口</td></tr>
+          <tr><td><code>Filter</code></td><td><code>""</code></td><td>BPF 过滤表达式（需要 <code>tcpdump</code>）</td></tr>
+          <tr><td><code>Instructions</code></td><td><code>nil</code></td><td>预编译 BPF 指令（优先级高于 <code>Filter</code>）</td></tr>
+          <tr><td><code>Count</code></td><td><code>0</code></td><td>最大捕获数量（<code>0</code> = 无限制）</td></tr>
+          <tr><td><code>Timeout</code></td><td><code>0</code></td><td>最长持续时间（<code>0</code> = 无超时）</td></tr>
+        </tbody></table></div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../zh/index.html">首页</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy 贡献者。基于 MIT 协议授权。
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>
