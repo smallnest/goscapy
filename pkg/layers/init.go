@@ -1,6 +1,10 @@
 package layers
 
-import "github.com/smallnest/goscapy/pkg/packet"
+import (
+	"fmt"
+
+	"github.com/smallnest/goscapy/pkg/packet"
+)
 
 func init() {
 	// Layer binding rules.
@@ -49,6 +53,42 @@ func init() {
 	packet.RegisterNextLayer("IP", 1, "ICMP") // ICMP
 	packet.RegisterNextLayer("IP", 6, "TCP")  // TCP
 	packet.RegisterNextLayer("IP", 17, "UDP") // UDP
+
+	// ---- Heuristic registrations (port-based, EtherType-based) ----
+
+	// DNS: UDP port 53.
+	packet.RegisterHeuristic("UDP", "dport", uint16(53), "DNS")
+	packet.RegisterHeuristic("UDP", "sport", uint16(53), "DNS")
+	// DHCP: UDP port 67 (server) or 68 (client).
+	packet.RegisterHeuristic("UDP", "dport", uint16(67), "DHCP")
+	packet.RegisterHeuristic("UDP", "sport", uint16(67), "DHCP")
+	packet.RegisterHeuristic("UDP", "dport", uint16(68), "DHCP")
+	packet.RegisterHeuristic("UDP", "sport", uint16(68), "DHCP")
+	// VXLAN: UDP port 4789.
+	packet.RegisterHeuristic("UDP", "dport", uint16(4789), "VXLAN")
+	// GRE: IP protocol 47.
+	packet.RegisterHeuristic("IP", "proto", uint8(47), "GRE")
+	// IPv6: Ethernet type 0x86DD.
+	packet.RegisterHeuristic("Ethernet", "type", uint16(0x86DD), "IPv6")
+	// Dot1Q: Ethernet type 0x8100 (single VLAN) and 0x88A8 (QinQ outer).
+	packet.RegisterHeuristic("Ethernet", "type", uint16(0x8100), "Dot1Q")
+
+	// ---- Tunnel payload registrations ----
+
+	// VXLAN payload is an inner Ethernet frame.
+	packet.RegisterTunnelPayload("VXLAN", "Ethernet")
+	// GRE with ProtocolType=0x6558 carries inner Ethernet.
+	packet.RegisterTunnelPayload("GRE", "IP")
+
+	// ---- Dissector registrations for DissectByProto ----
+
+	// Ethernet dissector: requires at least 14 bytes.
+	packet.RegisterDissector("Ethernet", func(data []byte) (string, int, error) {
+		if len(data) < 14 {
+			return "", 0, fmt.Errorf("layers: Ethernet needs at least 14 bytes, got %d", len(data))
+		}
+		return "Ethernet", 0, nil
+	})
 
 	// Register variable header size functions.
 	// IP: IHL (lower nibble of verihl) * 4 bytes.
