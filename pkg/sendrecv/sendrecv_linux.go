@@ -123,7 +123,7 @@ func (r *afPacketReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 	n, _, err := syscall.Recvfrom(r.fd, buf, 0)
 	if err != nil {
 		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
-			return nil, fmt.Errorf("sendrecv: recv timeout after %v", timeout)
+			return nil, fmt.Errorf("%w after %v", ErrTimeout, timeout)
 		}
 		return nil, fmt.Errorf("sendrecv: recvfrom: %w", err)
 	}

@@ -113,6 +113,7 @@ type bpfReceiver struct {
 	fd     int
 	buf    []byte
 	iface  string
+	queue  []*packet.Packet // packets parsed from last batch read but not yet returned
 }
 
 func openReceiver(iface string) (Receiver, error) {
@@ -149,6 +150,13 @@ func openReceiver(iface string) (Receiver, error) {
 }
 
 func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
+	// Return a queued packet from a previous batch read if available.
+	if len(r.queue) > 0 {
+		pkt := r.queue[0]
+		r.queue = r.queue[1:]
+		return pkt, nil
+	}
+
 	// Use select to implement timeout.
 	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
 	var readFds syscall.FdSet
@@ -162,7 +170,7 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 	// Check if our fd is still set (Go's syscall.Select returns only error;
 	// nil on both timeout and success, so check the bit to distinguish).
 	if readFds.Bits[r.fd/32]&(1<<uint(r.fd%32)) == 0 {
-		return nil, fmt.Errorf("sendrecv: recv timeout after %v", timeout)
+		return nil, fmt.Errorf("%w after %v", ErrTimeout, timeout)
 	}
 
 	nRead, err := syscall.Read(r.fd, r.buf)
@@ -173,26 +181,44 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 		return nil, fmt.Errorf("sendrecv: BPF read returned 0 bytes")
 	}
 
-	// BPF returns batches of [bpf_hdr + packet_data]. Take the first one.
+	// BPF returns batches of [bpf_hdr + packet_data, ...]. Parse all packets.
 	data := r.buf[:nRead]
-	if len(data) < int(unsafe.Sizeof(bpfHdr{})) {
-		return nil, fmt.Errorf("sendrecv: BPF header too short (%d bytes)", len(data))
+	hdrSize := int(unsafe.Sizeof(bpfHdr{}))
+
+	for len(data) >= hdrSize {
+		hdr := *(*bpfHdr)(unsafe.Pointer(&data[0]))
+		pktStart := int(hdr.hdrlen)
+		pktLen := int(hdr.caplen)
+		totalLen := pktStart + pktLen
+
+		if totalLen > len(data) {
+			break // truncated batch, stop parsing
+		}
+
+		// Copy the raw packet bytes so the shared r.buf can be reused safely.
+		raw := make([]byte, pktLen)
+		copy(raw, data[pktStart:pktStart+pktLen])
+
+		pkt, err := packet.Dissect(raw, ethernetStartFn)
+		if err != nil {
+			// Skip malformed packets and continue to the next one.
+			data = data[totalLen:]
+			continue
+		}
+		r.queue = append(r.queue, pkt)
+
+		// BPF requires advancing by hdr.hdrlen (which includes alignment padding)
+		// rounded up to the kernel's alignment boundary. The standard approach is
+		// to advance by totalLen, which works because BPF aligns each packet.
+		data = data[totalLen:]
 	}
 
-	hdr := *(*bpfHdr)(unsafe.Pointer(&data[0]))
-	pktStart := int(hdr.hdrlen)
-	pktLen := int(hdr.caplen)
-
-	if pktStart+pktLen > len(data) {
-		return nil, fmt.Errorf("sendrecv: BPF packet exceeds buffer (start=%d len=%d bufsz=%d)", pktStart, pktLen, len(data))
+	// Return the first parsed packet, keep the rest in the queue.
+	if len(r.queue) == 0 {
+		return nil, fmt.Errorf("sendrecv: BPF read produced no valid packets")
 	}
-
-	raw := data[pktStart : pktStart+pktLen]
-	pkt, err := packet.Dissect(raw, ethernetStartFn)
-	if err != nil {
-		return nil, fmt.Errorf("sendrecv: dissect: %w", err)
-	}
-
+	pkt := r.queue[0]
+	r.queue = r.queue[1:]
 	return pkt, nil
 }
 
