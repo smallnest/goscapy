@@ -6,6 +6,11 @@ import (
 	"testing"
 
 	"github.com/smallnest/goscapy/pkg/layers"
+	"github.com/smallnest/goscapy/pkg/layers/dhcp"
+	"github.com/smallnest/goscapy/pkg/layers/dns"
+	"github.com/smallnest/goscapy/pkg/layers/dot1q"
+	"github.com/smallnest/goscapy/pkg/layers/gre"
+	"github.com/smallnest/goscapy/pkg/layers/vxlan"
 )
 
 // ---- Builder API Tests ----
@@ -555,6 +560,538 @@ func TestBuilderLayerBuilderInterface(t *testing.T) {
 	var _ LayerBuilder = NewTCP()
 	var _ LayerBuilder = NewUDP()
 	var _ LayerBuilder = NewARP()
+	var _ LayerBuilder = NewDNS()
+	var _ LayerBuilder = NewDHCP()
+	var _ LayerBuilder = NewIPv6()
+	var _ LayerBuilder = NewICMPv6()
+	var _ LayerBuilder = NewDot1Q()
+	var _ LayerBuilder = NewVXLAN()
+	var _ LayerBuilder = NewGRE()
+}
+
+// ---- New Builder Field Setter Tests ----
+
+func TestBuilderDNSFieldSetters(t *testing.T) {
+	q := dns.DNSQuestion{Name: "example.com", Type: dns.QtypeA, Class: dns.QclassIN}
+	dnsB := NewDNS().ID(0x1234).Flags(0x0100).Questions([]dns.DNSQuestion{q})
+
+	id, _ := dnsB.layer.Get("id")
+	flags, _ := dnsB.layer.Get("flags")
+	qdcount, _ := dnsB.layer.Get("qdcount")
+
+	if id.(uint16) != 0x1234 {
+		t.Errorf("id = %#x", id)
+	}
+	if flags.(uint16) != 0x0100 {
+		t.Errorf("flags = %#x", flags)
+	}
+	if qdcount.(uint16) != 1 {
+		t.Errorf("qdcount = %d, want 1", qdcount)
+	}
+}
+
+func TestBuilderDHCPFieldSetters(t *testing.T) {
+	dhcpB := NewDHCP().Op(dhcp.BOOTREQUEST).XID(0xDEADBEEF).CIAddr("10.0.0.1").YIAddr("10.0.0.2").
+		SIAddr("10.0.0.3").GIAddr("10.0.0.4").MessageType(dhcp.DHCPDISCOVER)
+
+	op, _ := dhcpB.layer.Get("op")
+	xid, _ := dhcpB.layer.Get("xid")
+	ciaddr, _ := dhcpB.layer.Get("ciaddr")
+	yiaddr, _ := dhcpB.layer.Get("yiaddr")
+
+	if op.(uint8) != dhcp.BOOTREQUEST {
+		t.Errorf("op = %d", op)
+	}
+	if xid.(uint32) != 0xDEADBEEF {
+		t.Errorf("xid = %#x", xid)
+	}
+	if ciaddr.(string) != "10.0.0.1" {
+		t.Errorf("ciaddr = %v", ciaddr)
+	}
+	if yiaddr.(string) != "10.0.0.2" {
+		t.Errorf("yiaddr = %v", yiaddr)
+	}
+}
+
+func TestBuilderIPv6FieldSetters(t *testing.T) {
+	ip6 := NewIPv6().SrcIP("fe80::1").DstIP("fe80::2").NH(58).HLim(255)
+
+	src, _ := ip6.layer.Get("src")
+	dst, _ := ip6.layer.Get("dst")
+	nh, _ := ip6.layer.Get("nh")
+	hlim, _ := ip6.layer.Get("hlim")
+
+	if src.(string) != "fe80::1" {
+		t.Errorf("src = %v", src)
+	}
+	if dst.(string) != "fe80::2" {
+		t.Errorf("dst = %v", dst)
+	}
+	if nh.(uint8) != 58 {
+		t.Errorf("nh = %d", nh)
+	}
+	if hlim.(uint8) != 255 {
+		t.Errorf("hlim = %d", hlim)
+	}
+}
+
+func TestBuilderIPv6TrafficClassFlowLabel(t *testing.T) {
+	ip6 := NewIPv6().TC(0xAB).FL(0x12345)
+
+	vtf, _ := ip6.layer.Get("ver_tc_fl")
+	v := vtf.(uint32)
+
+	if layers.IPv6TrafficClass(v) != 0xAB {
+		t.Errorf("tc = %#x, want 0xAB", layers.IPv6TrafficClass(v))
+	}
+	if layers.IPv6FlowLabel(v) != 0x12345 {
+		t.Errorf("fl = %#x, want 0x12345", layers.IPv6FlowLabel(v))
+	}
+	if layers.IPv6Version(v) != 6 {
+		t.Errorf("version = %d, want 6", layers.IPv6Version(v))
+	}
+}
+
+func TestBuilderICMPv6FieldSetters(t *testing.T) {
+	icmp6 := NewICMPv6().Type(128).Code(0)
+
+	itype, _ := icmp6.layer.Get("type")
+	code, _ := icmp6.layer.Get("code")
+
+	if itype.(uint8) != 128 {
+		t.Errorf("type = %d", itype)
+	}
+	if code.(uint8) != 0 {
+		t.Errorf("code = %d", code)
+	}
+}
+
+func TestBuilderDot1QFieldSetters(t *testing.T) {
+	dq := NewDot1Q().VID(100).PCP(5).DEI(true).Type(0x0800).TPID(dot1q.TPID8021Q)
+
+	tci, _ := dq.layer.Get("tci")
+	etype, _ := dq.layer.Get("type")
+	tpid, _ := dq.layer.Get("tpid")
+
+	if dot1q.GetVID(dq.layer) != 100 {
+		t.Errorf("vid = %d", dot1q.GetVID(dq.layer))
+	}
+	if dot1q.GetPCP(dq.layer) != 5 {
+		t.Errorf("pcp = %d", dot1q.GetPCP(dq.layer))
+	}
+	if !dot1q.GetDEI(dq.layer) {
+		t.Error("dei should be true")
+	}
+	if etype.(uint16) != 0x0800 {
+		t.Errorf("type = %#x", etype)
+	}
+	if tpid.(uint16) != dot1q.TPID8021Q {
+		t.Errorf("tpid = %#x", tpid)
+	}
+
+	// Test the tci value directly: PCP=5(101) DEI=1 VID=100
+	expectedTCI := uint16(5)<<13 | 0x1000 | 100
+	if tci.(uint16) != expectedTCI {
+		t.Errorf("tci = %#x, want %#x", tci, expectedTCI)
+	}
+}
+
+func TestBuilderVXLANFieldSetters(t *testing.T) {
+	vx := NewVXLAN().VNI(5000).Flags(vxlan.FlagI)
+
+	vni, _ := vx.layer.Get("vni")
+	flags, _ := vx.layer.Get("flags")
+
+	if vni.(uint32) != 5000 {
+		t.Errorf("vni = %d", vni)
+	}
+	if flags.(uint8) != vxlan.FlagI {
+		t.Errorf("flags = %#x", flags)
+	}
+}
+
+func TestBuilderGREFieldSetters(t *testing.T) {
+	gr := NewGRE().ProtocolType(0x0800).Key(100).Seq(42)
+
+	proto, _ := gr.layer.Get("proto")
+	key, _ := gr.layer.Get("key")
+	seq, _ := gr.layer.Get("seq")
+	flagsver, _ := gr.layer.Get("flagsver")
+
+	if proto.(uint16) != 0x0800 {
+		t.Errorf("proto = %#x", proto)
+	}
+	if key.(uint32) != 100 {
+		t.Errorf("key = %d", key)
+	}
+	if seq.(uint32) != 42 {
+		t.Errorf("seq = %d", seq)
+	}
+	if flagsver.(uint16)&gre.FlagK == 0 {
+		t.Error("K flag should be set")
+	}
+	if flagsver.(uint16)&gre.FlagS == 0 {
+		t.Error("S flag should be set")
+	}
+}
+
+// ---- Full Stack Builder Tests ----
+
+func TestBuilderIPv6ICMPv6Echo(t *testing.T) {
+	got, err := NewIPv6().SrcIP("fe80::1").DstIP("fe80::2").NH(58).
+		Over(NewICMPv6().Type(128).Code(0)).
+		Over(&rawBuilder{layers.NewICMPv6Echo(0x1234, 1)}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv6(40) + ICMPv6(4) + Echo(4) = 48 bytes
+	if len(got) != 48 {
+		t.Fatalf("len = %d, want 48", len(got))
+	}
+
+	// Verify IPv6 version (upper nibble of first 4 bytes).
+	if got[0]>>4 != 6 {
+		t.Errorf("IPv6 version = %d, want 6", got[0]>>4)
+	}
+	// Verify ICMPv6 type.
+	if got[40] != 128 {
+		t.Errorf("ICMPv6 type = %d, want 128", got[40])
+	}
+	// Verify Echo ID/Seq at offset 44.
+	if got[44] != 0x12 || got[45] != 0x34 {
+		t.Errorf("Echo ID bytes = %#v", got[44:46])
+	}
+}
+
+func TestBuilderEthernetDot1QIP(t *testing.T) {
+	got, err := NewEthernet().
+		SrcMAC("00:11:22:33:44:55").DstMAC("ff:ff:ff:ff:ff:ff").
+		Over(NewDot1Q().VID(100)).
+		Over(NewIP().SrcIP("10.0.0.1").DstIP("10.0.0.2")).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + Dot1Q(6) + IP(20) = 40 bytes.
+	if len(got) != 40 {
+		t.Fatalf("len = %d, want 40", len(got))
+	}
+
+	// Ethernet.type = 0x8100 (Dot1Q).
+	if got[12] != 0x81 || got[13] != 0x00 {
+		t.Errorf("EtherType = %#x, want 0x8100", got[12:14])
+	}
+
+	// Dot1Q: tpid=0x8100, tci=100 (VID=100), type=0x0800.
+	if got[14] != 0x81 || got[15] != 0x00 {
+		t.Errorf("TPID = %#x, want 0x8100", got[14:16])
+	}
+	tci := binary.BigEndian.Uint16(got[16:18])
+	if tci != 100 {
+		t.Errorf("TCI = %d, want 100", tci)
+	}
+	if got[18] != 0x08 || got[19] != 0x00 {
+		t.Errorf("Dot1Q type = %#x, want 0x0800", got[18:20])
+	}
+}
+
+func TestBuilderEthernetIPGRE(t *testing.T) {
+	innerIP := []byte{
+		0x45, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00,
+		0x40, 0x01, 0x00, 0x00, 0xc0, 0xa8, 0x01, 0x01,
+		0xc0, 0xa8, 0x01, 0x02,
+	}
+
+	got, err := NewEthernet().
+		SrcMAC("00:11:22:33:44:55").DstMAC("ff:ff:ff:ff:ff:ff").
+		Over(NewIP().SrcIP("10.0.0.1").DstIP("10.0.0.2")).
+		Over(NewGRE().ProtocolType(0x0800).Key(100)).
+		Over(&rawBuilder{layers.NewRawWith(innerIP)}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + GRE(8 with key) + innerIP(20) = 62.
+	if len(got) != 62 {
+		t.Fatalf("len = %d, want 62", len(got))
+	}
+
+	// GRE at offset 34: K=1 (0x2000).
+	if got[34] != 0x20 || got[35] != 0x00 {
+		t.Errorf("GRE flagsver = %#x %#x", got[34], got[35])
+	}
+	// GRE ProtocolType.
+	if got[36] != 0x08 || got[37] != 0x00 {
+		t.Errorf("GRE proto = %#x %#x", got[36], got[37])
+	}
+	// GRE key.
+	key := binary.BigEndian.Uint32(got[38:42])
+	if key != 100 {
+		t.Errorf("GRE key = %d, want 100", key)
+	}
+}
+
+func TestBuilderEthernetIPUDPVXLAN(t *testing.T) {
+	innerEth := []byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+		0x08, 0x00,
+	}
+
+	got, err := NewEthernet().
+		SrcMAC("00:11:22:33:44:55").DstMAC("ff:ff:ff:ff:ff:ff").
+		Over(NewIP().SrcIP("10.0.0.1").DstIP("10.0.0.2")).
+		Over(NewUDP().SrcPort(4789).DstPort(4789)).
+		Over(NewVXLAN().VNI(5000)).
+		Over(&rawBuilder{layers.NewRawWith(innerEth)}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + UDP(8) + VXLAN(8) + innerEth(14) = 64.
+	if len(got) != 64 {
+		t.Fatalf("len = %d, want 64", len(got))
+	}
+
+	// VXLAN at offset 42: flags(0x08) + reserved1(3B=0) + vni(3B).
+	if got[42] != vxlan.FlagI {
+		t.Errorf("VXLAN flags = %#x", got[42])
+	}
+	vni := uint32(got[46])<<16 | uint32(got[47])<<8 | uint32(got[48])
+	if vni != 5000 {
+		t.Errorf("VXLAN VNI = %d, want 5000", vni)
+	}
+}
+
+func TestBuilderEthernetIPUDPDNS(t *testing.T) {
+	q := dns.DNSQuestion{Name: "example.com", Type: dns.QtypeA, Class: dns.QclassIN}
+
+	got, err := NewEthernet().
+		SrcMAC("00:11:22:33:44:55").DstMAC("ff:ff:ff:ff:ff:ff").
+		Over(NewIP().SrcIP("10.0.0.1").DstIP("8.8.8.8")).
+		Over(NewUDP().SrcPort(12345).DstPort(53)).
+		Over(NewDNS().ID(0x1234).Questions([]dns.DNSQuestion{q})).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + UDP(8) + DNS(12 header + name encoded) = varies.
+	// DNS: id(2) + flags(2) + qdcount(2) + ancount(2) + nscount(2) + arcount(2) + question.
+	ipHdr := got[14:34]
+	udpDg := got[34:42]
+	dnsData := got[42:]
+
+	// IP proto = UDP(17).
+	if ipHdr[9] != 17 {
+		t.Errorf("IP.proto = %d, want 17", ipHdr[9])
+	}
+
+	// UDP port = 53.
+	dport := binary.BigEndian.Uint16(udpDg[2:4])
+	if dport != 53 {
+		t.Errorf("UDP dport = %d, want 53", dport)
+	}
+
+	// DNS id.
+	dnsID := binary.BigEndian.Uint16(dnsData[0:2])
+	if dnsID != 0x1234 {
+		t.Errorf("DNS id = %#x", dnsID)
+	}
+	// DNS qdcount.
+	qdc := binary.BigEndian.Uint16(dnsData[4:6])
+	if qdc != 1 {
+		t.Errorf("DNS qdcount = %d, want 1", qdc)
+	}
+}
+
+func TestBuilderEthernetIPUDPDHCP(t *testing.T) {
+	got, err := NewEthernet().
+		SrcMAC("00:11:22:33:44:55").DstMAC("ff:ff:ff:ff:ff:ff").
+		Over(NewIP().SrcIP("0.0.0.0").DstIP("255.255.255.255")).
+		Over(NewUDP().SrcPort(68).DstPort(67)).
+		Over(NewDHCP().XID(0xDEADBEEF).MessageType(dhcp.DHCPDISCOVER)).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + UDP(8) + DHCP(240 + options) = varies.
+	ipHdr := got[14:34]
+	udpDg := got[34:42]
+
+	// IP proto = UDP(17).
+	if ipHdr[9] != 17 {
+		t.Errorf("IP.proto = %d, want 17", ipHdr[9])
+	}
+
+	// UDP ports 68→67.
+	sport := binary.BigEndian.Uint16(udpDg[0:2])
+	dport := binary.BigEndian.Uint16(udpDg[2:4])
+	if sport != 68 || dport != 67 {
+		t.Errorf("UDP ports = %d/%d, want 68/67", sport, dport)
+	}
+}
+
+// ---- Shortcut Function Tests (New) ----
+
+func TestShortcutIPv6ICMPv6Echo(t *testing.T) {
+	got, err := IPv6ICMPv6Echo("fe80::1", "fe80::2", 0x1234, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv6(40) + ICMPv6(4) + Echo(4) = 48 bytes
+	if len(got) != 48 {
+		t.Fatalf("len = %d, want 48", len(got))
+	}
+
+	// IPv6 version.
+	if got[0]>>4 != 6 {
+		t.Errorf("IPv6 version = %d, want 6", got[0]>>4)
+	}
+
+	// ICMPv6 type = 128 (Echo Request).
+	if got[40] != 128 {
+		t.Errorf("ICMPv6 type = %d, want 128", got[40])
+	}
+}
+
+func TestShortcutEtherDot1QIP(t *testing.T) {
+	got, err := EtherDot1QIP("00:11:22:33:44:55", "ff:ff:ff:ff:ff:ff", "10.0.0.1", "10.0.0.2", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + Dot1Q(6) + IP(20) = 40 bytes.
+	if len(got) != 40 {
+		t.Fatalf("len = %d, want 40", len(got))
+	}
+
+	// Ethernet.type = 0x8100.
+	if got[12] != 0x81 || got[13] != 0x00 {
+		t.Errorf("EtherType = %#x", got[12:14])
+	}
+
+	// Dot1Q TCI = 100.
+	tci := binary.BigEndian.Uint16(got[16:18])
+	if tci != 100 {
+		t.Errorf("Dot1Q TCI = %d, want 100", tci)
+	}
+}
+
+func TestShortcutEtherIPUDPVXLAN(t *testing.T) {
+	innerPayload := []byte("hello")
+	got, err := EtherIPUDPVXLAN("00:11:22:33:44:55", "ff:ff:ff:ff:ff:ff", "10.0.0.1", "10.0.0.2", 5000, innerPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + UDP(8) + VXLAN(8) + payload(5) = 55.
+	if len(got) != 55 {
+		t.Fatalf("len = %d, want 55", len(got))
+	}
+
+	// VXLAN VNI at offset 45-47.
+	vni := uint32(got[46])<<16 | uint32(got[47])<<8 | uint32(got[48])
+	if vni != 5000 {
+		t.Errorf("VNI = %d, want 5000", vni)
+	}
+
+	// Payload at end.
+	if !bytes.Equal(got[50:], innerPayload) {
+		t.Errorf("payload = %s", got[50:])
+	}
+}
+
+func TestShortcutEtherIPGRE(t *testing.T) {
+	innerPayload := []byte{0x45, 0x00, 0x00, 0x14}
+	got, err := EtherIPGRE("00:11:22:33:44:55", "ff:ff:ff:ff:ff:ff", "10.0.0.1", "10.0.0.2", 0x0800, 100, innerPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + GRE(8 with key) + payload(4) = 46.
+	if len(got) != 46 {
+		t.Fatalf("len = %d, want 46", len(got))
+	}
+
+	// GRE at offset 34: K=1.
+	if got[34]&0x20 == 0 {
+		t.Error("GRE K flag should be set")
+	}
+	// GRE key.
+	key := binary.BigEndian.Uint32(got[38:42])
+	if key != 100 {
+		t.Errorf("GRE key = %d, want 100", key)
+	}
+}
+
+func TestShortcutEtherIPGREWithoutKey(t *testing.T) {
+	innerPayload := []byte{0x45, 0x00, 0x00, 0x14}
+	got, err := EtherIPGRE("00:11:22:33:44:55", "ff:ff:ff:ff:ff:ff", "10.0.0.1", "10.0.0.2", 0x0800, 0, innerPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + GRE(4 base) + payload(4) = 42.
+	if len(got) != 42 {
+		t.Fatalf("len = %d, want 42", len(got))
+	}
+
+	// GRE at offset 34: no flags.
+	if got[34] != 0x00 {
+		t.Errorf("GRE flagsver = %#x, want 0x00", got[34])
+	}
+}
+
+func TestShortcutEtherIPUDPDNS(t *testing.T) {
+	q := dns.DNSQuestion{Name: "example.com", Type: dns.QtypeA, Class: dns.QclassIN}
+	got, err := EtherIPUDPDNS("00:11:22:33:44:55", "ff:ff:ff:ff:ff:ff", "10.0.0.1", "8.8.8.8", 53, []dns.DNSQuestion{q})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + UDP(8) + DNS(12 + name) = at least 54.
+	if len(got) < 54 {
+		t.Fatalf("len = %d, want at least 54", len(got))
+	}
+
+	// Verify UDP port 53.
+	dport := binary.BigEndian.Uint16(got[36:38])
+	if dport != 53 {
+		t.Errorf("UDP dport = %d, want 53", dport)
+	}
+}
+
+func TestShortcutEtherIPUDPDHCP(t *testing.T) {
+	got, err := EtherIPUDPDHCP("00:11:22:33:44:55", "ff:ff:ff:ff:ff:ff", 0xDEADBEEF, dhcp.DHCPDISCOVER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eth(14) + IP(20) + UDP(8) + DHCP(240 + options) = at least 282.
+	if len(got) < 282 {
+		t.Fatalf("len = %d, want at least 282", len(got))
+	}
+
+	// Verify broadcast IP.
+	dstIP := got[30:34]
+	if !bytes.Equal(dstIP, []byte{255, 255, 255, 255}) {
+		t.Errorf("dst IP = %v, want 255.255.255.255", dstIP)
+	}
+
+	// Verify UDP ports 68→67.
+	sport := binary.BigEndian.Uint16(got[34:36])
+	dport := binary.BigEndian.Uint16(got[36:38])
+	if sport != 68 || dport != 67 {
+		t.Errorf("UDP ports = %d/%d, want 68/67", sport, dport)
+	}
 }
 
 // ---- Helpers ----

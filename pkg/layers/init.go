@@ -139,6 +139,8 @@ func init() {
 	packet.RegisterHeuristic("UDP", "dport", uint16(4789), "VXLAN")
 	// GRE: IP protocol 47.
 	packet.RegisterHeuristic("IP", "proto", uint8(47), "GRE")
+	// GRE over IP → IP.proto = 47
+	packet.RegisterBinding("GRE", "IP", "proto", uint8(47))
 	// IPv6: Ethernet type 0x86DD.
 	packet.RegisterHeuristic("Ethernet", "type", uint16(0x86DD), "IPv6")
 	// Dot1Q: Ethernet type 0x8100 (single VLAN) and 0x88A8 (QinQ outer).

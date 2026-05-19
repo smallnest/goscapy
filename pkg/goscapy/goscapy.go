@@ -18,7 +18,13 @@
 package goscapy
 
 import (
+	"github.com/smallnest/goscapy/pkg/fields"
 	"github.com/smallnest/goscapy/pkg/layers"
+	"github.com/smallnest/goscapy/pkg/layers/dhcp"
+	"github.com/smallnest/goscapy/pkg/layers/dns"
+	"github.com/smallnest/goscapy/pkg/layers/dot1q"
+	"github.com/smallnest/goscapy/pkg/layers/gre"
+	"github.com/smallnest/goscapy/pkg/layers/vxlan"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -309,6 +315,386 @@ func (b *ARPBuilder) DstIP(ip string) *ARPBuilder {
 
 // Over stacks an upper layer on top of this ARP layer and returns a PacketBuilder.
 func (b *ARPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- DNSBuilder ----
+
+// DNSBuilder builds DNS message layers.
+type DNSBuilder struct {
+	layer *packet.Layer
+}
+
+// NewDNS creates a DNS message builder with default query header (RD=1).
+func NewDNS() *DNSBuilder {
+	return &DNSBuilder{layer: dns.NewDNS()}
+}
+
+func (b *DNSBuilder) Layer() *packet.Layer { return b.layer }
+
+// ID sets the DNS transaction ID.
+func (b *DNSBuilder) ID(id uint16) *DNSBuilder {
+	b.layer.Set("id", id)
+	return b
+}
+
+// Flags sets the DNS flags field.
+func (b *DNSBuilder) Flags(flags uint16) *DNSBuilder {
+	b.layer.Set("flags", flags)
+	return b
+}
+
+// QDCount sets the question count.
+func (b *DNSBuilder) QDCount(n uint16) *DNSBuilder {
+	b.layer.Set("qdcount", n)
+	return b
+}
+
+// ANCount sets the answer count.
+func (b *DNSBuilder) ANCount(n uint16) *DNSBuilder {
+	b.layer.Set("ancount", n)
+	return b
+}
+
+// NSCount sets the authority count.
+func (b *DNSBuilder) NSCount(n uint16) *DNSBuilder {
+	b.layer.Set("nscount", n)
+	return b
+}
+
+// ARCount sets the additional count.
+func (b *DNSBuilder) ARCount(n uint16) *DNSBuilder {
+	b.layer.Set("arcount", n)
+	return b
+}
+
+// Data sets the raw DNS data (questions + RRs) directly.
+func (b *DNSBuilder) Data(data []byte) *DNSBuilder {
+	b.layer.Set("data", data)
+	return b
+}
+
+// Questions sets the question section and updates QDCount.
+func (b *DNSBuilder) Questions(qs []dns.DNSQuestion) *DNSBuilder {
+	b.layer.Set("qdcount", uint16(len(qs)))
+	b.layer.Set("data", dns.BuildDNSMessage(qs, nil, nil, nil))
+	return b
+}
+
+// Over stacks an upper layer on top of this DNS layer and returns a PacketBuilder.
+func (b *DNSBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- DHCPBuilder ----
+
+// DHCPBuilder builds DHCP message layers.
+type DHCPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewDHCP creates a DHCP message builder with default BOOTREQUEST header.
+func NewDHCP() *DHCPBuilder {
+	return &DHCPBuilder{layer: dhcp.NewDHCP()}
+}
+
+func (b *DHCPBuilder) Layer() *packet.Layer { return b.layer }
+
+// Op sets the BOOTP operation (BOOTREQUEST=1, BOOTREPLY=2).
+func (b *DHCPBuilder) Op(op uint8) *DHCPBuilder {
+	b.layer.Set("op", op)
+	return b
+}
+
+// XID sets the transaction ID.
+func (b *DHCPBuilder) XID(xid uint32) *DHCPBuilder {
+	b.layer.Set("xid", xid)
+	return b
+}
+
+// CIAddr sets the client IP address.
+func (b *DHCPBuilder) CIAddr(ip string) *DHCPBuilder {
+	b.layer.Set("ciaddr", ip)
+	return b
+}
+
+// YIAddr sets the your (assigned) IP address.
+func (b *DHCPBuilder) YIAddr(ip string) *DHCPBuilder {
+	b.layer.Set("yiaddr", ip)
+	return b
+}
+
+// SIAddr sets the server IP address.
+func (b *DHCPBuilder) SIAddr(ip string) *DHCPBuilder {
+	b.layer.Set("siaddr", ip)
+	return b
+}
+
+// GIAddr sets the gateway IP address.
+func (b *DHCPBuilder) GIAddr(ip string) *DHCPBuilder {
+	b.layer.Set("giaddr", ip)
+	return b
+}
+
+// CHAddr sets the client hardware address (max 16 bytes).
+func (b *DHCPBuilder) CHAddr(addr []byte) *DHCPBuilder {
+	b.layer.Set("chaddr", addr)
+	return b
+}
+
+// Options sets the raw DHCP options bytes.
+func (b *DHCPBuilder) Options(data []byte) *DHCPBuilder {
+	b.layer.Set("options", data)
+	return b
+}
+
+// MessageType sets the DHCP Message Type option (53) and updates the options field.
+func (b *DHCPBuilder) MessageType(mt uint8) *DHCPBuilder {
+	opts := []fields.TLVOption{dhcp.NewMessageTypeOption(mt)}
+	b.layer.Set("options", dhcp.BuildDHCPOptions(opts))
+	return b
+}
+
+// Over stacks an upper layer on top of this DHCP layer and returns a PacketBuilder.
+func (b *DHCPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- IPv6Builder ----
+
+// IPv6Builder builds IPv6 header layers.
+type IPv6Builder struct {
+	layer *packet.Layer
+}
+
+// NewIPv6 creates an IPv6 header builder with defaults (v6, hop limit=64).
+func NewIPv6() *IPv6Builder {
+	return &IPv6Builder{layer: layers.NewIPv6()}
+}
+
+func (b *IPv6Builder) Layer() *packet.Layer { return b.layer }
+
+// SrcIP sets the source IPv6 address.
+func (b *IPv6Builder) SrcIP(ip string) *IPv6Builder {
+	b.layer.Set("src", ip)
+	return b
+}
+
+// DstIP sets the destination IPv6 address.
+func (b *IPv6Builder) DstIP(ip string) *IPv6Builder {
+	b.layer.Set("dst", ip)
+	return b
+}
+
+// NH sets the next header field.
+func (b *IPv6Builder) NH(nh uint8) *IPv6Builder {
+	b.layer.Set("nh", nh)
+	return b
+}
+
+// HLim sets the hop limit field.
+func (b *IPv6Builder) HLim(hlim uint8) *IPv6Builder {
+	b.layer.Set("hlim", hlim)
+	return b
+}
+
+// TC sets the traffic class field (updates the combined ver_tc_fl field).
+func (b *IPv6Builder) TC(tc uint8) *IPv6Builder {
+	v, _ := b.layer.Get("ver_tc_fl")
+	fl := layers.IPv6FlowLabel(v.(uint32))
+	b.layer.Set("ver_tc_fl", layers.MakeIPv6VerTCFL(tc, fl))
+	return b
+}
+
+// FL sets the flow label field (updates the combined ver_tc_fl field).
+func (b *IPv6Builder) FL(fl uint32) *IPv6Builder {
+	v, _ := b.layer.Get("ver_tc_fl")
+	tc := layers.IPv6TrafficClass(v.(uint32))
+	b.layer.Set("ver_tc_fl", layers.MakeIPv6VerTCFL(tc, fl))
+	return b
+}
+
+// Over stacks an upper layer on top of this IPv6 layer and returns a PacketBuilder.
+func (b *IPv6Builder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- ICMPv6Builder ----
+
+// ICMPv6Builder builds ICMPv6 base header layers.
+type ICMPv6Builder struct {
+	layer *packet.Layer
+}
+
+// NewICMPv6 creates an ICMPv6 base header builder (default: Echo Request, type=128).
+func NewICMPv6() *ICMPv6Builder {
+	return &ICMPv6Builder{layer: layers.NewICMPv6()}
+}
+
+func (b *ICMPv6Builder) Layer() *packet.Layer { return b.layer }
+
+// Type sets the ICMPv6 type field.
+func (b *ICMPv6Builder) Type(t uint8) *ICMPv6Builder {
+	b.layer.Set("type", t)
+	return b
+}
+
+// Code sets the ICMPv6 code field.
+func (b *ICMPv6Builder) Code(c uint8) *ICMPv6Builder {
+	b.layer.Set("code", c)
+	return b
+}
+
+// Over stacks an upper layer on top of this ICMPv6 layer and returns a PacketBuilder.
+func (b *ICMPv6Builder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- Dot1QBuilder ----
+
+// Dot1QBuilder builds 802.1Q VLAN tag layers.
+type Dot1QBuilder struct {
+	layer *packet.Layer
+}
+
+// NewDot1Q creates a Dot1Q VLAN tag builder with default 802.1Q TPID.
+func NewDot1Q() *Dot1QBuilder {
+	return &Dot1QBuilder{layer: dot1q.NewDot1QLayer()}
+}
+
+func (b *Dot1QBuilder) Layer() *packet.Layer { return b.layer }
+
+// VID sets the VLAN ID (12 bits, 0-4095).
+func (b *Dot1QBuilder) VID(vid uint16) *Dot1QBuilder {
+	tci, _ := b.layer.Get("tci")
+	val := (tci.(uint16) & 0xF000) | (vid & 0x0FFF)
+	b.layer.Set("tci", val)
+	return b
+}
+
+// PCP sets the Priority Code Point (3 bits, 0-7).
+func (b *Dot1QBuilder) PCP(pcp uint8) *Dot1QBuilder {
+	tci, _ := b.layer.Get("tci")
+	val := (tci.(uint16) & 0x1FFF) | (uint16(pcp&0x7) << 13)
+	b.layer.Set("tci", val)
+	return b
+}
+
+// DEI sets the Drop Eligible Indicator.
+func (b *Dot1QBuilder) DEI(dei bool) *Dot1QBuilder {
+	tci, _ := b.layer.Get("tci")
+	val := tci.(uint16)
+	if dei {
+		val |= 0x1000
+	} else {
+		val &^= 0x1000
+	}
+	b.layer.Set("tci", val)
+	return b
+}
+
+// Type sets the inner EtherType.
+func (b *Dot1QBuilder) Type(etype uint16) *Dot1QBuilder {
+	b.layer.Set("type", etype)
+	return b
+}
+
+// TPID sets the Tag Protocol Identifier (default 0x8100, or 0x88A8 for QinQ).
+func (b *Dot1QBuilder) TPID(tpid uint16) *Dot1QBuilder {
+	b.layer.Set("tpid", tpid)
+	return b
+}
+
+// Over stacks an upper layer on top of this Dot1Q layer and returns a PacketBuilder.
+func (b *Dot1QBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- VXLANBuilder ----
+
+// VXLANBuilder builds VXLAN encapsulation layers.
+type VXLANBuilder struct {
+	layer *packet.Layer
+}
+
+// NewVXLAN creates a VXLAN builder with default I flag set.
+func NewVXLAN() *VXLANBuilder {
+	return &VXLANBuilder{layer: vxlan.NewVXLANLayer()}
+}
+
+func (b *VXLANBuilder) Layer() *packet.Layer { return b.layer }
+
+// VNI sets the VXLAN Network Identifier (24 bits, 0-16777215).
+func (b *VXLANBuilder) VNI(vni uint32) *VXLANBuilder {
+	b.layer.Set("vni", vni&0xFFFFFF)
+	return b
+}
+
+// Flags sets the VXLAN flags byte.
+func (b *VXLANBuilder) Flags(flags uint8) *VXLANBuilder {
+	b.layer.Set("flags", flags)
+	return b
+}
+
+// Over stacks an upper layer on top of this VXLAN layer and returns a PacketBuilder.
+func (b *VXLANBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- GREBuilder ----
+
+// GREBuilder builds GRE tunnel encapsulation layers.
+type GREBuilder struct {
+	layer *packet.Layer
+}
+
+// NewGRE creates a GRE builder with default ProtocolType=0x0800 (IP).
+func NewGRE() *GREBuilder {
+	return &GREBuilder{layer: gre.NewGRELayer()}
+}
+
+func (b *GREBuilder) Layer() *packet.Layer { return b.layer }
+
+// ProtocolType sets the GRE Protocol Type (e.g. 0x0800 for IP, 0x6558 for Ethernet).
+func (b *GREBuilder) ProtocolType(pt uint16) *GREBuilder {
+	b.layer.Set("proto", pt)
+	return b
+}
+
+// Key sets the GRE Key field and enables the K flag.
+func (b *GREBuilder) Key(k uint32) *GREBuilder {
+	b.layer.Set("key", k)
+	flags, _ := b.layer.Get("flagsver")
+	b.layer.Set("flagsver", flags.(uint16)|gre.FlagK)
+	return b
+}
+
+// Seq sets the GRE Sequence Number and enables the S flag.
+func (b *GREBuilder) Seq(s uint32) *GREBuilder {
+	b.layer.Set("seq", s)
+	flags, _ := b.layer.Get("flagsver")
+	b.layer.Set("flagsver", flags.(uint16)|gre.FlagS)
+	return b
+}
+
+// SetChecksum sets the GRE Checksum and enables the C flag.
+func (b *GREBuilder) SetChecksum(csum uint16) *GREBuilder {
+	b.layer.Set("chksum", csum)
+	b.layer.Set("reserved1", uint16(0))
+	flags, _ := b.layer.Get("flagsver")
+	b.layer.Set("flagsver", flags.(uint16)|gre.FlagC)
+	return b
+}
+
+// Over stacks an upper layer on top of this GRE layer and returns a PacketBuilder.
+func (b *GREBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }
