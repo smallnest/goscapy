@@ -563,7 +563,173 @@ sendrecv.<span class="fn">Sendp</span>(l2pkt, <span class="str">"eth0"</span>)</
         </div>
       </div>
 
-      <!-- 9. 错误处理 -->
+      <!-- 9. BPF 过滤器 — CompileFilter -->
+      <div class="section" id="bpf-compile">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>BPF 过滤器 — CompileFilter</h3>
+        </div>
+        <p><code>sniff.CompileFilter()</code> 将 BPF 过滤表达式（与 <code>tcpdump</code> 相同的语法）编译为内核级 BPF 指令。这提供了最高的捕获性能 —— 只有匹配的数据包才会传递到你的代码。</p>
+
+        <h3 style="margin-top:1rem;">🔨 编译并配合 Sniff 使用</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+<span class="cmt">// 在启动时编译 BPF 过滤器（需要系统安装 tcpdump）</span>
+instructions, err := sniff.<span class="fn">CompileFilter</span>(<span class="str">"tcp port 80"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(<span class="str">"过滤器编译错误:"</span>, err)
+}
+
+<span class="cmt">// 使用预编译指令进行 Sniff（运行时不需要 tcpdump）</span>
+err = sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:        <span class="str">"eth0"</span>,
+    Instructions: instructions,
+    Timeout:      <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+    <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// true = 继续捕获</span>
+})</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 OpenFilteredReceiver（底层 API）</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"errors"</span>
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 编译过滤器</span>
+instructions, _ := sniff.<span class="fn">CompileFilter</span>(<span class="str">"icmp"</span>)
+
+<span class="cmt">// 打开带过滤的接收器 —— 只接收 ICMP 数据包</span>
+rx, err := sendrecv.<span class="fn">OpenFilteredReceiver</span>(sendrecv.<span class="fn">LoopbackName</span>(), instructions)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+<span class="kw">defer</span> rx.<span class="fn">Close</span>()
+
+<span class="cmt">// 接收过滤后的数据包</span>
+pkt, err := rx.<span class="fn">Recv</span>(<span class="num">5</span> * time.Second)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    <span class="kw">if</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout) {
+        fmt.<span class="fn">Println</span>(<span class="str">"超时内未收到匹配的数据包"</span>)
+    } <span class="kw">else</span> {
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    <span class="kw">return</span>
+}
+fmt.<span class="fn">Println</span>(<span class="str">"过滤后的数据包:"</span>, pkt.<span class="fn">String</span>())</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <code>CompileFilter()</code> 通过调用 <code>tcpdump -dd</code> 来编译过滤器。
+          因此系统必须安装 <code>tcpdump</code>。
+          在 macOS 上，编译过滤器可能需要 <strong>root 权限</strong>。
+          为避免运行时依赖，建议在启动时预编译并重复使用指令。
+        </div>
+      </div>
+
+      <!-- 10. BPF 过滤器 — 预编译指令 -->
+      <div class="section" id="bpf-precompiled">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>BPF 过滤器 — 预编译指令</h3>
+        </div>
+        <p>当 <code>tcpdump</code> 不可用时（容器、精简镜像），可以直接构造 <code>BPFInstruction</code> 切片。在开发机上使用 <code>tcpdump -dd</code> 生成指令，然后硬编码到程序中。</p>
+
+        <h3 style="margin-top:1rem;">🔧 生成指令</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt"># 生成 "tcp port 80" 的 BPF 指令</span>
+$ tcpdump -dd <span class="str">"tcp port 80"</span>
+{ 0x28, 0, 0, 0x0000000c },
+{ 0x15, 0, 6, 0x000086dd },
+{ 0x30, 0, 0, 0x00000014 },
+{ 0x15, 0, 15, 0x00000006 },
+{ 0x28, 0, 0, 0x00000036 },
+{ 0x15, 12, 0, 0x00000050 },
+{ 0x28, 0, 0, 0x00000038 },
+{ 0x15, 10, 11, 0x00000050 },
+...</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 在 Go 中硬编码</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 预编译的 "tcp port 80" BPF 指令</span>
+<span class="cmt">// 通过 tcpdump -dd "tcp port 80" 生成</span>
+<span class="kw">var</span> tcpPort80Filter = []sendrecv.<span class="type">BPFInstruction</span>{
+    {Code: <span class="num">0x28</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x0000000c</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">0</span>, Jf: <span class="num">6</span>, K: <span class="num">0x000086dd</span>},
+    {Code: <span class="num">0x30</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000014</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">0</span>, Jf: <span class="num">15</span>, K: <span class="num">0x00000006</span>},
+    {Code: <span class="num">0x28</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000036</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">12</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000050</span>},
+    {Code: <span class="num">0x28</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000038</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">10</span>, Jf: <span class="num">11</span>, K: <span class="num">0x00000050</span>},
+}
+
+<span class="cmt">// 直接使用 —— 运行时无需 tcpdump 依赖</span>
+rx, _ := sendrecv.<span class="fn">OpenFilteredReceiver</span>(<span class="str">"eth0"</span>, tcpPort80Filter)
+<span class="kw">defer</span> rx.<span class="fn">Close</span>()</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 提示</div>
+          在开发阶段用 <code>tcpdump -dd</code> 预编译过滤器，将指令嵌入到二进制文件中。
+          这消除了运行时对 <code>tcpdump</code> 的依赖，非常适合生产部署和精简容器镜像。
+        </div>
+      </div>
+
+      <!-- 11. 常用 BPF 过滤表达式 -->
+      <div class="section" id="bpf-cheatsheet">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>常用 BPF 过滤表达式</h3>
+        </div>
+        <p>常用 BPF 过滤表达式速查表。所有表达式均可通过 <code>sniff.CompileFilter()</code> 或 <code>tcpdump -dd</code> 编译。</p>
+
+        <div class="table-wrapper"><table><thead><tr><th>过滤器</th><th>说明</th></tr></thead><tbody>
+          <tr><td><code>"tcp port 80"</code></td><td>捕获 80 端口的 TCP 流量（HTTP）</td></tr>
+          <tr><td><code>"tcp port 443"</code></td><td>捕获 443 端口的 TCP 流量（HTTPS）</td></tr>
+          <tr><td><code>"udp port 53"</code></td><td>捕获 DNS 查询（UDP 53 端口）</td></tr>
+          <tr><td><code>"icmp"</code></td><td>捕获所有 ICMP 数据包（ping）</td></tr>
+          <tr><td><code>"host 192.168.1.1"</code></td><td>捕获指定主机的所有流量</td></tr>
+          <tr><td><code>"src host 10.0.0.1"</code></td><td>捕获指定源 IP 的流量</td></tr>
+          <tr><td><code>"dst port 22"</code></td><td>捕获目标为 SSH 端口的流量</td></tr>
+          <tr><td><code>"net 192.168.0.0/16"</code></td><td>捕获子网内的所有流量</td></tr>
+          <tr><td><code>"tcp"</code></td><td>捕获所有 TCP 流量</td></tr>
+          <tr><td><code>"udp"</code></td><td>捕获所有 UDP 流量</td></tr>
+          <tr><td><code>"arp"</code></td><td>捕获所有 ARP 数据包</td></tr>
+          <tr><td><code>"tcp port 80 and host 10.0.0.1"</code></td><td>使用 <code>and</code> 组合条件</td></tr>
+          <tr><td><code>"tcp port 80 or tcp port 443"</code></td><td>使用 <code>or</code> 组合条件</td></tr>
+          <tr><td><code>"not port 22"</code></td><td>使用 <code>not</code> 排除 SSH 流量</td></tr>
+          <tr><td><code>"tcp[tcpflags] &amp; tcp-syn != 0"</code></td><td>仅捕获 TCP SYN 数据包</td></tr>
+        </tbody></table></div>
+      </div>
+
+      <!-- 12. 错误处理 -->
       <div class="section" id="error-handling">
         <div class="section-title">
           <div class="section-dot violet"></div>

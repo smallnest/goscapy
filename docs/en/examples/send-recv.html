@@ -563,7 +563,174 @@ sendrecv.<span class="fn">Sendp</span>(l2pkt, <span class="str">"eth0"</span>)</
         </div>
       </div>
 
-      <!-- 9. Error Handling -->
+      <!-- 9. BPF Filters — CompileFilter -->
+      <div class="section" id="bpf-compile">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>BPF Filter — CompileFilter</h3>
+        </div>
+        <p><code>sniff.CompileFilter()</code> compiles a BPF filter expression (the same syntax used by <code>tcpdump</code>) into kernel-level BPF instructions. This gives you maximum capture performance — only matching packets reach your code.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Compile and Use with Sniff</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+<span class="cmt">// Compile a BPF filter at startup (requires tcpdump on PATH)</span>
+instructions, err := sniff.<span class="fn">CompileFilter</span>(<span class="str">"tcp port 80"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(<span class="str">"filter compile error:"</span>, err)
+}
+
+<span class="cmt">// Use pre-compiled instructions with Sniff (no tcpdump at runtime)</span>
+err = sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:        <span class="str">"eth0"</span>,
+    Instructions: instructions,
+    Timeout:      <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+    <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// true = continue capturing</span>
+})</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 OpenFilteredReceiver (Lower-Level)</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"errors"</span>
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Compile the filter</span>
+instructions, _ := sniff.<span class="fn">CompileFilter</span>(<span class="str">"icmp"</span>)
+
+<span class="cmt">// Open a filtered receiver — only ICMP packets are delivered</span>
+rx, err := sendrecv.<span class="fn">OpenFilteredReceiver</span>(sendrecv.<span class="fn">LoopbackName</span>(), instructions)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+<span class="kw">defer</span> rx.<span class="fn">Close</span>()
+
+<span class="cmt">// Receive filtered packets</span>
+pkt, err := rx.<span class="fn">Recv</span>(<span class="num">5</span> * time.Second)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    <span class="kw">if</span> errors.<span class="fn">Is</span>(err, sendrecv.ErrTimeout) {
+        fmt.<span class="fn">Println</span>(<span class="str">"No matching packet within timeout"</span>)
+    } <span class="kw">else</span> {
+        fmt.<span class="fn">Fatal</span>(err)
+    }
+    <span class="kw">return</span>
+}
+fmt.<span class="fn">Println</span>(<span class="str">"Filtered packet:"</span>, pkt.<span class="fn">String</span>())</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <code>CompileFilter()</code> shells out to <code>tcpdump -dd</code> to compile the filter.
+          This means <code>tcpdump</code> must be installed on the system.
+          On macOS, compiling filters may require <strong>root privileges</strong>.
+          To avoid the runtime dependency, pre-compile at startup and reuse the instructions.
+        </div>
+      </div>
+
+      <!-- 10. BPF Filters — Pre-compiled Instructions -->
+      <div class="section" id="bpf-precompiled">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>BPF Filter — Pre-compiled Instructions</h3>
+        </div>
+        <p>When <code>tcpdump</code> is not available (containers, minimal images), construct <code>BPFInstruction</code> slices directly. Use <code>tcpdump -dd</code> on your development machine to generate the instructions, then hard-code them.</p>
+
+        <h3 style="margin-top:1rem;">🔧 Generate Instructions</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt"># Generate BPF instructions for "tcp port 80"</span>
+$ tcpdump -dd <span class="str">"tcp port 80"</span>
+{ 0x28, 0, 0, 0x0000000c },
+{ 0x15, 0, 6, 0x000086dd },
+{ 0x30, 0, 0, 0x00000014 },
+{ 0x15, 0, 15, 0x00000006 },
+{ 0x28, 0, 0, 0x00000036 },
+{ 0x15, 12, 0, 0x00000050 },
+{ 0x28, 0, 0, 0x00000038 },
+{ 0x15, 10, 11, 0x00000050 },
+...</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔧 Hard-code in Go</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Pre-compiled BPF instructions for "tcp port 80"</span>
+<span class="cmt">// Generated by: tcpdump -dd "tcp port 80"</span>
+<span class="kw">var</span> tcpPort80Filter = []sendrecv.<span class="type">BPFInstruction</span>{
+    {Code: <span class="num">0x28</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x0000000c</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">0</span>, Jf: <span class="num">6</span>, K: <span class="num">0x000086dd</span>},
+    {Code: <span class="num">0x30</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000014</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">0</span>, Jf: <span class="num">15</span>, K: <span class="num">0x00000006</span>},
+    {Code: <span class="num">0x28</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000036</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">12</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000050</span>},
+    {Code: <span class="num">0x28</span>, Jt: <span class="num">0</span>, Jf: <span class="num">0</span>, K: <span class="num">0x00000038</span>},
+    {Code: <span class="num">0x15</span>, Jt: <span class="num">10</span>, Jf: <span class="num">11</span>, K: <span class="num">0x00000050</span>},
+}
+
+<span class="cmt">// Use directly — no tcpdump dependency at runtime</span>
+rx, _ := sendrecv.<span class="fn">OpenFilteredReceiver</span>(<span class="str">"eth0"</span>, tcpPort80Filter)
+<span class="kw">defer</span> rx.<span class="fn">Close</span>()</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          Pre-compile filters during development with <code>tcpdump -dd</code> and embed the instructions
+          in your binary. This eliminates the <code>tcpdump</code> runtime dependency and is ideal for
+          production deployments and minimal container images.
+        </div>
+      </div>
+
+      <!-- 11. Common BPF Filter Expressions -->
+      <div class="section" id="bpf-cheatsheet">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>Common BPF Filter Expressions</h3>
+        </div>
+        <p>A quick reference for commonly used BPF filter expressions. All of these can be compiled with <code>sniff.CompileFilter()</code> or <code>tcpdump -dd</code>.</p>
+
+        <div class="table-wrapper"><table><thead><tr><th>Filter</th><th>Description</th></tr></thead><tbody>
+          <tr><td><code>"tcp port 80"</code></td><td>Capture TCP traffic on port 80 (HTTP)</td></tr>
+          <tr><td><code>"tcp port 443"</code></td><td>Capture TCP traffic on port 443 (HTTPS)</td></tr>
+          <tr><td><code>"udp port 53"</code></td><td>Capture DNS queries (UDP port 53)</td></tr>
+          <tr><td><code>"icmp"</code></td><td>Capture all ICMP packets (ping)</td></tr>
+          <tr><td><code>"host 192.168.1.1"</code></td><td>Capture all traffic to/from a specific host</td></tr>
+          <tr><td><code>"src host 10.0.0.1"</code></td><td>Capture traffic from a specific source IP</td></tr>
+          <tr><td><code>"dst port 22"</code></td><td>Capture traffic destined to SSH port</td></tr>
+          <tr><td><code>"net 192.168.0.0/16"</code></td><td>Capture all traffic in a subnet</td></tr>
+          <tr><td><code>"tcp"</code></td><td>Capture all TCP traffic</td></tr>
+          <tr><td><code>"udp"</code></td><td>Capture all UDP traffic</td></tr>
+          <tr><td><code>"arp"</code></td><td>Capture all ARP packets</td></tr>
+          <tr><td><code>"tcp port 80 and host 10.0.0.1"</code></td><td>Combine with <code>and</code></td></tr>
+          <tr><td><code>"tcp port 80 or tcp port 443"</code></td><td>Combine with <code>or</code></td></tr>
+          <tr><td><code>"not port 22"</code></td><td>Exclude SSH traffic with <code>not</code></td></tr>
+          <tr><td><code>"tcp[tcpflags] &amp; tcp-syn != 0"</code></td><td>Capture TCP SYN packets only</td></tr>
+        </tbody></table></div>
+      </div>
+
+      <!-- 12. Error Handling -->
       <div class="section" id="error-handling">
         <div class="section-title">
           <div class="section-dot violet"></div>
