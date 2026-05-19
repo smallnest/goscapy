@@ -55,6 +55,8 @@ img {
 /* ---------- Header ---------- */
 .header {
   margin-bottom: 2.5rem;
+  position: relative;
+  z-index: 100;
 }
 
 .header-row {
