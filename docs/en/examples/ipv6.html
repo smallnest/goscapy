@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPv6 / ICMPv6 Examples — goscapy</title>
+  <meta name="description" content="Code examples for building IPv6, ICMPv6 Echo, NDP, and IPv6 extension header packets with goscapy.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. IPv6 + ICMPv6 Echo Request -->
+      <div class="section" id="ipv6-icmpv6-echo">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>IPv6 + ICMPv6 Echo Request</h3>
+        </div>
+        <p>Build an IPv6 ping packet. ICMPv6 Echo uses a two-layer structure: the ICMPv6 base header (Type + Code + Checksum) and the Echo sub-layer (ID + Seq). IPv6 fields <code>TC</code> (Traffic Class), <code>FL</code> (Flow Label), and <code>HLim</code> (Hop Limit) control QoS and routing behavior. The pseudo-header checksum is computed automatically.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+)
+
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">TC</span>(<span class="num">0</span>).                <span class="cmt">// Traffic Class (0–255)</span>
+    <span class="fn">FL</span>(<span class="num">0</span>).                <span class="cmt">// Flow Label (20-bit, 0–1048575)</span>
+    <span class="fn">HLim</span>(<span class="num">64</span>).              <span class="cmt">// Hop Limit</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMPv6</span>().
+        <span class="fn">Type</span>(<span class="num">128</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: layers.<span class="fn">NewICMPv6Echo</span>(<span class="num">0x1234</span>, <span class="num">1</span>)}).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPv6ICMPv6Echo(srcIP, dstIP string, id, seq uint16)</span>
+raw, err := goscapy.<span class="fn">IPv6ICMPv6Echo</span>(<span class="str">"fd00::1"</span>, <span class="str">"fd00::2"</span>, <span class="num">0x1234</span>, <span class="num">1</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / ICMPv6 / ICMPv6 Echo"</span>
+
+ip6 := pkt.<span class="fn">GetLayer</span>(<span class="str">"IPv6"</span>)
+srcIP, _ := ip6.<span class="fn">Get</span>(<span class="str">"srcIP"</span>)
+dstIP, _ := ip6.<span class="fn">Get</span>(<span class="str">"dstIP"</span>)
+hlim, _  := ip6.<span class="fn">Get</span>(<span class="str">"hopLimit"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"%s → %s  HLim=%d\n"</span>, srcIP, dstIP, hlim)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. IPv6 + TCP -->
+      <div class="section" id="ipv6-tcp">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>IPv6 + TCP SYN</h3>
+        </div>
+        <p>Build a TCP SYN over IPv6. The Next Header field (<code>NH</code>) is set automatically based on the upper layer (6 = TCP). IPv6 pseudo-header checksum is used for TCP checksum computation.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">HLim</span>(<span class="num">64</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn).
+        <span class="fn">Seq</span>(<span class="num">1000</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / TCP"</span>
+
+tcp := pkt.<span class="fn">GetLayer</span>(<span class="str">"TCP"</span>)
+srcPort, _ := tcp.<span class="fn">Get</span>(<span class="str">"srcPort"</span>)
+dstPort, _ := tcp.<span class="fn">Get</span>(<span class="str">"dstPort"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"Port %d → %d  SYN\n"</span>, srcPort, dstPort)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. IPv6 + UDP -->
+      <div class="section" id="ipv6-udp">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>IPv6 + UDP</h3>
+        </div>
+        <p>Build a UDP datagram over IPv6. Next Header is set to 17 (UDP) automatically. This is the basis for IPv6-based DNS, DHCPv6, and VXLAN.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">53</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / UDP"</span>
+
+udp := pkt.<span class="fn">GetLayer</span>(<span class="str">"UDP"</span>)
+srcPort, _ := udp.<span class="fn">Get</span>(<span class="str">"srcPort"</span>)
+dstPort, _ := udp.<span class="fn">Get</span>(<span class="str">"dstPort"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"Port %d → %d\n"</span>, srcPort, dstPort)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. NDP Router Solicitation -->
+      <div class="section" id="ndp-router-solicitation">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>NDP Router Solicitation</h3>
+        </div>
+        <p>Build an NDP Router Solicitation — used by an IPv6 host to discover routers on the local link. The message uses ICMPv6 type 133 and may include a Source Link-Layer Address option so the router can respond directly.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers/ndp"</span>
+
+<span class="cmt">// Build NDP options: Source Link-Layer Address</span>
+ndpOpts := ndp.<span class="fn">BuildNDPOptions</span>([]ndp.NDPOption{
+    ndp.<span class="fn">BuildSourceLinkLayerOption</span>(net.HardwareAddr{<span class="num">0x00</span>, <span class="num">0x11</span>, <span class="num">0x22</span>, <span class="num">0x33</span>, <span class="num">0x44</span>, <span class="num">0x55</span>}),
+})
+
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fe80::211:22ff:fe33:4455"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"ff02::2"</span>).            <span class="cmt">// all-routers multicast</span>
+    <span class="fn">HLim</span>(<span class="num">255</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMPv6</span>().
+        <span class="fn">Type</span>(ndp.NDPRouterSolicitation).  <span class="cmt">// 133</span>
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: layers.<span class="fn">NewNDPRouterSolicitation</span>()}).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / ICMPv6 / NDP Router Solicitation"</span>
+
+icmpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"ICMPv6"</span>)
+msgType, _ := icmpLayer.<span class="fn">Get</span>(<span class="str">"type"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"ICMPv6 Type=%d (Router Solicitation)\n"</span>, msgType)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. NDP Neighbor Advertisement -->
+      <div class="section" id="ndp-neighbor-advertisement">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>NDP Neighbor Advertisement</h3>
+        </div>
+        <p>Build an NDP Neighbor Advertisement — used to respond to Neighbor Solicitations or announce a link-layer address change. Flags <code>Router</code>, <code>Solicited</code>, and <code>Override</code> control the recipient's neighbor cache behavior.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Build NDP options: Target Link-Layer Address</span>
+ndpOpts := ndp.<span class="fn">BuildNDPOptions</span>([]ndp.NDPOption{
+    ndp.<span class="fn">BuildTargetLinkLayerOption</span>(net.HardwareAddr{<span class="num">0x00</span>, <span class="num">0xaa</span>, <span class="num">0xbb</span>, <span class="num">0xcc</span>, <span class="num">0xdd</span>, <span class="num">0xee</span>}),
+})
+
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">HLim</span>(<span class="num">255</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMPv6</span>().
+        <span class="fn">Type</span>(ndp.NDPNeighborAdvertisement). <span class="cmt">// 136</span>
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: layers.<span class="fn">NewNDPNeighborAdvertisement</span>()}).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / ICMPv6 / NDP Neighbor Advertisement"</span>
+
+icmpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"ICMPv6"</span>)
+msgType, _ := icmpLayer.<span class="fn">Get</span>(<span class="str">"type"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"ICMPv6 Type=%d (Neighbor Advertisement)\n"</span>, msgType)
+
+ndpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"NDP Neighbor Advertisement"</span>)
+<span class="kw">if</span> ndpLayer != <span class="kw">nil</span> {
+    flags, _ := ndpLayer.<span class="fn">Get</span>(<span class="str">"flags"</span>)
+    fmt.<span class="fn">Printf</span>(<span class="str">"Flags=0x%02x  Router=%v  Solicited=%v\n"</span>,
+        flags,
+        flags.(<span class="type">uint8</span>)&ndp.NDPNARouter != <span class="num">0</span>,
+        flags.(<span class="type">uint8</span>)&ndp.NDPNASolicited != <span class="num">0</span>)
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. IPv6 Extension Header Chain -->
+      <div class="section" id="ipv6-extension-headers">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>IPv6 Extension Header Chain</h3>
+        </div>
+        <p>Build an IPv6 packet with a chain of extension headers: Hop-by-Hop Options → Fragment → TCP payload. Extension headers are stacked using <code>Over()</code> and the Next Header field is set automatically at each hop. The Fragment header carries offset and More Fragments (M) flag for IPv6 fragmentation.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers/ipv6"</span>
+
+<span class="cmt">// IPv6 with Hop-by-Hop → Fragment → TCP extension header chain</span>
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">HLim</span>(<span class="num">64</span>).
+    <span class="cmt">// Next Header = 0 (Hop-by-Hop) set automatically</span>
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: ipv6.<span class="fn">NewIPv6HopByHop</span>()}).
+    <span class="cmt">// Next Header = 44 (Fragment) set automatically</span>
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: ipv6.<span class="fn">NewIPv6Fragment</span>()}).
+    <span class="cmt">// Final Next Header = 6 (TCP)</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 Dissect</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+<span class="cmt">// "IPv6 / IPv6 Hop-by-Hop / IPv6 Fragment / TCP"</span>
+
+<span class="cmt">// Walk the extension header chain</span>
+<span class="kw">for</span> _, layer := <span class="kw">range</span> pkt.<span class="fn">Layers</span>() {
+    fmt.<span class="fn">Printf</span>(<span class="str">"Layer: %s\n"</span>, layer.<span class="fn">Proto</span>())
+}
+
+<span class="cmt">// Access Fragment header fields</span>
+fragLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"IPv6 Fragment"</span>)
+<span class="kw">if</span> fragLayer != <span class="kw">nil</span> {
+    fragData, _ := fragLayer.<span class="fn">Get</span>(<span class="str">"fragment"</span>)
+    offset := ipv6.<span class="fn">IPv6FragmentOffset</span>(fragData.(<span class="type">uint16</span>))
+    more    := ipv6.<span class="fn">IPv6FragmentMore</span>(fragData.(<span class="type">uint16</span>))
+    fmt.<span class="fn">Printf</span>(<span class="str">"Fragment: offset=%d  more=%v\n"</span>, offset, more)
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>Note:</strong> IPv6 extension headers are chained via the Next Header field. Each extension header indicates the type of the following header. The final extension header points to the upper-layer protocol (TCP/UDP/ICMPv6). The builder sets Next Header automatically based on the <code>Over()</code> chain.
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../en/index.html">Home</a>
+        <a href="basic.html">Basic</a>
+        <a href="tunnel.html">Tunnel</a>
+        <a href="app.html">DNS / DHCP</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPv6 / ICMPv6 示例 — goscapy</title>
+  <meta name="description" content="使用 goscapy 构建 IPv6、ICMPv6 Echo、NDP 和 IPv6 扩展头数据包的代码示例。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. IPv6 + ICMPv6 Echo Request -->
+      <div class="section" id="ipv6-icmpv6-echo">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>IPv6 + ICMPv6 Echo Request</h3>
+        </div>
+        <p>构建 IPv6 ping 数据包。ICMPv6 Echo 使用双层结构：ICMPv6 基础头（Type + Code + Checksum）和 Echo 子层（ID + Seq）。IPv6 的 <code>TC</code>（流量类别）、<code>FL</code>（流标签）和 <code>HLim</code>（跳数限制）字段控制 QoS 和路由行为。伪头部校验和自动计算。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+)
+
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">TC</span>(<span class="num">0</span>).                <span class="cmt">// 流量类别 (0–255)</span>
+    <span class="fn">FL</span>(<span class="num">0</span>).                <span class="cmt">// 流标签 (20 位, 0–1048575)</span>
+    <span class="fn">HLim</span>(<span class="num">64</span>).              <span class="cmt">// 跳数限制</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMPv6</span>().
+        <span class="fn">Type</span>(<span class="num">128</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: layers.<span class="fn">NewICMPv6Echo</span>(<span class="num">0x1234</span>, <span class="num">1</span>)}).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// IPv6ICMPv6Echo(srcIP, dstIP string, id, seq uint16)</span>
+raw, err := goscapy.<span class="fn">IPv6ICMPv6Echo</span>(<span class="str">"fd00::1"</span>, <span class="str">"fd00::2"</span>, <span class="num">0x1234</span>, <span class="num">1</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / ICMPv6 / ICMPv6 Echo"</span>
+
+ip6 := pkt.<span class="fn">GetLayer</span>(<span class="str">"IPv6"</span>)
+srcIP, _ := ip6.<span class="fn">Get</span>(<span class="str">"srcIP"</span>)
+dstIP, _ := ip6.<span class="fn">Get</span>(<span class="str">"dstIP"</span>)
+hlim, _  := ip6.<span class="fn">Get</span>(<span class="str">"hopLimit"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"%s → %s  HLim=%d\n"</span>, srcIP, dstIP, hlim)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. IPv6 + TCP -->
+      <div class="section" id="ipv6-tcp">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>IPv6 + TCP SYN</h3>
+        </div>
+        <p>构建基于 IPv6 的 TCP SYN 数据包。Next Header 字段（<code>NH</code>）根据上层协议自动设置（6 = TCP）。TCP 校验和计算使用 IPv6 伪头部。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">HLim</span>(<span class="num">64</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn).
+        <span class="fn">Seq</span>(<span class="num">1000</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / TCP"</span>
+
+tcp := pkt.<span class="fn">GetLayer</span>(<span class="str">"TCP"</span>)
+srcPort, _ := tcp.<span class="fn">Get</span>(<span class="str">"srcPort"</span>)
+dstPort, _ := tcp.<span class="fn">Get</span>(<span class="str">"dstPort"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"端口 %d → %d  SYN\n"</span>, srcPort, dstPort)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. IPv6 + UDP -->
+      <div class="section" id="ipv6-udp">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>IPv6 + UDP</h3>
+        </div>
+        <p>构建基于 IPv6 的 UDP 数据报。Next Header 自动设置为 17 (UDP)。这是基于 IPv6 的 DNS、DHCPv6 和 VXLAN 的基础。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">53</span>)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / UDP"</span>
+
+udp := pkt.<span class="fn">GetLayer</span>(<span class="str">"UDP"</span>)
+srcPort, _ := udp.<span class="fn">Get</span>(<span class="str">"srcPort"</span>)
+dstPort, _ := udp.<span class="fn">Get</span>(<span class="str">"dstPort"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"端口 %d → %d\n"</span>, srcPort, dstPort)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. NDP Router Solicitation -->
+      <div class="section" id="ndp-router-solicitation">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>NDP Router Solicitation</h3>
+        </div>
+        <p>构建 NDP 路由器请求 — IPv6 主机用于在本地链路上发现路由器。消息使用 ICMPv6 类型 133，可包含 Source Link-Layer Address 选项以便路由器直接响应。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers/ndp"</span>
+
+<span class="cmt">// 构建 NDP 选项：源链路层地址</span>
+ndpOpts := ndp.<span class="fn">BuildNDPOptions</span>([]ndp.NDPOption{
+    ndp.<span class="fn">BuildSourceLinkLayerOption</span>(net.HardwareAddr{<span class="num">0x00</span>, <span class="num">0x11</span>, <span class="num">0x22</span>, <span class="num">0x33</span>, <span class="num">0x44</span>, <span class="num">0x55</span>}),
+})
+
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fe80::211:22ff:fe33:4455"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"ff02::2"</span>).            <span class="cmt">// 所有路由器组播</span>
+    <span class="fn">HLim</span>(<span class="num">255</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMPv6</span>().
+        <span class="fn">Type</span>(ndp.NDPRouterSolicitation).  <span class="cmt">// 133</span>
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: layers.<span class="fn">NewNDPRouterSolicitation</span>()}).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / ICMPv6 / NDP Router Solicitation"</span>
+
+icmpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"ICMPv6"</span>)
+msgType, _ := icmpLayer.<span class="fn">Get</span>(<span class="str">"type"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"ICMPv6 Type=%d (Router Solicitation)\n"</span>, msgType)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. NDP Neighbor Advertisement -->
+      <div class="section" id="ndp-neighbor-advertisement">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>NDP Neighbor Advertisement</h3>
+        </div>
+        <p>构建 NDP 邻居通告 — 用于响应邻居请求或通告链路层地址变更。<code>Router</code>、<code>Solicited</code> 和 <code>Override</code> 标志控制接收方的邻居缓存行为。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 构建 NDP 选项：目标链路层地址</span>
+ndpOpts := ndp.<span class="fn">BuildNDPOptions</span>([]ndp.NDPOption{
+    ndp.<span class="fn">BuildTargetLinkLayerOption</span>(net.HardwareAddr{<span class="num">0x00</span>, <span class="num">0xaa</span>, <span class="num">0xbb</span>, <span class="num">0xcc</span>, <span class="num">0xdd</span>, <span class="num">0xee</span>}),
+})
+
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">HLim</span>(<span class="num">255</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMPv6</span>().
+        <span class="fn">Type</span>(ndp.NDPNeighborAdvertisement). <span class="cmt">// 136</span>
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: layers.<span class="fn">NewNDPNeighborAdvertisement</span>()}).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "IPv6 / ICMPv6 / NDP Neighbor Advertisement"</span>
+
+icmpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"ICMPv6"</span>)
+msgType, _ := icmpLayer.<span class="fn">Get</span>(<span class="str">"type"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"ICMPv6 Type=%d (Neighbor Advertisement)\n"</span>, msgType)
+
+ndpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"NDP Neighbor Advertisement"</span>)
+<span class="kw">if</span> ndpLayer != <span class="kw">nil</span> {
+    flags, _ := ndpLayer.<span class="fn">Get</span>(<span class="str">"flags"</span>)
+    fmt.<span class="fn">Printf</span>(<span class="str">"Flags=0x%02x  Router=%v  Solicited=%v\n"</span>,
+        flags,
+        flags.(<span class="type">uint8</span>)&ndp.NDPNARouter != <span class="num">0</span>,
+        flags.(<span class="type">uint8</span>)&ndp.NDPNASolicited != <span class="num">0</span>)
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. IPv6 扩展头链 -->
+      <div class="section" id="ipv6-extension-headers">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>IPv6 扩展头链</h3>
+        </div>
+        <p>构建包含扩展头链的 IPv6 数据包：Hop-by-Hop Options → Fragment → TCP 载荷。扩展头通过 <code>Over()</code> 逐层堆叠，Next Header 字段在每一跳自动设置。Fragment 头携带偏移量和 More Fragments (M) 标志用于 IPv6 分片。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/layers/ipv6"</span>
+
+<span class="cmt">// IPv6 带 Hop-by-Hop → Fragment → TCP 扩展头链</span>
+raw, err := goscapy.<span class="fn">NewIPv6</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"fd00::1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"fd00::2"</span>).
+    <span class="fn">HLim</span>(<span class="num">64</span>).
+    <span class="cmt">// Next Header = 0 (Hop-by-Hop) 自动设置</span>
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: ipv6.<span class="fn">NewIPv6HopByHop</span>()}).
+    <span class="cmt">// Next Header = 44 (Fragment) 自动设置</span>
+    <span class="fn">Over</span>(&goscapy.<span class="fn">RawBuilder</span>{Layer: ipv6.<span class="fn">NewIPv6Fragment</span>()}).
+    <span class="cmt">// 最终 Next Header = 6 (TCP)</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(layers.TCPSyn)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectIPv6)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+<span class="cmt">// "IPv6 / IPv6 Hop-by-Hop / IPv6 Fragment / TCP"</span>
+
+<span class="cmt">// 遍历扩展头链</span>
+<span class="kw">for</span> _, layer := <span class="kw">range</span> pkt.<span class="fn">Layers</span>() {
+    fmt.<span class="fn">Printf</span>(<span class="str">"层: %s\n"</span>, layer.<span class="fn">Proto</span>())
+}
+
+<span class="cmt">// 访问 Fragment 头字段</span>
+fragLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"IPv6 Fragment"</span>)
+<span class="kw">if</span> fragLayer != <span class="kw">nil</span> {
+    fragData, _ := fragLayer.<span class="fn">Get</span>(<span class="str">"fragment"</span>)
+    offset := ipv6.<span class="fn">IPv6FragmentOffset</span>(fragData.(<span class="type">uint16</span>))
+    more    := ipv6.<span class="fn">IPv6FragmentMore</span>(fragData.(<span class="type">uint16</span>))
+    fmt.<span class="fn">Printf</span>(<span class="str">"分片: offset=%d  more=%v\n"</span>, offset, more)
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>注意：</strong>IPv6 扩展头通过 Next Header 字段链接。每个扩展头指示下一个头的类型。最后一个扩展头指向上层协议（TCP/UDP/ICMPv6）。Builder 根据 <code>Over()</code> 链自动设置 Next Header。
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../zh/index.html">首页</a>
+        <a href="basic.html">基础组包</a>
+        <a href="tunnel.html">隧道封装</a>
+        <a href="app.html">DNS / DHCP</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>
