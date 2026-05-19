@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/smallnest/goscapy.svg)](https://pkg.go.dev/github.com/smallnest/goscapy)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D1.26-blue)](https://go.dev/)
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 纯 Go 实现的网络数据包构造、解析、发送、接收和嗅探库。goscapy 提供符合 Go 语言习惯的 API，包括类型安全的构建器模式和一行式快捷函数。
 
@@ -159,4 +159,4 @@ make check         # 一键运行 fmt + vet + lint + test
 
 ## 许可证
 
-BSD 3-Clause License。详见 [LICENSE](LICENSE)。
+MIT License。详见 [LICENSE](LICENSE)。

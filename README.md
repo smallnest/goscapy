@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/smallnest/goscapy.svg)](https://pkg.go.dev/github.com/smallnest/goscapy)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D1.26-blue)](https://go.dev/)
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A pure Go library for crafting, dissecting, sending, receiving, and sniffing network packets. goscapy provides an idiomatic Go API with type-safe builders and one-liner shortcut functions.
 
@@ -159,4 +159,4 @@ make check         # Run fmt + vet + lint + test
 
 ## License
 
-BSD 3-Clause License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE) for details.
