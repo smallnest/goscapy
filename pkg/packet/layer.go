@@ -50,7 +50,11 @@ func (l *Layer) Get(name string) (any, error) {
 // Set sets the value of a field by name.
 func (l *Layer) Set(name string, val any) error {
 	if _, ok := l.values[name]; !ok {
-		return fmt.Errorf("packet: layer %s has no field %q", l.proto, name)
+		// Allow setting on fields that exist in definitions but weren't
+		// pre-populated (ConditionalField that was initially inactive).
+		if l.FindField(name) == nil {
+			return fmt.Errorf("packet: layer %s has no field %q", l.proto, name)
+		}
 	}
 	l.values[name] = val
 	return nil
