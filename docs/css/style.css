@@ -375,6 +375,8 @@ pre {
   margin: 0.75rem 0;
   font-size: 0.75rem;
   line-height: 1.6;
+  color: #E8E4DE;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 }
 
 code {
@@ -453,6 +455,8 @@ pre .pkg     { color: #FFCB6B; }
   background: #1a1a1a;
   padding: 1rem 1.25rem;
   overflow-x: auto;
+  color: #E8E4DE;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 }
 
 .code-body pre {
@@ -462,6 +466,8 @@ pre .pkg     { color: #FFCB6B; }
   border: none;
   font-size: 0.75rem;
   line-height: 1.6;
+  color: #E8E4DE;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 }
 
 /* ---------- Inline Code ---------- */
