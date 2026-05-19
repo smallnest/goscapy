@@ -524,7 +524,7 @@ sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pr
           <div class="section-dot violet"></div>
           <h3>L2 vs L3 — When to Use Which</h3>
         </div>
-        <p>Understanding the difference between <code>Send()</code> (L3) and <code>Sendp()</code> (L2) is critical for choosing the right approach.</p>
+        <p>Understanding the difference between <code>Send()</code> (L3) and <code>Sendp()</code> (L2) is critical for choosing the right approach. Note that <strong>receiving is always at L2</strong> — there is no separate L3 receive function.</p>
 
         <div class="table-wrapper"><table><thead><tr><th>Feature</th><th><code>Send()</code> — L3</th><th><code>Sendp()</code> — L2</th></tr></thead><tbody>
           <tr><td>Required layers</td><td>IP + upper</td><td>Ethernet + upper</td></tr>
@@ -536,6 +536,12 @@ sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pr
           <tr><td>Implementation</td><td><code>AF_INET</code> raw socket</td><td>BPF (macOS) / <code>AF_PACKET</code> (Linux)</td></tr>
           <tr><td>Use case</td><td>Most IP-based tools (ping, scan)</td><td>ARP, custom L2, VLAN, MAC spoofing</td></tr>
         </tbody></table></div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <strong>Receiving is always L2.</strong> There is no <code>Recvp()</code> — <code>Recv()</code>, <code>OpenReceiver()</code>, and <code>OpenFilteredReceiver()</code> all capture complete Ethernet frames.
+          The returned <code>Packet</code> always includes the Ethernet layer (except on loopback where the OS may strip it).
+        </div>
 
         <h3 style="margin-top:1rem;">🔧 Same ICMP Packet — Both Ways</h3>
         <div class="code-block">

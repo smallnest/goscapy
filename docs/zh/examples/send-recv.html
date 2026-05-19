@@ -524,7 +524,7 @@ sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pr
           <div class="section-dot violet"></div>
           <h3>L2 与 L3 对比 — 如何选择</h3>
         </div>
-        <p>理解 <code>Send()</code>（L3）和 <code>Sendp()</code>（L2）的区别对于选择正确的方式至关重要。</p>
+        <p>理解 <code>Send()</code>（L3）和 <code>Sendp()</code>（L2）的区别对于选择正确的方式至关重要。注意：<strong>接收始终工作在 L2</strong> —— 没有单独的 L3 接收函数。</p>
 
         <div class="table-wrapper"><table><thead><tr><th>特性</th><th><code>Send()</code> — L3</th><th><code>Sendp()</code> — L2</th></tr></thead><tbody>
           <tr><td>需要的协议层</td><td>IP + 上层</td><td>Ethernet + 上层</td></tr>
@@ -536,6 +536,12 @@ sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pr
           <tr><td>底层实现</td><td><code>AF_INET</code> 原始套接字</td><td>BPF（macOS）/ <code>AF_PACKET</code>（Linux）</td></tr>
           <tr><td>适用场景</td><td>大多数 IP 工具（ping、扫描）</td><td>ARP、自定义 L2、VLAN、MAC 伪装</td></tr>
         </tbody></table></div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <strong>接收始终是 L2。</strong> 没有 <code>Recvp()</code> —— <code>Recv()</code>、<code>OpenReceiver()</code> 和 <code>OpenFilteredReceiver()</code> 都捕获完整的以太网帧。
+          返回的 <code>Packet</code> 始终包含 Ethernet 层（回环接口上操作系统可能会去掉）。
+        </div>
 
         <h3 style="margin-top:1rem;">🔧 同一个 ICMP 包 — 两种发送方式</h3>
         <div class="code-block">
