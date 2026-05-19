@@ -9,6 +9,13 @@
   var script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js';
   script.onload = init;
+  script.onerror = function () {
+    // If CDN fails, just show everything
+    document.querySelectorAll('.section, .cards, .card, .note, .tip, .code-block, .section-dot, .diagram-box, .flow-arrow, table tbody tr').forEach(function (el) {
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+    });
+  };
   document.head.appendChild(script);
 
   function init() {
@@ -124,16 +131,22 @@
         row.style.opacity = '0';
         row.style.transform = 'translateY(10px)';
       });
-      observe(table, function () {
-        anime({
-          targets: rows,
-          opacity: [0, 1],
-          translateY: [10, 0],
-          duration: 400,
-          delay: anime.stagger(60),
-          easing: 'easeOutCubic'
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            anime({
+              targets: rows,
+              opacity: [0, 1],
+              translateY: [10, 0],
+              duration: 400,
+              delay: anime.stagger(60),
+              easing: 'easeOutCubic'
+            });
+            observer.unobserve(entry.target);
+          }
         });
-      });
+      }, { rootMargin: '0px 0px -40px 0px', threshold: 0.1 });
+      observer.observe(table);
     });
 
     // Code blocks slide from left
