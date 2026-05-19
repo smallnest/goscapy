@@ -96,7 +96,7 @@ func (p *Packet) Copy() *Packet {
 // Call this after modifying field values on a layer that is part of a packet
 // to keep lower-layer protocol type fields consistent.
 func (p *Packet) Sync() {
-	for i := 0; i < len(p.layers)-1; i++ {
+	for i := range len(p.layers) - 1 {
 		applyBindings(p.layers[i], p.layers[i+1])
 	}
 }

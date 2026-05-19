@@ -16,14 +16,14 @@ const (
 // Defaults: version/ihl=0x45 (v4, 5 words), ttl=64, checksum=0 (auto-computed during Build).
 func NewIP() *packet.Layer {
 	return packet.NewLayer("IP", []fields.Field{
-		fields.NewByteField("verihl", 0x45),  // version=4, ihl=5
+		fields.NewByteField("verihl", 0x45), // version=4, ihl=5
 		fields.NewByteField("tos", 0),
-		fields.NewShortField("len", 20),       // total length, updated during Build
+		fields.NewShortField("len", 20), // total length, updated during Build
 		fields.NewShortField("id", 0),
-		fields.NewShortField("frag", 0),       // flags (3 bits) + fragment offset (13 bits)
+		fields.NewShortField("frag", 0), // flags (3 bits) + fragment offset (13 bits)
 		fields.NewByteField("ttl", 64),
 		fields.NewByteField("proto", 0),
-		fields.NewShortField("chksum", 0),     // auto-computed during Build
+		fields.NewShortField("chksum", 0), // auto-computed during Build
 		fields.NewIPField("src", nil),
 		fields.NewIPField("dst", nil),
 	})

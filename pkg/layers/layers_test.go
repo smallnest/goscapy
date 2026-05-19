@@ -166,8 +166,8 @@ func TestARPSerialization(t *testing.T) {
 	expected := []byte{
 		0x00, 0x01, // hwtype (Ethernet)
 		0x08, 0x00, // ptype (IPv4)
-		0x06, // hwlen (6)
-		0x04, // plen (4)
+		0x06,       // hwlen (6)
+		0x04,       // plen (4)
 		0x00, 0x01, // op (WHO-HAS / request)
 		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, // hwsrc MAC
 		0xc0, 0xa8, 0x01, 0x01, // psrc IP 192.168.1.1
@@ -198,8 +198,8 @@ func TestARPReplySerialization(t *testing.T) {
 	b := []byte{
 		0x00, 0x01, // hwtype
 		0x08, 0x00, // ptype
-		0x06, // hwlen
-		0x04, // plen
+		0x06,       // hwlen
+		0x04,       // plen
 		0x00, 0x02, // op (IS-AT / reply)
 		0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, // hwsrc
 		0x0a, 0x00, 0x00, 0x01, // psrc
@@ -340,13 +340,13 @@ func TestIPSerialization(t *testing.T) {
 	// Expected bytes (20 bytes, no options):
 	// 45 00 00 14 00 00 00 00 40 11 [chksum] c0 a8 01 01 08 08 08 08
 	expected := []byte{
-		0x45, // ver=4, ihl=5
-		0x00, // tos
+		0x45,       // ver=4, ihl=5
+		0x00,       // tos
 		0x00, 0x14, // total length (20)
 		0x00, 0x00, // id
 		0x00, 0x00, // flags + frag
-		0x40, // ttl (64)
-		0x11, // proto (17 = UDP)
+		0x40,       // ttl (64)
+		0x11,       // proto (17 = UDP)
 		0x00, 0x00, // checksum placeholder (set to 0 for comparison)
 		0xc0, 0xa8, 0x01, 0x01, // src = 192.168.1.1
 		0x08, 0x08, 0x08, 0x08, // dst = 8.8.8.8
@@ -669,15 +669,15 @@ func TestTCPSerialization(t *testing.T) {
 	// Expected bytes (20 bytes):
 	// 30 39 00 50 00 00 03 e8 00 00 00 00 50 02 20 00 00 00 00 00
 	expected := []byte{
-		0x30, 0x39,                   // sport = 12345
-		0x00, 0x50,                   // dport = 80
-		0x00, 0x00, 0x03, 0xE8,       // seq = 1000
-		0x00, 0x00, 0x00, 0x00,       // ack = 0
-		0x50,                         // dataofs = 5 (words) << 4
-		0x02,                         // flags = SYN
-		0x20, 0x00,                   // window = 8192
-		0x00, 0x00,                   // checksum (placeholder)
-		0x00, 0x00,                   // urgptr
+		0x30, 0x39, // sport = 12345
+		0x00, 0x50, // dport = 80
+		0x00, 0x00, 0x03, 0xE8, // seq = 1000
+		0x00, 0x00, 0x00, 0x00, // ack = 0
+		0x50,       // dataofs = 5 (words) << 4
+		0x02,       // flags = SYN
+		0x20, 0x00, // window = 8192
+		0x00, 0x00, // checksum (placeholder)
+		0x00, 0x00, // urgptr
 	}
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
@@ -696,15 +696,15 @@ func TestTCPSerialization(t *testing.T) {
 func TestTCPSynAckSerialization(t *testing.T) {
 	// Scapy: TCP(sport=80, dport=12345, seq=2000, ack=1001, flags='SA', window=65535)
 	expected := []byte{
-		0x00, 0x50,                   // sport = 80
-		0x30, 0x39,                   // dport = 12345
-		0x00, 0x00, 0x07, 0xD0,       // seq = 2000
-		0x00, 0x00, 0x03, 0xE9,       // ack = 1001
-		0x50,                         // dataofs = 5
-		0x12,                         // flags = SYN|ACK (0x02|0x10)
-		0xFF, 0xFF,                   // window = 65535
-		0x00, 0x00,                   // checksum
-		0x00, 0x00,                   // urgptr
+		0x00, 0x50, // sport = 80
+		0x30, 0x39, // dport = 12345
+		0x00, 0x00, 0x07, 0xD0, // seq = 2000
+		0x00, 0x00, 0x03, 0xE9, // ack = 1001
+		0x50,       // dataofs = 5
+		0x12,       // flags = SYN|ACK (0x02|0x10)
+		0xFF, 0xFF, // window = 65535
+		0x00, 0x00, // checksum
+		0x00, 0x00, // urgptr
 	}
 
 	tcp := NewTCPWith(80, 12345, TCPSyn|TCPAck)

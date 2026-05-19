@@ -1,6 +1,7 @@
 package fields
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -16,7 +17,7 @@ func NewByteField(name string, defVal uint8) *ByteField {
 	return &ByteField{Desc: Desc{name: name, size: 1, defVal: defVal}}
 }
 
-func (f *ByteField) Pack(val interface{}) ([]byte, error) {
+func (f *ByteField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint8)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint8, got %T", f.name, val)
@@ -24,7 +25,7 @@ func (f *ByteField) Pack(val interface{}) ([]byte, error) {
 	return []byte{v}, nil
 }
 
-func (f *ByteField) Unpack(b []byte) (interface{}, int, error) {
+func (f *ByteField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 1); err != nil {
 		return nil, 0, err
 	}
@@ -47,7 +48,7 @@ func NewShortField(name string, defVal uint16) *ShortField {
 	return &ShortField{Desc: Desc{name: name, size: 2, defVal: defVal}}
 }
 
-func (f *ShortField) Pack(val interface{}) ([]byte, error) {
+func (f *ShortField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint16)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint16, got %T", f.name, val)
@@ -57,7 +58,7 @@ func (f *ShortField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *ShortField) Unpack(b []byte) (interface{}, int, error) {
+func (f *ShortField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 2); err != nil {
 		return nil, 0, err
 	}
@@ -72,7 +73,7 @@ func NewLEShortField(name string, defVal uint16) *LEShortField {
 	return &LEShortField{Desc: Desc{name: name, size: 2, defVal: defVal}}
 }
 
-func (f *LEShortField) Pack(val interface{}) ([]byte, error) {
+func (f *LEShortField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint16)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint16, got %T", f.name, val)
@@ -82,7 +83,7 @@ func (f *LEShortField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *LEShortField) Unpack(b []byte) (interface{}, int, error) {
+func (f *LEShortField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 2); err != nil {
 		return nil, 0, err
 	}
@@ -97,7 +98,7 @@ func NewThreeBytesField(name string, defVal uint32) *ThreeBytesField {
 	return &ThreeBytesField{Desc: Desc{name: name, size: 3, defVal: defVal}}
 }
 
-func (f *ThreeBytesField) Pack(val interface{}) ([]byte, error) {
+func (f *ThreeBytesField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint32)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint32, got %T", f.name, val)
@@ -110,7 +111,7 @@ func (f *ThreeBytesField) Pack(val interface{}) ([]byte, error) {
 	return b[1:], nil
 }
 
-func (f *ThreeBytesField) Unpack(b []byte) (interface{}, int, error) {
+func (f *ThreeBytesField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 3); err != nil {
 		return nil, 0, err
 	}
@@ -127,7 +128,7 @@ func NewIntField(name string, defVal uint32) *IntField {
 	return &IntField{Desc: Desc{name: name, size: 4, defVal: defVal}}
 }
 
-func (f *IntField) Pack(val interface{}) ([]byte, error) {
+func (f *IntField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint32)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint32, got %T", f.name, val)
@@ -137,7 +138,7 @@ func (f *IntField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *IntField) Unpack(b []byte) (interface{}, int, error) {
+func (f *IntField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 4); err != nil {
 		return nil, 0, err
 	}
@@ -152,7 +153,7 @@ func NewSignedIntField(name string, defVal int32) *SignedIntField {
 	return &SignedIntField{Desc: Desc{name: name, size: 4, defVal: defVal}}
 }
 
-func (f *SignedIntField) Pack(val interface{}) ([]byte, error) {
+func (f *SignedIntField) Pack(val any) ([]byte, error) {
 	v, ok := val.(int32)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects int32, got %T", f.name, val)
@@ -162,7 +163,7 @@ func (f *SignedIntField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *SignedIntField) Unpack(b []byte) (interface{}, int, error) {
+func (f *SignedIntField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 4); err != nil {
 		return nil, 0, err
 	}
@@ -177,7 +178,7 @@ func NewLEIntField(name string, defVal uint32) *LEIntField {
 	return &LEIntField{Desc: Desc{name: name, size: 4, defVal: defVal}}
 }
 
-func (f *LEIntField) Pack(val interface{}) ([]byte, error) {
+func (f *LEIntField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint32)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint32, got %T", f.name, val)
@@ -187,7 +188,7 @@ func (f *LEIntField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *LEIntField) Unpack(b []byte) (interface{}, int, error) {
+func (f *LEIntField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 4); err != nil {
 		return nil, 0, err
 	}
@@ -202,7 +203,7 @@ func NewLongField(name string, defVal uint64) *LongField {
 	return &LongField{Desc: Desc{name: name, size: 8, defVal: defVal}}
 }
 
-func (f *LongField) Pack(val interface{}) ([]byte, error) {
+func (f *LongField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint64)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint64, got %T", f.name, val)
@@ -212,7 +213,7 @@ func (f *LongField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *LongField) Unpack(b []byte) (interface{}, int, error) {
+func (f *LongField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 8); err != nil {
 		return nil, 0, err
 	}
@@ -227,7 +228,7 @@ func NewLELongField(name string, defVal uint64) *LELongField {
 	return &LELongField{Desc: Desc{name: name, size: 8, defVal: defVal}}
 }
 
-func (f *LELongField) Pack(val interface{}) ([]byte, error) {
+func (f *LELongField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint64)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint64, got %T", f.name, val)
@@ -237,7 +238,7 @@ func (f *LELongField) Pack(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (f *LELongField) Unpack(b []byte) (interface{}, int, error) {
+func (f *LELongField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 8); err != nil {
 		return nil, 0, err
 	}
@@ -263,7 +264,7 @@ func NewBitField(name string, defVal uint8, bitSize uint8) *BitField {
 // BitSize returns the number of bits this field occupies.
 func (f *BitField) BitSize() uint8 { return f.bitSize }
 
-func (f *BitField) Pack(val interface{}) ([]byte, error) {
+func (f *BitField) Pack(val any) ([]byte, error) {
 	v, ok := val.(uint8)
 	if !ok {
 		return nil, fmt.Errorf("fields: %s expects uint8, got %T", f.name, val)
@@ -275,7 +276,7 @@ func (f *BitField) Pack(val interface{}) ([]byte, error) {
 	return []byte{v & mask}, nil
 }
 
-func (f *BitField) Unpack(b []byte) (interface{}, int, error) {
+func (f *BitField) Unpack(b []byte) (any, int, error) {
 	if len(b) < 1 {
 		return nil, 0, fmt.Errorf("fields: %s needs 1 byte", f.name)
 	}
@@ -293,7 +294,7 @@ func NewMACField(name string, defVal net.HardwareAddr) *MACField {
 	return &MACField{Desc: Desc{name: name, size: 6, defVal: defVal}}
 }
 
-func (f *MACField) Pack(val interface{}) ([]byte, error) {
+func (f *MACField) Pack(val any) ([]byte, error) {
 	switch v := val.(type) {
 	case net.HardwareAddr:
 		if len(v) != 6 {
@@ -316,12 +317,11 @@ func (f *MACField) Pack(val interface{}) ([]byte, error) {
 	}
 }
 
-func (f *MACField) Unpack(b []byte) (interface{}, int, error) {
+func (f *MACField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 6); err != nil {
 		return nil, 0, err
 	}
-	mac := make(net.HardwareAddr, 6)
-	copy(mac, b[:6])
+	mac := net.HardwareAddr(bytes.Clone(b[:6]))
 	return mac, 6, nil
 }
 
@@ -333,7 +333,7 @@ func NewIPField(name string, defVal net.IP) *IPField {
 	return &IPField{Desc: Desc{name: name, size: 4, defVal: defVal}}
 }
 
-func (f *IPField) Pack(val interface{}) ([]byte, error) {
+func (f *IPField) Pack(val any) ([]byte, error) {
 	switch v := val.(type) {
 	case net.IP:
 		ip4 := v.To4()
@@ -356,12 +356,11 @@ func (f *IPField) Pack(val interface{}) ([]byte, error) {
 	}
 }
 
-func (f *IPField) Unpack(b []byte) (interface{}, int, error) {
+func (f *IPField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 4); err != nil {
 		return nil, 0, err
 	}
-	ip := make(net.IP, 4)
-	copy(ip, b[:4])
+	ip := net.IP(bytes.Clone(b[:4]))
 	return ip, 4, nil
 }
 
@@ -376,7 +375,7 @@ func NewStrField(name string, defVal string) *StrField {
 	return &StrField{Desc: Desc{name: name, size: 0, defVal: defVal}}
 }
 
-func (f *StrField) Pack(val interface{}) ([]byte, error) {
+func (f *StrField) Pack(val any) ([]byte, error) {
 	switch v := val.(type) {
 	case string:
 		return []byte(v), nil
@@ -387,7 +386,7 @@ func (f *StrField) Pack(val interface{}) ([]byte, error) {
 	}
 }
 
-func (f *StrField) Unpack(b []byte) (interface{}, int, error) {
+func (f *StrField) Unpack(b []byte) (any, int, error) {
 	return b, len(b), nil
 }
 
@@ -408,7 +407,7 @@ func NewStrLenField(name string, defVal string, lengthFrom string) *StrLenField 
 // LengthFrom returns the name of the field that holds this field's length.
 func (f *StrLenField) LengthFrom() string { return f.lengthFrom }
 
-func (f *StrLenField) Pack(val interface{}) ([]byte, error) {
+func (f *StrLenField) Pack(val any) ([]byte, error) {
 	switch v := val.(type) {
 	case string:
 		return []byte(v), nil
@@ -419,7 +418,7 @@ func (f *StrLenField) Pack(val interface{}) ([]byte, error) {
 	}
 }
 
-func (f *StrLenField) Unpack(b []byte) (interface{}, int, error) {
+func (f *StrLenField) Unpack(b []byte) (any, int, error) {
 	return b, len(b), nil
 }
 
@@ -443,7 +442,7 @@ func NewPacketField(name string, pktName string) *PacketField {
 // PktName returns the registered name of the sub-packet type.
 func (f *PacketField) PktName() string { return f.pktName }
 
-func (f *PacketField) Pack(val interface{}) ([]byte, error) {
+func (f *PacketField) Pack(val any) ([]byte, error) {
 	// Packing a sub-packet is handled by the packet layer logic.
 	v, ok := val.([]byte)
 	if !ok {
@@ -452,7 +451,7 @@ func (f *PacketField) Pack(val interface{}) ([]byte, error) {
 	return v, nil
 }
 
-func (f *PacketField) Unpack(b []byte) (interface{}, int, error) {
+func (f *PacketField) Unpack(b []byte) (any, int, error) {
 	return b, len(b), nil
 }
 
@@ -460,7 +459,7 @@ func (f *PacketField) Unpack(b []byte) (interface{}, int, error) {
 
 // condition is a function that checks whether a field should be included based on the
 // current packet values.
-type condition func(values map[string]interface{}) bool
+type condition func(values map[string]any) bool
 
 // ConditionalField wraps another field and only includes it if the condition is true.
 type ConditionalField struct {
@@ -475,6 +474,6 @@ func NewConditionalField(f Field, cond condition) *ConditionalField {
 }
 
 // Active returns whether this field should be included given the current values.
-func (f *ConditionalField) Active(values map[string]interface{}) bool {
+func (f *ConditionalField) Active(values map[string]any) bool {
 	return f.cond(values)
 }

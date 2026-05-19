@@ -64,7 +64,7 @@ func TestSerializeFieldsBasic(t *testing.T) {
 
 func TestSerializeFieldsConditionalActive(t *testing.T) {
 	inner := fields.NewByteField("opt", 0)
-	cond := func(vals map[string]interface{}) bool {
+	cond := func(vals map[string]any) bool {
 		return vals["hasOpt"] == uint8(1)
 	}
 	cf := fields.NewConditionalField(inner, cond)

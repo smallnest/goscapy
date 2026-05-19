@@ -23,14 +23,14 @@ const (
 // The dataofs field stores the raw wire byte (upper nibble = data offset in 32-bit words).
 func NewTCP() *packet.Layer {
 	return packet.NewLayer("TCP", []fields.Field{
-		fields.NewShortField("sport", 0),    // source port
-		fields.NewShortField("dport", 0),    // destination port
-		fields.NewIntField("seq", 0),        // sequence number
-		fields.NewIntField("ack", 0),        // acknowledgment number
+		fields.NewShortField("sport", 0),     // source port
+		fields.NewShortField("dport", 0),     // destination port
+		fields.NewIntField("seq", 0),         // sequence number
+		fields.NewIntField("ack", 0),         // acknowledgment number
 		fields.NewByteField("dataofs", 0x50), // data offset in upper nibble (5 << 4 = 0x50 = 20 bytes)
-		fields.NewByteField("flags", 0),     // flags byte (CWR|ECE|URG|ACK|PSH|RST|SYN|FIN)
+		fields.NewByteField("flags", 0),      // flags byte (CWR|ECE|URG|ACK|PSH|RST|SYN|FIN)
 		fields.NewShortField("window", 8192),
-		fields.NewShortField("chksum", 0),   // auto-computed during Build
+		fields.NewShortField("chksum", 0), // auto-computed during Build
 		fields.NewShortField("urgptr", 0),
 	})
 }

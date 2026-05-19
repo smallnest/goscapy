@@ -83,9 +83,7 @@ func Sniff(cfg SniffConfig, handler SniffHandler) error {
 			if remaining <= 0 {
 				break
 			}
-			if remaining < readTimeout {
-				readTimeout = remaining
-			}
+			readTimeout = min(readTimeout, remaining)
 		}
 
 		pkt, err := rx.Recv(readTimeout)
@@ -111,11 +109,7 @@ func Sniff(cfg SniffConfig, handler SniffHandler) error {
 func SniffChan(cfg SniffConfig) (<-chan *packet.Packet, func()) {
 	ch := make(chan *packet.Packet, 64)
 	done := make(chan struct{})
-	var stopOnce sync.Once
-
-	stop := func() {
-		stopOnce.Do(func() { close(done) })
-	}
+	stop := sync.OnceFunc(func() { close(done) })
 
 	go func() {
 		defer close(ch)

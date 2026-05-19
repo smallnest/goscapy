@@ -7,14 +7,14 @@ type BindingRule struct {
 	UpperProto string
 	LowerProto string
 	FieldName  string
-	FieldValue interface{}
+	FieldValue any
 }
 
 var bindingRules []BindingRule
 
 // RegisterBinding registers a field binding between two adjacent protocol layers.
 // When upper is stacked on lower, lower.FieldName is set to FieldValue.
-func RegisterBinding(upper, lower, field string, value interface{}) {
+func RegisterBinding(upper, lower, field string, value any) {
 	bindingRules = append(bindingRules, BindingRule{
 		UpperProto: upper,
 		LowerProto: lower,

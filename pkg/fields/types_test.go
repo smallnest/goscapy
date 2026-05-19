@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-func ptr[T any](v T) *T { return &v }
-
 func TestByteField(t *testing.T) {
 	f := NewByteField("test", 0x42)
 
@@ -377,7 +375,7 @@ func TestPacketField(t *testing.T) {
 
 func TestConditionalField(t *testing.T) {
 	inner := NewByteField("opt", 0)
-	cond := func(vals map[string]interface{}) bool {
+	cond := func(vals map[string]any) bool {
 		return vals["hasOpt"] == uint8(1)
 	}
 	f := NewConditionalField(inner, cond)
@@ -389,7 +387,7 @@ func TestConditionalField(t *testing.T) {
 		t.Errorf("size = %d, want 1", f.FixedSize())
 	}
 
-	vals := map[string]interface{}{"hasOpt": uint8(1)}
+	vals := map[string]any{"hasOpt": uint8(1)}
 	if !f.Active(vals) {
 		t.Fatal("expected active when hasOpt=1")
 	}

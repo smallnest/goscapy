@@ -46,9 +46,9 @@ func init() {
 	packet.RegisterNextLayer("Ethernet", 0x8035, "RARP")
 
 	// Register next-layer mappings: IP.proto → upper protocol.
-	packet.RegisterNextLayer("IP", 1, "ICMP")  // ICMP
-	packet.RegisterNextLayer("IP", 6, "TCP")   // TCP
-	packet.RegisterNextLayer("IP", 17, "UDP")  // UDP
+	packet.RegisterNextLayer("IP", 1, "ICMP") // ICMP
+	packet.RegisterNextLayer("IP", 6, "TCP")  // TCP
+	packet.RegisterNextLayer("IP", 17, "UDP") // UDP
 
 	// Register variable header size functions.
 	// IP: IHL (lower nibble of verihl) * 4 bytes.

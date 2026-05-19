@@ -12,13 +12,13 @@ import (
 type Layer struct {
 	proto  string
 	fields []fields.Field
-	values map[string]interface{}
+	values map[string]any
 }
 
 // NewLayer creates a layer for the given protocol name and field list.
 // All fields are initialized to their default values.
 func NewLayer(proto string, fds []fields.Field) *Layer {
-	values := make(map[string]interface{}, len(fds))
+	values := make(map[string]any, len(fds))
 	for _, f := range fds {
 		// Skip nested conditional fields during defaults — they activate dynamically.
 		if cf, ok := f.(*fields.ConditionalField); ok {
@@ -39,7 +39,7 @@ func (l *Layer) Proto() string { return l.proto }
 func (l *Layer) Fields() []fields.Field { return l.fields }
 
 // Get returns the value of a field by name.
-func (l *Layer) Get(name string) (interface{}, error) {
+func (l *Layer) Get(name string) (any, error) {
 	v, ok := l.values[name]
 	if !ok {
 		return nil, fmt.Errorf("packet: layer %s has no field %q", l.proto, name)
@@ -48,7 +48,7 @@ func (l *Layer) Get(name string) (interface{}, error) {
 }
 
 // Set sets the value of a field by name.
-func (l *Layer) Set(name string, val interface{}) error {
+func (l *Layer) Set(name string, val any) error {
 	if _, ok := l.values[name]; !ok {
 		return fmt.Errorf("packet: layer %s has no field %q", l.proto, name)
 	}
@@ -57,7 +57,7 @@ func (l *Layer) Set(name string, val interface{}) error {
 }
 
 // GetField returns the value of a field by its index in the fields list.
-func (l *Layer) GetField(idx int) (interface{}, error) {
+func (l *Layer) GetField(idx int) (any, error) {
 	if idx < 0 || idx >= len(l.fields) {
 		return nil, fmt.Errorf("packet: field index %d out of range [0, %d)", idx, len(l.fields))
 	}
@@ -66,7 +66,7 @@ func (l *Layer) GetField(idx int) (interface{}, error) {
 }
 
 // SetField sets a field's value by its index in the fields list.
-func (l *Layer) SetField(idx int, val interface{}) error {
+func (l *Layer) SetField(idx int, val any) error {
 	if idx < 0 || idx >= len(l.fields) {
 		return fmt.Errorf("packet: field index %d out of range [0, %d)", idx, len(l.fields))
 	}
@@ -75,8 +75,8 @@ func (l *Layer) SetField(idx int, val interface{}) error {
 }
 
 // Values returns a copy of the current field values.
-func (l *Layer) Values() map[string]interface{} {
-	cp := make(map[string]interface{}, len(l.values))
+func (l *Layer) Values() map[string]any {
+	cp := make(map[string]any, len(l.values))
 	for k, v := range l.values {
 		cp[k] = v
 	}

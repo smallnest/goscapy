@@ -75,9 +75,9 @@ func TestParseFieldsInsufficientData(t *testing.T) {
 func TestParseFieldsMultipleFields(t *testing.T) {
 	// Byte + Short + Int + MAC + IP = 1 + 2 + 4 + 6 + 4 = 17 bytes
 	raw := []byte{
-		0x42,                         // byte
-		0x12, 0x34,                   // short
-		0x00, 0x00, 0x03, 0xe8,       // int (1000)
+		0x42,       // byte
+		0x12, 0x34, // short
+		0x00, 0x00, 0x03, 0xe8, // int (1000)
 		0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, // MAC
 		0xc0, 0xa8, 0x01, 0x01, // IP (192.168.1.1)
 	}
@@ -129,8 +129,8 @@ func TestParseFieldsMultipleFields(t *testing.T) {
 func TestParseFieldsExtraData(t *testing.T) {
 	// Parse should consume only the defined fields, leaving extra bytes.
 	raw := []byte{
-		0x42,        // byte field
-		0xFF, 0xFF,  // extra bytes
+		0x42,       // byte field
+		0xFF, 0xFF, // extra bytes
 	}
 
 	l := NewLayer("Test", []fields.Field{
@@ -148,7 +148,7 @@ func TestParseFieldsExtraData(t *testing.T) {
 
 func TestParseFieldsConditional(t *testing.T) {
 	inner := fields.NewByteField("opt", 0)
-	cond := func(vals map[string]interface{}) bool {
+	cond := func(vals map[string]any) bool {
 		return vals["hasOpt"] == uint8(1)
 	}
 	cf := fields.NewConditionalField(inner, cond)

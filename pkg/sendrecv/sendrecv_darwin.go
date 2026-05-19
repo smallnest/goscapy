@@ -110,10 +110,10 @@ func sendL2(pkt *packet.Packet, iface string) error {
 // --- Receiver (BPF) ---
 
 type bpfReceiver struct {
-	fd     int
-	buf    []byte
-	iface  string
-	queue  []*packet.Packet // packets parsed from last batch read but not yet returned
+	fd    int
+	buf   []byte
+	iface string
+	queue []*packet.Packet // packets parsed from last batch read but not yet returned
 }
 
 func openReceiver(iface string) (Receiver, error) {
@@ -232,7 +232,7 @@ func (r *bpfReceiver) Close() error {
 // Sets the buffer size and returns (fd, bufSize, error).
 func openBPFDevice() (int, uint32, error) {
 	bufSize := uint32(32768) // 32 KB buffer
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		path := fmt.Sprintf("/dev/bpf%d", i)
 		fd, err := syscall.Open(path, syscall.O_RDWR, 0)
 		if err != nil {

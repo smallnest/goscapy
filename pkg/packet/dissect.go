@@ -185,7 +185,7 @@ func makeRawLayer(payload []byte) *Layer {
 	// This shouldn't normally happen if layers package is imported.
 	layer := &Layer{
 		proto:  "Raw",
-		values: map[string]interface{}{"load": payload},
+		values: map[string]any{"load": payload},
 	}
 	return layer
 }

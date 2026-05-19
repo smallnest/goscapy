@@ -7,10 +7,10 @@ import (
 
 // ARP operation codes.
 const (
-	ARPWhoHas  uint16 = 1 // ARP request
-	ARPIsAt    uint16 = 2 // ARP reply
-	RARPWhoIs  uint16 = 3
-	RARPIsAt   uint16 = 4
+	ARPWhoHas uint16 = 1 // ARP request
+	ARPIsAt   uint16 = 2 // ARP reply
+	RARPWhoIs uint16 = 3
+	RARPIsAt  uint16 = 4
 )
 
 // ARP hardware type constants.

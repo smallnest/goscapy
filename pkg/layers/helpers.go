@@ -29,7 +29,7 @@ func findIPAddresses(pkt *packet.Packet, layerIdx int) (srcIP, dstIP []byte, err
 }
 
 // ipToBytes converts an IP field value to a 4-byte IPv4 address.
-func ipToBytes(v interface{}) []byte {
+func ipToBytes(v any) []byte {
 	switch ip := v.(type) {
 	case net.IP:
 		return ip.To4()

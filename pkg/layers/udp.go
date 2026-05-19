@@ -9,10 +9,10 @@ import (
 // Defaults: len=8 (header only, no payload), checksum=0 (auto-computed during Build).
 func NewUDP() *packet.Layer {
 	return packet.NewLayer("UDP", []fields.Field{
-		fields.NewShortField("sport", 0),   // source port
-		fields.NewShortField("dport", 0),   // destination port
-		fields.NewShortField("len", 8),     // length (header + payload), updated during Build
-		fields.NewShortField("chksum", 0),  // auto-computed during Build
+		fields.NewShortField("sport", 0),  // source port
+		fields.NewShortField("dport", 0),  // destination port
+		fields.NewShortField("len", 8),    // length (header + payload), updated during Build
+		fields.NewShortField("chksum", 0), // auto-computed during Build
 	})
 }
 

@@ -18,20 +18,20 @@ type Field interface {
 	FixedSize() int
 
 	// DefaultVal returns the field's default value when not explicitly set.
-	DefaultVal() interface{}
+	DefaultVal() any
 
 	// Pack serializes the given value into wire-format bytes.
-	Pack(val interface{}) ([]byte, error)
+	Pack(val any) ([]byte, error)
 
 	// Unpack deserializes raw bytes and returns the parsed value plus bytes consumed.
-	Unpack(b []byte) (val interface{}, consumed int, err error)
+	Unpack(b []byte) (val any, consumed int, err error)
 }
 
 // Desc holds common metadata for all field types.
 type Desc struct {
-	name    string
-	size    int
-	defVal  interface{}
+	name     string
+	size     int
+	defVal   any
 	lengthOf string // field name this field measures the length of
 }
 
@@ -42,7 +42,7 @@ func (d *Desc) Name() string { return d.name }
 func (d *Desc) FixedSize() int { return d.size }
 
 // DefaultVal returns the default value.
-func (d *Desc) DefaultVal() interface{} { return d.defVal }
+func (d *Desc) DefaultVal() any { return d.defVal }
 
 // LengthOf returns the name of the field whose length this field measures.
 func (d *Desc) LengthOf() string { return d.lengthOf }
