@@ -64,6 +64,8 @@ img {
   gap: 0.75rem;
   margin-bottom: 0.375rem;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1000;
 }
 
 .header-left {
@@ -148,7 +150,7 @@ img {
   visibility: hidden;
   transition: opacity 0.2s, transform 0.15s;
   transform: translateX(-50%) translateY(4px);
-  z-index: 100;
+  z-index: 9999;
   pointer-events: none;
 }
 .nav-dropdown:hover .nav-dropdown-menu {
