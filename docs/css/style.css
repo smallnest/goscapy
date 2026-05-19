@@ -805,7 +805,7 @@ ol {
 
 .container {
   position: relative;
-  z-index: 1;
+  background: #FAF9F6;
 }
 
 /* ---------- Utility ---------- */
