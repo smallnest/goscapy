@@ -13,6 +13,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/dot1q"
 	// Register VXLAN layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/vxlan"
+	// Register GRE layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/gre"
 )
 
 func init() {
@@ -147,8 +149,6 @@ func init() {
 
 	// VXLAN payload is an inner Ethernet frame.
 	packet.RegisterTunnelPayload("VXLAN", "Ethernet")
-	// GRE with ProtocolType=0x6558 carries inner Ethernet.
-	packet.RegisterTunnelPayload("GRE", "IP")
 
 	// ---- Dissector registrations for DissectByProto ----
 
