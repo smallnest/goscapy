@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/smallnest/goscapy/pkg/layers/dot1q"
+	"github.com/smallnest/goscapy/pkg/layers/vxlan"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -848,5 +849,50 @@ func TestDissectQinQ(t *testing.T) {
 	tpid2, _ := inner.Get("tpid")
 	if tpid2.(uint16) != 0x8100 {
 		t.Errorf("inner TPID = %#x", tpid2)
+	}
+}
+
+func TestDissectVXLAN(t *testing.T) {
+	// Dissect VXLAN with tunnel payload: VXLAN / inner Ethernet / IP / ICMP.
+	raw := []byte{
+		// VXLAN header (8 bytes): VNI=5000
+		0x08, 0x00, 0x00, 0x00, 0x00, 0x13, 0x88, 0x00,
+		// Inner Ethernet: dst(ff:ff:ff:ff:ff:ff) + src(00:11:22:33:44:55) + type(0x0800)
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+		0x08, 0x00,
+		// Inner IP (20 bytes): proto=1 (ICMP)
+		0x45, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x00,
+		0x40, 0x01, 0x00, 0x00,
+		0xc0, 0xa8, 0x01, 0x01, 0xc0, 0xa8, 0x01, 0x02,
+		// Inner ICMP (8 bytes)
+		0x08, 0x00, 0x00, 0x00, 0x12, 0x34, 0x00, 0x01,
+	}
+
+	pkt, err := packet.DissectByProto(raw, "VXLAN")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layers := pkt.Layers()
+	if len(layers) < 4 {
+		t.Fatalf("expected at least 4 layers, got %d: %v", len(layers), pkt.String())
+	}
+
+	if layers[0].Proto() != "VXLAN" {
+		t.Errorf("layer 0 = %s, want VXLAN", layers[0].Proto())
+	}
+	if vxlan.GetVNI(layers[0]) != 5000 {
+		t.Errorf("VNI = %d", vxlan.GetVNI(layers[0]))
+	}
+
+	if layers[1].Proto() != "Ethernet" {
+		t.Errorf("layer 1 = %s, want Ethernet", layers[1].Proto())
+	}
+	if layers[2].Proto() != "IP" {
+		t.Errorf("layer 2 = %s, want IP", layers[2].Proto())
+	}
+	if layers[3].Proto() != "ICMP" {
+		t.Errorf("layer 3 = %s, want ICMP", layers[3].Proto())
 	}
 }
