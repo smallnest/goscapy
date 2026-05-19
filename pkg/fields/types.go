@@ -466,6 +466,46 @@ func (f *StrLenField) Unpack(b []byte) (any, int, error) {
 	return b, len(b), nil
 }
 
+// ---- fixed-size byte fields ----
+
+// StrFixedField is a fixed-size byte field that consumes exactly size bytes
+// during unpacking and produces exactly size bytes during packing.
+// Values shorter than size are right-padded with zeros during packing.
+type StrFixedField struct{ Desc }
+
+// NewStrFixedField creates a fixed-size byte field.
+// size is the exact number of bytes on the wire.
+func NewStrFixedField(name string, size int, defVal []byte) *StrFixedField {
+	return &StrFixedField{Desc: Desc{name: name, size: size, defVal: defVal}}
+}
+
+func (f *StrFixedField) Pack(val any) ([]byte, error) {
+	var raw []byte
+	switch v := val.(type) {
+	case string:
+		raw = []byte(v)
+	case []byte:
+		raw = v
+	default:
+		return nil, fmt.Errorf("fields: %s expects string or []byte, got %T", f.name, val)
+	}
+	if len(raw) > f.size {
+		return nil, fmt.Errorf("fields: %s value %d bytes exceeds fixed size %d", f.name, len(raw), f.size)
+	}
+	out := make([]byte, f.size)
+	copy(out, raw)
+	return out, nil
+}
+
+func (f *StrFixedField) Unpack(b []byte) (any, int, error) {
+	if err := validateSize(f.name, b, f.size); err != nil {
+		return nil, 0, err
+	}
+	out := make([]byte, f.size)
+	copy(out, b[:f.size])
+	return out, f.size, nil
+}
+
 // ---- nested packet fields ----
 
 // PacketField holds a nested sub-packet identified by name via a registry.

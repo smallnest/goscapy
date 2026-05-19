@@ -7,6 +7,8 @@ import (
 
 	// Register DNS layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/dns"
+	// Register DHCP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/dhcp"
 )
 
 func init() {
