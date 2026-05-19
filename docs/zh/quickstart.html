@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>快速开始 — goscapy</title>
+  <meta name="description" content="5 分钟上手 goscapy。安装、构建、解析、发送和嗅探网络数据包。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <!-- 导航栏 -->
+  <div id="navbar"></div>
+
+  <!-- 侧边栏（由 sidebar.js 自动生成） -->
+  <div id="sidebar"></div>
+
+  <!-- 主要内容 -->
+  <main id="mainContent" class="main-content">
+    <div class="content-wrapper">
+
+      <!-- 页面标题 -->
+      <h1 id="top">快速开始</h1>
+      <p class="text-muted" style="font-size:1.05rem;margin-bottom:var(--space-2xl);">
+        5 分钟上手 goscapy。本指南涵盖安装、数据包构建、解析、发送和嗅探。
+      </p>
+
+      <!-- ==================== 安装 ==================== -->
+      <h2 id="安装">安装</h2>
+
+      <p>将 goscapy 添加到你的项目中：</p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">bash</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="kw">go</span> get github.com/smallnest/goscapy</pre>
+        </div>
+      </div>
+
+      <p>导入所需的包：</p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)</pre>
+        </div>
+      </div>
+
+      <div class="admonition note">
+        <div class="admonition-title">📝 注意</div>
+        原始套接字操作需要 root/管理员权限。在 Linux 或 macOS 上请使用 <code>sudo</code> 运行程序。
+      </div>
+
+      <!-- ==================== 构建数据包（Builder API） ==================== -->
+      <h2 id="builder-api">构建数据包（Builder API）</h2>
+
+      <p>
+        Builder API 提供流畅的方法链式调用，实现类型安全的显式数据包构建。
+        每个协议层都有自己的 builder，通过方法设置字段。使用 <code>.Over()</code>
+        将各层串联起来，最后调用 <code>.Build()</code> 完成构建。
+      </p>
+
+      <h3 id="builder-ethernet-ip-icmp">Ethernet + IP + ICMP</h3>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 从零构建 ICMP Echo Request 数据包</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
+        <span class="fn">TTL</span>(<span class="num">64</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).   <span class="cmt">// Echo Request</span>
+        <span class="fn">Code</span>(<span class="num">0</span>).
+        <span class="fn">ID</span>(<span class="num">1</span>).
+        <span class="fn">Seq</span>(<span class="num">1</span>)).
+    <span class="fn">Build</span>()
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    <span class="fn">log.Fatal</span>(err)
+}
+fmt.<span class="fn">Printf</span>(<span class="str">"构建了 %d 字节\n"</span>, <span class="fn">len</span>(pkt))</pre>
+        </div>
+      </div>
+
+      <h3 id="builder-ethernet-ip-tcp">Ethernet + IP + TCP</h3>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 构建 TCP SYN 数据包</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"11:22:33:44:55:66"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.100"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"93.184.216.34"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewTCP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">80</span>).
+        <span class="fn">Flags</span>(<span class="num">0x02</span>).  <span class="cmt">// SYN</span>
+        <span class="fn">Seq</span>(<span class="num">1000</span>).
+        <span class="fn">Window</span>(<span class="num">65535</span>)).
+    <span class="fn">Build</span>()</pre>
+        </div>
+      </div>
+
+      <h3 id="builder-ethernet-ip-udp">Ethernet + IP + UDP</h3>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 构建 UDP 数据包</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"11:22:33:44:55:66"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.100"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">54321</span>).
+        <span class="fn">DstPort</span>(<span class="num">53</span>)).
+    <span class="fn">Build</span>()</pre>
+        </div>
+      </div>
+
+      <div class="admonition tip">
+        <div class="admonition-title">💡 提示</div>
+        IP、TCP、UDP、ICMP 的校验和在 <code>.Build()</code> 时自动计算，无需手动设置。
+      </div>
+
+      <!-- ==================== 构建数据包（快捷函数） ==================== -->
+      <h2 id="快捷函数">构建数据包（快捷函数）</h2>
+
+      <p>
+        快捷函数只需一个函数调用即可构建常用的协议栈。它们使用合理的默认值
+        （如 <code>srcMAC="00:00:00:00:00:00"</code>、<code>srcIP="0.0.0.0"</code>），
+        你只需指定关键参数。
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// ICMP Echo Request — 一行搞定</span>
+pkt, err := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">8</span>, <span class="num">0</span>)
+
+<span class="cmt">// TCP SYN 数据包</span>
+pkt, err := goscapy.<span class="fn">EtherIPTCP</span>(
+    <span class="str">"aa:bb:cc:dd:ee:ff"</span>, <span class="str">"11:22:33:44:55:66"</span>,
+    <span class="str">"192.168.1.100"</span>, <span class="str">"93.184.216.34"</span>,
+    <span class="num">12345</span>, <span class="num">80</span>, <span class="num">0x02</span>,
+)
+
+<span class="cmt">// UDP 数据包</span>
+pkt, err := goscapy.<span class="fn">EtherIPUDP</span>(
+    <span class="str">"aa:bb:cc:dd:ee:ff"</span>, <span class="str">"11:22:33:44:55:66"</span>,
+    <span class="str">"192.168.1.100"</span>, <span class="str">"8.8.8.8"</span>,
+    <span class="num">54321</span>, <span class="num">53</span>,
+)
+
+<span class="cmt">// ARP 请求</span>
+pkt, err := goscapy.<span class="fn">EtherARP</span>(
+    <span class="str">"aa:bb:cc:dd:ee:ff"</span>, <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"192.168.1.100"</span>, <span class="str">"192.168.1.1"</span>,
+    <span class="num">1</span>, <span class="cmt">// ARP Request</span>
+)
+
+<span class="cmt">// 纯 IP 数据包（无以太网头）</span>
+pkt, err := goscapy.<span class="fn">IPICMP</span>(<span class="str">"192.168.1.100"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">8</span>, <span class="num">0</span>)
+pkt, err := goscapy.<span class="fn">IPTCP</span>(<span class="str">"192.168.1.100"</span>, <span class="str">"93.184.216.34"</span>, <span class="num">12345</span>, <span class="num">80</span>, <span class="num">0x02</span>)
+pkt, err := goscapy.<span class="fn">IPUDP</span>(<span class="str">"192.168.1.100"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">54321</span>, <span class="num">53</span>)</pre>
+        </div>
+      </div>
+
+      <!-- ==================== 解析数据包 ==================== -->
+      <h2 id="解析数据包">解析数据包</h2>
+
+      <p>
+        将原始字节解析回结构化的 <code>Packet</code> 对象。goscapy 自动检测每个层的协议
+        并提取所有字段。完整以太网帧使用 <code>DissectEthernet</code>，纯 IP 数据使用
+        <code>DissectIP</code>。
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 先构建一个数据包用于解析</span>
+raw, _ := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">8</span>, <span class="num">0</span>)
+
+<span class="cmt">// 解析回分层结构</span>
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    <span class="fn">log.Fatal</span>(err)
+}
+
+<span class="cmt">// 打印层栈</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span>
+
+<span class="cmt">// 访问各个层</span>
+eth := packet.<span class="fn">Ethernet</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"源MAC: %s\n"</span>, eth.<span class="fn">SrcMAC</span>())
+fmt.<span class="fn">Printf</span>(<span class="str">"目标MAC: %s\n"</span>, eth.<span class="fn">DstMAC</span>())
+
+ip := packet.<span class="fn">IP</span>(pkt)
+fmt.<span class="fn">Printf</span>(<span class="str">"源IP: %s  目标IP: %s  TTL: %d\n"</span>,
+    ip.<span class="fn">SrcIP</span>(), ip.<span class="fn">DstIP</span>(), ip.<span class="fn">TTL</span>())</pre>
+        </div>
+      </div>
+
+      <div class="admonition tip">
+        <div class="admonition-title">💡 提示</div>
+        当原始字节从 IP 头开始（无以太网帧）时，使用 <code>packet.DissectIP</code> 代替 <code>packet.DissectEthernet</code>。
+      </div>
+
+      <!-- ==================== 发送数据包 ==================== -->
+      <h2 id="发送数据包">发送数据包</h2>
+
+      <p>goscapy 支持在两个层级发送数据包：</p>
+      <ul style="margin:var(--space-md) 0 var(--space-lg) var(--space-lg);line-height:2;">
+        <li><strong>L3（Send）</strong> — 在 IP 层级发送。操作系统自动添加以太网头。适用于 IP+传输层的数据包。</li>
+        <li><strong>L2（Sendp）</strong> — 发送完整的以太网帧。你控制整个数据包。</li>
+      </ul>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 构建 ICMP Echo Request</span>
+raw, _ := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">8</span>, <span class="num">0</span>)
+pkt, _ := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+
+<span class="cmt">// L3 发送 — 操作系统处理以太网帧</span>
+err := sendrecv.<span class="fn">Send</span>(pkt, <span class="str">"eth0"</span>)
+
+<span class="cmt">// L2 发送 — 你提供完整的帧</span>
+err = sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pre>
+        </div>
+      </div>
+
+      <h3 id="send-recv-response">发送并接收响应</h3>
+
+      <p>
+        使用 <code>SendRecv</code> 发送数据包并收集响应，或使用 <code>SendRecv1</code>
+        只获取第一个响应：
+      </p>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 发送 ICMP Echo 并等待回复</span>
+raw, _ := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"8.8.8.8"</span>, <span class="num">8</span>, <span class="num">0</span>)
+pkt, _ := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+
+<span class="cmt">// 在 3 秒内获取所有响应</span>
+sent, responses, err := sendrecv.<span class="fn">SendRecv</span>(pkt, <span class="str">"eth0"</span>, <span class="num">3</span>*time.Second)
+fmt.<span class="fn">Printf</span>(<span class="str">"收到 %d 个响应\n"</span>, <span class="fn">len</span>(responses))
+
+<span class="cmt">// 或只获取第一个响应</span>
+sent, reply, err := sendrecv.<span class="fn">SendRecv1</span>(pkt, <span class="str">"eth0"</span>, <span class="num">3</span>*time.Second)
+<span class="kw">if</span> reply != <span class="kw">nil</span> {
+    fmt.<span class="fn">Println</span>(<span class="str">"回复:"</span>, reply.<span class="fn">String</span>())
+}</pre>
+        </div>
+      </div>
+
+      <div class="admonition note">
+        <div class="admonition-title">📝 注意</div>
+        <code>SendRecv</code> 在发送之前打开接收器，以避免错过快速响应（如在回环接口上）。
+      </div>
+
+      <!-- ==================== 嗅探数据包 ==================== -->
+      <h2 id="嗅探数据包">嗅探数据包</h2>
+
+      <p>
+        使用 <strong>回调处理器</strong> 或 <strong>通道</strong> 捕获实时流量。
+        两者都支持 BPF 过滤表达式（需要系统 PATH 中有 <code>tcpdump</code> 来编译过滤规则）。
+      </p>
+
+      <h3 id="sniff-callback">回调式嗅探</h3>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 嗅探 ICMP 数据包，持续 10 秒</span>
+err := sniff.<span class="fn">Sniff</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Filter:  <span class="str">"icmp"</span>,
+    Timeout: <span class="num">10</span> * time.Second,
+}, <span class="kw">func</span>(pkt *packet.<span class="type">Packet</span>) <span class="type">bool</span> {
+    fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+    <span class="kw">return</span> <span class="kw">true</span> <span class="cmt">// 继续嗅探</span>
+})</pre>
+        </div>
+      </div>
+
+      <h3 id="sniff-channel">通道式嗅探</h3>
+
+      <div class="code-block anim-slide-in-left">
+        <div class="code-header">
+          <span class="code-lang">go</span>
+          <button class="code-copy">Copy</button>
+        </div>
+        <div class="code-body">
+<pre><span class="cmt">// 精确捕获 5 个 TCP 数据包</span>
+ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:  <span class="str">"eth0"</span>,
+    Filter: <span class="str">"tcp"</span>,
+    Count:  <span class="num">5</span>,
+})
+<span class="kw">defer</span> <span class="fn">stop</span>()
+
+<span class="kw">for</span> pkt := <span class="kw">range</span> ch {
+    fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>())
+}</pre>
+        </div>
+      </div>
+
+      <div class="admonition note">
+        <div class="admonition-title">📝 注意</div>
+        BPF 过滤器在内核层面编译，确保最高性能。使用
+        <code>sniff.CompileFilter("tcp port 80")</code> 可以预编译过滤字符串。
+      </div>
+
+      <!-- ==================== 下一步 ==================== -->
+      <h2 id="下一步">下一步</h2>
+
+      <p>掌握了基础用法后，继续探索更多功能：</p>
+      <ul style="margin:var(--space-md) 0 var(--space-lg) var(--space-lg);line-height:2;">
+        <li><a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">完整 API 参考</a> — 所有包、类型和函数</li>
+        <li><a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub 仓库</a> — 源代码、Issues 和贡献</li>
+        <li>进阶：ARP、VXLAN、GRE、DNS、DHCP 协议</li>
+        <li>进阶：层绑定和自动字段推断</li>
+      </ul>
+
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+      <div class="footer-links">
+        <a href="index.html">首页</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+        <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT 许可证</a>
+      </div>
+      <p>&copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。</p>
+    </footer>
+
+  </main>
+
+  <!-- 脚本 -->
+  <script src="../js/nav.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/animations.js"></script>
+</body>
+</html>
