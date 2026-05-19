@@ -383,7 +383,72 @@ sendrecv.<span class="fn">Send</span>(pkt, sendrecv.<span class="fn">LoopbackNam
         </div>
       </div>
 
-      <!-- 6. 错误处理 -->
+      <!-- 6. Sendp — L2 以太网帧 -->
+      <div class="section" id="sendp-ethernet">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>Sendp — 完整以太网帧（L2）</h3>
+        </div>
+        <p>构建完整的 Ethernet + IP + ICMP 数据包并在 L2 发送。与工作在 IP 层的 <code>Send()</code> 不同，<code>Sendp()</code> 写入完整的帧 —— 你可以完全控制以太网头。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建完整的 Ethernet + IP + ICMP 回显请求包（L2）</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"10.0.0.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"10.0.0.2"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// 在 L2 发送完整的以太网帧</span>
+err = sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"以太网帧已发送！"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 使用快捷函数构建 Ethernet + IP + ICMP 包，再解析为 Packet 发送</span>
+raw, _ := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"10.0.0.2"</span>, <span class="num">8</span>, <span class="num">0</span>)
+pkt, _ := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          <strong>Send 与 Sendp 的区别：</strong>
+          <ul>
+            <li><code>Send()</code> — L3（IP 层）。不需要以太网层，操作系统会自动添加。</li>
+            <li><code>Sendp()</code> — L2（以太网帧）。必须包含以太网层，完整帧直接写入网卡。</li>
+          </ul>
+          当你需要自定义 MAC 地址、VLAN 标签或其他以太网层控制时，使用 <code>Sendp()</code>。
+        </div>
+      </div>
+
+      <!-- 7. 错误处理 -->
       <div class="section" id="error-handling">
         <div class="section-title">
           <div class="section-dot violet"></div>

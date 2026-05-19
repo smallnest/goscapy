@@ -383,7 +383,72 @@ sendrecv.<span class="fn">Send</span>(pkt, sendrecv.<span class="fn">LoopbackNam
         </div>
       </div>
 
-      <!-- 6. Error Handling -->
+      <!-- 6. Sendp — L2 Ethernet Frame -->
+      <div class="section" id="sendp-ethernet">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>Sendp — Full Ethernet Frame (L2)</h3>
+        </div>
+        <p>Build a complete Ethernet + IP + ICMP packet and send it at L2. Unlike <code>Send()</code> which operates at the IP layer, <code>Sendp()</code> writes the entire frame — you control the Ethernet header yourself.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build a full Ethernet + IP + ICMP Echo Request packet (L2)</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"10.0.0.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"10.0.0.2"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
+        <span class="fn">Type</span>(<span class="num">8</span>).
+        <span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// Send the complete Ethernet frame at L2</span>
+err = sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"Ethernet frame sent!"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Build Ethernet + IP + ICMP packet using shortcut, then dissect for Sendp</span>
+raw, _ := goscapy.<span class="fn">EtherIPICMP</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>, <span class="str">"10.0.0.2"</span>, <span class="num">8</span>, <span class="num">0</span>)
+pkt, _ := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <strong>Send vs Sendp:</strong>
+          <ul>
+            <li><code>Send()</code> — L3 (IP level). No Ethernet layer needed; the OS adds it.</li>
+            <li><code>Sendp()</code> — L2 (Ethernet frame). Must include an Ethernet layer; the full frame is written to the wire.</li>
+          </ul>
+          Use <code>Sendp()</code> when you need custom MAC addresses, VLAN tags, or other Ethernet-level control.
+        </div>
+      </div>
+
+      <!-- 7. Error Handling -->
       <div class="section" id="error-handling">
         <div class="section-title">
           <div class="section-dot violet"></div>
