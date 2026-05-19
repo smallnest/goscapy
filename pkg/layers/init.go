@@ -11,6 +11,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/dhcp"
 	// Register Dot1Q layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/dot1q"
+	// Register VXLAN layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/vxlan"
 )
 
 func init() {
