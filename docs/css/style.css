@@ -478,7 +478,7 @@ pre .pkg     { color: #FFCB6B; }
   padding: 0.125rem 0.375rem;
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 0.75rem;
-  color: #D97757;
+  color: #C05536;
   transition: transform 0.2s ease, background 0.2s ease;
   display: inline;
 }
@@ -489,14 +489,14 @@ pre .pkg     { color: #FFCB6B; }
 }
 
 /* Also style plain <code> used inline (not inside <pre>) */
-p > code, li > code, td > code {
+:not(pre) > code {
   background: #F5F3F0;
   border: 1px solid #E8E4DE;
   border-radius: 4px;
   padding: 0.125rem 0.375rem;
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 0.75rem;
-  color: #D97757;
+  color: #C05536;
 }
 
 /* ---------- Tables ---------- */
