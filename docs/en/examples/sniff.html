@@ -296,7 +296,92 @@ timeout := time.<span class="fn">After</span>(<span class="num">5</span> * time.
         </div>
       </div>
 
-      <!-- 7. Combined — Count + Timeout + Filter -->
+      <!-- 7. SniffChan — Worker Pool -->
+      <div class="section" id="sniffchan-worker">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>SniffChan — Worker Pool Processing</h3>
+        </div>
+        <p>Combine <code>SniffChan()</code> with a worker pool to process packets concurrently. This is useful when packet analysis is CPU-intensive (e.g. protocol decoding, payload inspection).</p>
+
+        <h3 style="margin-top:1rem;">🔨 Example</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"sync"</span>
+    <span class="str">"time"</span>
+
+    <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sniff"</span>
+)
+
+ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">SniffConfig</span>{
+    Iface:   <span class="str">"eth0"</span>,
+    Filter:  <span class="str">"tcp"</span>,
+    Timeout: <span class="num">30</span> * time.Second,
+})
+<span class="kw">defer</span> <span class="fn">stop</span>()
+
+<span class="cmt">// Launch 4 worker goroutines</span>
+<span class="kw">var</span> wg sync.<span class="type">WaitGroup</span>
+<span class="kw">for</span> i := <span class="num">0</span>; i &lt; <span class="num">4</span>; i++ {
+    wg.<span class="fn">Add</span>(<span class="num">1</span>)
+    <span class="kw">go</span> <span class="kw">func</span>(id <span class="type">int</span>) {
+        <span class="kw">defer</span> wg.<span class="fn">Done</span>()
+        <span class="kw">for</span> pkt := <span class="kw">range</span> ch {
+            <span class="cmt">// Each worker processes packets independently</span>
+            tcp := packet.<span class="fn">TCP</span>(pkt)
+            ip := packet.<span class="fn">IP</span>(pkt)
+            <span class="kw">if</span> tcp != <span class="kw">nil</span> &amp;&amp; ip != <span class="kw">nil</span> {
+                fmt.<span class="fn">Printf</span>(<span class="str">"[worker %d] %s:%d → %s:%d\n"</span>,
+                    id, ip.<span class="fn">SrcIP</span>(), tcp.<span class="fn">SrcPort</span>(), ip.<span class="fn">DstIP</span>(), tcp.<span class="fn">DstPort</span>())
+            }
+        }
+    }(i)
+}
+
+<span class="cmt">// Wait for all workers to finish (channel closed by SniffChan)</span>
+wg.<span class="fn">Wait</span>()
+fmt.<span class="fn">Println</span>(<span class="str">"All workers done."</span>)</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          <code>SniffChan()</code> creates a buffered channel with capacity <strong>64</strong>.
+          This means the capture goroutine can buffer up to 64 packets before blocking.
+          If your workers are slower than the capture rate, packets are buffered;
+          if the buffer fills, the capture goroutine blocks until a worker consumes a packet.
+        </div>
+      </div>
+
+      <!-- 8. Sniff vs SniffChan -->
+      <div class="section" id="sniff-vs-sniffchan">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>Sniff vs SniffChan — Which to Use</h3>
+        </div>
+        <p>Both APIs use the same underlying capture mechanism. Choose based on your processing pattern.</p>
+
+        <div class="table-wrapper"><table><thead><tr><th>Feature</th><th><code>Sniff()</code> — Callback</th><th><code>SniffChan()</code> — Channel</th></tr></thead><tbody>
+          <tr><td>Processing model</td><td>Synchronous callback</td><td>Async channel + goroutines</td></tr>
+          <tr><td>Stop mechanism</td><td>Handler returns <code>false</code></td><td>Call <code>stop()</code> function</td></tr>
+          <tr><td>Concurrency</td><td>Single goroutine (sequential)</td><td>Multiple workers via channel</td></tr>
+          <tr><td>Buffering</td><td>No buffer (inline processing)</td><td>64-packet buffer</td></tr>
+          <tr><td>Best for</td><td>Simple logging, counting, quick scripts</td><td>Heavy processing, worker pools, pipeline architectures</td></tr>
+          <tr><td>Error handling</td><td>Returns <code>error</code> directly</td><td>Error causes channel close</td></tr>
+        </tbody></table></div>
+
+        <div class="tip">
+          <div class="admonition-title">💡 Tip</div>
+          Use <code>Sniff()</code> for simple scripts and <code>SniffChan()</code> when you need concurrent processing,
+          custom stop conditions via <code>select</code>, or integration with other Go channel-based systems.
+        </div>
+      </div>
+
+      <!-- 9. Combined — Count + Timeout + Filter -->
       <div class="section" id="sniff-combined">
         <div class="section-title">
           <div class="section-dot violet"></div>
