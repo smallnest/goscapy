@@ -18,27 +18,38 @@ const (
 	ICMPv6EchoReply    uint8 = 129
 )
 
-// NewICMPv6 creates an ICMPv6 message layer. Default: Echo Request (type=128, code=0).
+// NewICMPv6 creates a 4-byte ICMPv6 base header (type, code, checksum).
+// Sub-type layers (Echo, NDP, etc.) stack above this header.
 func NewICMPv6() *packet.Layer {
 	return packet.NewLayer("ICMPv6", []fields.Field{
 		fields.NewByteField("type", ICMPv6EchoRequest),
 		fields.NewByteField("code", 0),
 		fields.NewShortField("chksum", 0), // auto-computed during Build
-		fields.NewShortField("id", 0),
-		fields.NewShortField("seq", 0),
+	})
+}
+
+// NewICMPv6Echo creates an ICMPv6 Echo body layer (id, seq, data).
+// Use with IPv6/ICMPv6: NewIPv6().Over(NewICMPv6(), NewICMPv6Echo(id, seq))
+func NewICMPv6Echo(id, seq uint16) *packet.Layer {
+	return packet.NewLayer("ICMPv6 Echo", []fields.Field{
+		fields.NewShortField("id", id),
+		fields.NewShortField("seq", seq),
 		fields.NewStrField("data", ""),
 	})
 }
 
-// NewICMPv6Echo creates an ICMPv6 Echo Request with the given id and seq.
-func NewICMPv6Echo(id, seq uint16) *packet.Layer {
-	l := NewICMPv6()
-	l.Set("type", ICMPv6EchoRequest)
-	l.Set("code", uint8(0))
-	l.Set("id", id)
-	l.Set("seq", seq)
-	return l
+// NewICMPv6EchoReply creates an ICMPv6 Echo Reply body layer.
+func NewICMPv6EchoReply(id, seq uint16) *packet.Layer {
+	return packet.NewLayer("ICMPv6 Echo Reply", []fields.Field{
+		fields.NewShortField("id", id),
+		fields.NewShortField("seq", seq),
+		fields.NewStrField("data", ""),
+	})
 }
+
+// Factory wrappers for layer registration.
+func newICMPv6EchoLayer() *packet.Layer     { return NewICMPv6Echo(0, 0) }
+func newICMPv6EchoReplyLayer() *packet.Layer { return NewICMPv6EchoReply(0, 0) }
 
 // icmpv6BuildHook is called during Packet.Build() for ICMPv6 layers.
 // It auto-computes the ICMPv6 checksum using the IPv6 pseudo-header.
