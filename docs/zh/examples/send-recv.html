@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>发送/接收示例 — goscapy</title>
-  <meta name="description" content="使用 goscapy 在 L3（IP 层）发送和接收数据包的完整代码示例：Send、Recv、SendRecv、SendRecv1。">
+  <meta name="description" content="使用 goscapy 在 L2（以太网）和 L3（IP 层）发送和接收数据包的完整代码示例：Send、Sendp、Recv、SendRecv、SendRecv1、ARP。">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
   <link rel="stylesheet" href="../../css/style.css">
 </head>
@@ -448,7 +448,122 @@ sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pr
         </div>
       </div>
 
-      <!-- 7. 错误处理 -->
+      <!-- 7. Sendp — ARP 请求（纯 L2） -->
+      <div class="section" id="sendp-arp">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>Sendp — ARP 请求（纯 L2）</h3>
+        </div>
+        <p>ARP 是纯 L2 协议 —— 它直接封装在以太网帧内，<strong>没有 IP 层</strong>。只能用 <code>Sendp()</code> 发送，因为 <code>Send()</code> 需要 IP 层。构建 Ethernet + ARP "who-has" 请求并发送到网络。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// 构建 Ethernet + ARP "who-has" 请求（纯 L2 — 无 IP 层）</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>). <span class="cmt">// 广播</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewARP</span>().
+        <span class="fn">Op</span>(layers.ARPWhoHas).
+        <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstMAC</span>(<span class="str">"00:00:00:00:00:00"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.100"</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// 在 L2 发送 ARP 请求 —— 必须用 Sendp，不能用 Send</span>
+err = sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"ARP who-has 192.168.1.100 已发送！"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherARP(srcMAC, dstMAC, psrc, pdst string, op uint16)</span>
+pkt, _ := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewARP</span>().
+        <span class="fn">Op</span>(layers.ARPWhoHas).
+        <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstMAC</span>(<span class="str">"00:00:00:00:00:00"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.100"</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 注意</div>
+          ARP 没有 IP 层 —— 它使用以太网 EtherType <code>0x0806</code> 直接封装在以太网帧内。
+          必须<strong>使用 <code>Sendp()</code></strong> 发送 ARP；<code>Send()</code> 无法发送纯 L2 协议。
+        </div>
+      </div>
+
+      <!-- 8. L2 与 L3 对比 -->
+      <div class="section" id="l2-vs-l3">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>L2 与 L3 对比 — 如何选择</h3>
+        </div>
+        <p>理解 <code>Send()</code>（L3）和 <code>Sendp()</code>（L2）的区别对于选择正确的方式至关重要。</p>
+
+        <div class="table-wrapper"><table><thead><tr><th>特性</th><th><code>Send()</code> — L3</th><th><code>Sendp()</code> — L2</th></tr></thead><tbody>
+          <tr><td>需要的协议层</td><td>IP + 上层</td><td>Ethernet + 上层</td></tr>
+          <tr><td>以太网头</td><td>操作系统自动填充</td><td>必须自己提供</td></tr>
+          <tr><td>支持 ARP</td><td>❌ 不支持（ARP 没有 IP 层）</td><td>✅ 支持</td></tr>
+          <tr><td>支持 ICMP/TCP/UDP</td><td>✅ 支持</td><td>✅ 支持（需包含 Ethernet）</td></tr>
+          <tr><td>自定义 MAC 地址</td><td>❌ 不可以</td><td>✅ 完全控制</td></tr>
+          <tr><td>VLAN / Dot1Q</td><td>❌ 不可以</td><td>✅ 支持</td></tr>
+          <tr><td>底层实现</td><td><code>AF_INET</code> 原始套接字</td><td>BPF（macOS）/ <code>AF_PACKET</code>（Linux）</td></tr>
+          <tr><td>适用场景</td><td>大多数 IP 工具（ping、扫描）</td><td>ARP、自定义 L2、VLAN、MAC 伪装</td></tr>
+        </tbody></table></div>
+
+        <h3 style="margin-top:1rem;">🔧 同一个 ICMP 包 — 两种发送方式</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// L3：操作系统自动添加以太网头</span>
+l3pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"192.168.1.2"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Send</span>(l3pkt, <span class="str">"eth0"</span>)
+
+<span class="cmt">// L2：你控制完整帧，包括 MAC 地址</span>
+l2pkt, _ := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"66:77:88:99:aa:bb"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.2"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Sendp</span>(l2pkt, <span class="str">"eth0"</span>)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. 错误处理 -->
       <div class="section" id="error-handling">
         <div class="section-title">
           <div class="section-dot violet"></div>

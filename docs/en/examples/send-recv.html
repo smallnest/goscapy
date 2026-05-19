@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Send &amp; Receive Examples — goscapy</title>
-  <meta name="description" content="Complete code examples for sending and receiving packets at L3 (IP level) with goscapy: Send, Recv, SendRecv, SendRecv1.">
+  <meta name="description" content="Complete code examples for sending and receiving packets at L2 (Ethernet) and L3 (IP) with goscapy: Send, Sendp, Recv, SendRecv, SendRecv1, ARP.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
   <link rel="stylesheet" href="../../css/style.css">
 </head>
@@ -448,7 +448,122 @@ sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pr
         </div>
       </div>
 
-      <!-- 7. Error Handling -->
+      <!-- 7. Sendp — ARP Request (L2) -->
+      <div class="section" id="sendp-arp">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>Sendp — ARP Request (L2 Only)</h3>
+        </div>
+        <p>ARP is a pure L2 protocol — it lives directly inside Ethernet with <strong>no IP layer</strong>. <code>Sendp()</code> is the only way to send it, because <code>Send()</code> requires an IP layer. Build an Ethernet + ARP "who-has" request and send it on the wire.</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"fmt"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/sendrecv"</span>
+)
+
+<span class="cmt">// Build Ethernet + ARP "who-has" request (pure L2 — no IP layer)</span>
+pkt, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>). <span class="cmt">// broadcast</span>
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewARP</span>().
+        <span class="fn">Op</span>(layers.ARPWhoHas).
+        <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstMAC</span>(<span class="str">"00:00:00:00:00:00"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.100"</span>)).
+    <span class="fn">Packet</span>()
+
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+
+<span class="cmt">// Send ARP request at L2 — must use Sendp, not Send</span>
+err = sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)
+<span class="kw">if</span> err != <span class="kw">nil</span> {
+    fmt.<span class="fn">Fatal</span>(err)
+}
+fmt.<span class="fn">Println</span>(<span class="str">"ARP who-has 192.168.1.100 sent!"</span>)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ Shortcut</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherARP(srcMAC, dstMAC, psrc, pdst string, op uint16)</span>
+pkt, _ := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewARP</span>().
+        <span class="fn">Op</span>(layers.ARPWhoHas).
+        <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstMAC</span>(<span class="str">"00:00:00:00:00:00"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.100"</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Sendp</span>(pkt, <span class="str">"eth0"</span>)</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="admonition-title">📝 Note</div>
+          ARP has no IP layer — it uses EtherType <code>0x0806</code> directly over Ethernet.
+          You <strong>must</strong> use <code>Sendp()</code> for ARP; <code>Send()</code> cannot send L2-only protocols.
+        </div>
+      </div>
+
+      <!-- 8. L2 vs L3 Comparison -->
+      <div class="section" id="l2-vs-l3">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>L2 vs L3 — When to Use Which</h3>
+        </div>
+        <p>Understanding the difference between <code>Send()</code> (L3) and <code>Sendp()</code> (L2) is critical for choosing the right approach.</p>
+
+        <div class="table-wrapper"><table><thead><tr><th>Feature</th><th><code>Send()</code> — L3</th><th><code>Sendp()</code> — L2</th></tr></thead><tbody>
+          <tr><td>Required layers</td><td>IP + upper</td><td>Ethernet + upper</td></tr>
+          <tr><td>Ethernet header</td><td>OS fills in automatically</td><td>You must provide it</td></tr>
+          <tr><td>Works with ARP</td><td>❌ No (ARP has no IP)</td><td>✅ Yes</td></tr>
+          <tr><td>Works with ICMP/TCP/UDP</td><td>✅ Yes</td><td>✅ Yes (with Ethernet)</td></tr>
+          <tr><td>Custom MAC addresses</td><td>❌ Not possible</td><td>✅ Full control</td></tr>
+          <tr><td>VLAN / Dot1Q</td><td>❌ Not possible</td><td>✅ Supported</td></tr>
+          <tr><td>Implementation</td><td><code>AF_INET</code> raw socket</td><td>BPF (macOS) / <code>AF_PACKET</code> (Linux)</td></tr>
+          <tr><td>Use case</td><td>Most IP-based tools (ping, scan)</td><td>ARP, custom L2, VLAN, MAC spoofing</td></tr>
+        </tbody></table></div>
+
+        <h3 style="margin-top:1rem;">🔧 Same ICMP Packet — Both Ways</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// L3: OS adds Ethernet header automatically</span>
+l3pkt, _ := goscapy.<span class="fn">NewIP</span>().
+    <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+    <span class="fn">DstIP</span>(<span class="str">"192.168.1.2"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Send</span>(l3pkt, <span class="str">"eth0"</span>)
+
+<span class="cmt">// L2: You control the full frame including MAC addresses</span>
+l2pkt, _ := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"66:77:88:99:aa:bb"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.2"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().<span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
+    <span class="fn">Packet</span>()
+sendrecv.<span class="fn">Sendp</span>(l2pkt, <span class="str">"eth0"</span>)</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Error Handling -->
       <div class="section" id="error-handling">
         <div class="section-title">
           <div class="section-dot violet"></div>
