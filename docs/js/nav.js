@@ -32,6 +32,7 @@
       { label: 'Examples', dropdown: [
         { label: 'Basic', href: prefix + 'examples/basic.html' },
         { label: 'Tunnel', href: prefix + 'examples/tunnel.html' },
+        { label: 'DNS / DHCP', href: prefix + 'examples/app.html' },
       ]},
       { label: 'GitHub', href: 'https://github.com/smallnest/goscapy', external: true }
     ];
@@ -43,6 +44,7 @@
       { label: '示例', dropdown: [
         { label: '基础组包', href: prefix + 'examples/basic.html' },
         { label: '隧道封装', href: prefix + 'examples/tunnel.html' },
+        { label: 'DNS / DHCP', href: prefix + 'examples/app.html' },
       ]},
       { label: 'GitHub', href: 'https://github.com/smallnest/goscapy', external: true }
     ];

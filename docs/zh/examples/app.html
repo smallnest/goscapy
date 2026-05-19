@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>应用协议示例 — goscapy</title>
+  <meta name="description" content="使用 goscapy 构建 DNS 查询、DNS 响应、DHCP Discover 和 DHCP Offer 数据包的代码示例。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- 1. DNS 查询 (A 记录) -->
+      <div class="section" id="dns-query">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>DNS 查询 — A 记录查询</h3>
+        </div>
+        <p>构建 DNS A 记录查询数据包。标准 DNS 查询封装在 Ethernet + IP + UDP 端口 53 中。<code>DNSQuestion</code> 结构体包含域名、查询类型和类别。<code>EncodeName()</code> 将点分格式转换为 DNS 线格式标签。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers/dns"</span>
+)
+
+<span class="cmt">// 定义 DNS 查询问题</span>
+questions := []dns.DNSQuestion{
+    {Name: <span class="str">"example.com"</span>, Type: dns.QtypeA, Class: dns.QclassIN},
+}
+
+<span class="cmt">// 构建 Ethernet + IP + UDP + DNS 查询</span>
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">12345</span>).
+        <span class="fn">DstPort</span>(<span class="num">53</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDNS</span>().
+        <span class="fn">ID</span>(<span class="num">0x1234</span>).
+        <span class="fn">Flags</span>(<span class="num">0x0100</span>).         <span class="cmt">// RD=1 (期望递归)</span>
+        <span class="fn">Questions</span>(questions)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPUDPDNS(srcMAC, dstMAC, srcIP, dstIP string, dnsPort uint16, questions []dns.DNSQuestion)</span>
+questions := []dns.DNSQuestion{
+    {Name: <span class="str">"example.com"</span>, Type: dns.QtypeA, Class: dns.QclassIN},
+}
+raw, err := goscapy.<span class="fn">EtherIPUDPDNS</span>(
+    <span class="str">"00:11:22:33:44:55"</span>, <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
+    <span class="str">"192.168.1.1"</span>, <span class="str">"8.8.8.8"</span>,
+    <span class="num">53</span>,
+    questions,
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/packet"</span>
+
+pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / UDP / DNS"</span>
+
+<span class="cmt">// 提取 DNS 查询问题</span>
+dnsLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"DNS"</span>)
+questions, err := dns.<span class="fn">GetQuestions</span>(dnsLayer)
+<span class="kw">for</span> _, q := <span class="kw">range</span> questions {
+    fmt.<span class="fn">Printf</span>(<span class="str">"查询: %s  Type=%d  Class=%d\n"</span>, q.Name, q.Type, q.Class)
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. DNS 响应 -->
+      <div class="section" id="dns-response">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>DNS 响应 — A 记录应答</h3>
+        </div>
+        <p>构建包含 A 记录应答的 DNS 响应。响应设置了 QR 标志位（flags <code>0x8180</code> = QR + RD + RA），同时包含查询部分和应答部分。使用 <code>BuildARData()</code> 构建 A 记录的 RDATA。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>questions := []dns.DNSQuestion{
+    {Name: <span class="str">"example.com"</span>, Type: dns.QtypeA, Class: dns.QclassIN},
+}
+answers := []dns.DNSRR{
+    {
+        Name:     <span class="str">"example.com"</span>,
+        Type:     dns.QtypeA,
+        Class:    dns.QclassIN,
+        TTL:      <span class="num">300</span>,
+        RDLength: <span class="num">4</span>,
+        RData:    dns.<span class="fn">BuildARData</span>(<span class="str">"93.184.216.34"</span>),
+    },
+}
+
+<span class="cmt">// 构建 DNS 响应数据（查询 + 应答）</span>
+dnsData := dns.<span class="fn">BuildDNSMessage</span>(questions, answers, <span class="kw">nil</span>, <span class="kw">nil</span>)
+
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:aa:bb:cc:dd:ee"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"8.8.8.8"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"192.168.1.1"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">53</span>).
+        <span class="fn">DstPort</span>(<span class="num">12345</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDNS</span>().
+        <span class="fn">ID</span>(<span class="num">0x1234</span>).
+        <span class="fn">Flags</span>(<span class="num">0x8180</span>).        <span class="cmt">// QR=1, RD=1, RA=1</span>
+        <span class="fn">Data</span>(dnsData)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+
+dnsLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"DNS"</span>)
+
+<span class="cmt">// 解析查询问题</span>
+questions, _ := dns.<span class="fn">GetQuestions</span>(dnsLayer)
+
+<span class="cmt">// 解析应答资源记录</span>
+answers, _ := dns.<span class="fn">GetAnswers</span>(dnsLayer)
+<span class="kw">for</span> _, rr := <span class="kw">range</span> answers {
+    fmt.<span class="fn">Printf</span>(<span class="str">"应答: %s  Type=%d  TTL=%d"</span>, rr.Name, rr.Type, rr.TTL)
+    <span class="kw">if</span> rr.Type == dns.QtypeA {
+        fmt.<span class="fn">Printf</span>(<span class="str">"  IP=%s"</span>, dns.<span class="fn">ParseARData</span>(rr.RData))
+    }
+    fmt.<span class="fn">Println</span>()
+}</pre>
+          </div>
+        </div>
+
+        <div class="tip">
+          <strong>提示：</strong>DNS 名称编码使用标签压缩 — 响应中重复的域名通过指针引用之前的出现位置（最高 2 位 = <code>0xC0</code>）。<code>DecodeName()</code> 会自动处理标签压缩。
+        </div>
+      </div>
+
+      <!-- 3. DHCP Discover -->
+      <div class="section" id="dhcp-discover">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>DHCP Discover</h3>
+        </div>
+        <p>构建 DHCP Discover 数据包 — 客户端发送的第一条消息，用于在网络中寻找 DHCP 服务器。使用广播地址（255.255.255.255）和 UDP 端口 68（客户端）→ 67（服务器）。MessageType TLV 选项（53）设置为 <code>DHCPDISCOVER</code>。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"github.com/smallnest/goscapy/pkg/goscapy"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/layers/dhcp"</span>
+    <span class="str">"github.com/smallnest/goscapy/pkg/fields"</span>
+)
+
+<span class="cmt">// 构建 DHCP 选项：MessageType + 参数请求列表 + End</span>
+opts := dhcp.<span class="fn">BuildDHCPOptions</span>([]fields.TLVOption{
+    dhcp.<span class="fn">NewMessageTypeOption</span>(dhcp.DHCPDISCOVER),
+    dhcp.<span class="fn">NewParamListOption</span>([]<span class="type">uint8</span>{
+        dhcp.OptSubnetMask, dhcp.OptRouter, dhcp.OptDNS, dhcp.OptDomain,
+    }),
+    dhcp.<span class="fn">EndOption</span>(),
+})
+
+<span class="cmt">// 构建 Ethernet + IP + UDP + DHCP Discover</span>
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"0.0.0.0"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"255.255.255.255"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">68</span>).
+        <span class="fn">DstPort</span>(<span class="num">67</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDHCP</span>().
+        <span class="fn">XID</span>(<span class="num">0x12345678</span>).
+        <span class="fn">CHAddr</span>([]<span class="type">byte</span>{<span class="num">0x00</span>, <span class="num">0x11</span>, <span class="num">0x22</span>, <span class="num">0x33</span>, <span class="num">0x44</span>, <span class="num">0x55</span>}).
+        <span class="fn">Options</span>(opts)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// EtherIPUDPDHCP(srcMAC, dstMAC string, xid uint32, msgType uint8)</span>
+<span class="cmt">// 自动使用广播 IP 和 DHCP 客户端/服务器端口</span>
+raw, err := goscapy.<span class="fn">EtherIPUDPDHCP</span>(
+    <span class="str">"00:11:22:33:44:55"</span>,   <span class="cmt">// 客户端 MAC</span>
+    <span class="str">"ff:ff:ff:ff:ff:ff"</span>,   <span class="cmt">// 广播</span>
+    <span class="num">0x12345678</span>,            <span class="cmt">// 事务 ID</span>
+    dhcp.DHCPDISCOVER,      <span class="cmt">// 消息类型</span>
+)</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / UDP / DHCP"</span>
+
+dhcpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"DHCP"</span>)
+
+<span class="cmt">// 获取 DHCP 原始字段</span>
+xid, _ := dhcpLayer.<span class="fn">Get</span>(<span class="str">"xid"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"XID: 0x%08x\n"</span>, xid)
+
+<span class="cmt">// 解析 DHCP 选项</span>
+optsData, _ := dhcpLayer.<span class="fn">Get</span>(<span class="str">"options"</span>)
+opts, _ := dhcp.<span class="fn">ParseDHCPOptions</span>(optsData.([]<span class="type">byte</span>))
+mt := dhcp.<span class="fn">GetMessageType</span>(opts)
+fmt.<span class="fn">Printf</span>(<span class="str">"MessageType=%d (%s)\n"</span>, mt, dhcp.<span class="fn">MessageTypeString</span>(mt))</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. DHCP Offer -->
+      <div class="section" id="dhcp-offer">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>DHCP Offer</h3>
+        </div>
+        <p>构建 DHCP Offer — 服务器对 Discover 的响应。通过 <code>YIAddr</code> 提供 IP 地址，并包含租约选项。服务器将 <code>Op</code> 设为 <code>BOOTREPLY</code>，并在 SIAddr 中填入自己的地址。</p>
+
+        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 服务器提供的 DHCP 选项</span>
+opts := dhcp.<span class="fn">BuildDHCPOptions</span>([]fields.TLVOption{
+    dhcp.<span class="fn">NewMessageTypeOption</span>(dhcp.DHCPOFFER),
+    dhcp.<span class="fn">NewServerIDOption</span>(<span class="str">"192.168.1.1"</span>),
+    dhcp.<span class="fn">NewLeaseTimeOption</span>(<span class="num">86400</span>),            <span class="cmt">// 24 小时</span>
+    dhcp.<span class="fn">NewSubnetMaskOption</span>(<span class="str">"255.255.255.0"</span>),
+    dhcp.<span class="fn">NewRouterOption</span>([]<span class="type">string</span>{<span class="str">"192.168.1.1"</span>}),
+    dhcp.<span class="fn">NewDNSOption</span>([]<span class="type">string</span>{<span class="str">"8.8.8.8"</span>, <span class="str">"8.8.4.4"</span>}),
+    dhcp.<span class="fn">NewDomainOption</span>(<span class="str">"example.com"</span>),
+    dhcp.<span class="fn">EndOption</span>(),
+})
+
+raw, err := goscapy.<span class="fn">NewEthernet</span>().
+    <span class="fn">SrcMAC</span>(<span class="str">"00:aa:bb:cc:dd:ee"</span>).
+    <span class="fn">DstMAC</span>(<span class="str">"00:11:22:33:44:55"</span>).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewIP</span>().
+        <span class="fn">SrcIP</span>(<span class="str">"192.168.1.1"</span>).
+        <span class="fn">DstIP</span>(<span class="str">"255.255.255.255"</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewUDP</span>().
+        <span class="fn">SrcPort</span>(<span class="num">67</span>).
+        <span class="fn">DstPort</span>(<span class="num">68</span>)).
+    <span class="fn">Over</span>(goscapy.<span class="fn">NewDHCP</span>().
+        <span class="fn">Op</span>(dhcp.BOOTREPLY).
+        <span class="fn">XID</span>(<span class="num">0x12345678</span>).
+        <span class="fn">YIAddr</span>(<span class="str">"192.168.1.100"</span>).      <span class="cmt">// 分配的 IP</span>
+        <span class="fn">SIAddr</span>(<span class="str">"192.168.1.1"</span>).        <span class="cmt">// 服务器 IP</span>
+        <span class="fn">CHAddr</span>([]<span class="type">byte</span>{<span class="num">0x00</span>, <span class="num">0x11</span>, <span class="num">0x22</span>, <span class="num">0x33</span>, <span class="num">0x44</span>, <span class="num">0x55</span>}).
+        <span class="fn">Options</span>(opts)).
+    <span class="fn">Build</span>()</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1rem;">🔬 解析</h3>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre>pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
+dhcpLayer := pkt.<span class="fn">GetLayer</span>(<span class="str">"DHCP"</span>)
+
+<span class="cmt">// 读取 BOOTP 头部字段</span>
+yiaddr, _ := dhcpLayer.<span class="fn">Get</span>(<span class="str">"yiaddr"</span>)
+siaddr, _ := dhcpLayer.<span class="fn">Get</span>(<span class="str">"siaddr"</span>)
+fmt.<span class="fn">Printf</span>(<span class="str">"分配 IP: %s  服务器: %s\n"</span>, yiaddr, siaddr)
+
+<span class="cmt">// 解析 DHCP 选项</span>
+optsData, _ := dhcpLayer.<span class="fn">Get</span>(<span class="str">"options"</span>)
+opts, _ := dhcp.<span class="fn">ParseDHCPOptions</span>(optsData.([]<span class="type">byte</span>))
+mt := dhcp.<span class="fn">GetMessageType</span>(opts)
+fmt.<span class="fn">Printf</span>(<span class="str">"MessageType=%s\n"</span>, dhcp.<span class="fn">MessageTypeString</span>(mt))
+
+<span class="cmt">// 查找特定选项</span>
+<span class="kw">if</span> lease := dhcp.<span class="fn">GetDHCPOption</span>(opts, dhcp.OptLeaseTime); lease != <span class="kw">nil</span> {
+    fmt.<span class="fn">Printf</span>(<span class="str">"租约时间: %d 秒\n"</span>,
+        <span class="fn">binary.BigEndian.Uint32</span>(lease.Value))
+}</pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>注意：</strong>DHCP 选项使用 Type-Length-Value (TLV) 编码。<code>BuildDHCPOptions()</code> 将 <code>TLVOption</code> 结构体切片序列化为线格式。务必以 <code>EndOption()</code>（类型 255）结束选项列表。
+        </div>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="../../zh/index.html">首页</a>
+        <a href="basic.html">基础组包</a>
+        <a href="tunnel.html">隧道封装</a>
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+      </span>
+      &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+    </p>
+
+  </div>
+
+  <script src="../../js/particles.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script src="../../js/sidebar.js"></script>
+  <script src="../../js/animations.js"></script>
+</body>
+</html>
