@@ -382,18 +382,31 @@ code {
   color: #E8E4DE;
 }
 
-/* Syntax highlighting */
-.comment { color: #6B7280; font-style: italic; }
-.flag    { color: #D97757; }
-.value   { color: #5B8A72; }
-.cmd     { color: #E8E4DE; }
-.kw      { color: #D97757; }
-.fn      { color: #E8E4DE; }
-.str     { color: #5B8A72; }
-.type    { color: #D4A843; }
-.num     { color: #D4A843; }
-.pkg     { color: #C96464; }
-.cmt     { color: #6B7280; font-style: italic; }
+/* Syntax highlighting — inside dark code blocks */
+.code-body .comment,
+.code-body .cmt     { color: #8B8680; font-style: italic; }
+.code-body .flag    { color: #D97757; }
+.code-body .value   { color: #7EC8A0; }
+.code-body .cmd     { color: #E8E4DE; }
+.code-body .kw      { color: #D97757; font-weight: 500; }
+.code-body .fn      { color: #82AAFF; }
+.code-body .str     { color: #7EC8A0; }
+.code-body .type    { color: #FFCB6B; }
+.code-body .num     { color: #F78C6C; }
+.code-body .pkg     { color: #FFCB6B; }
+
+/* Also target pre > span directly for code blocks without .code-body wrapper */
+pre .comment,
+pre .cmt     { color: #8B8680; font-style: italic; }
+pre .flag    { color: #D97757; }
+pre .value   { color: #7EC8A0; }
+pre .cmd     { color: #E8E4DE; }
+pre .kw      { color: #D97757; font-weight: 500; }
+pre .fn      { color: #82AAFF; }
+pre .str     { color: #7EC8A0; }
+pre .type    { color: #FFCB6B; }
+pre .num     { color: #F78C6C; }
+pre .pkg     { color: #FFCB6B; }
 
 /* Code block with header */
 .code-block {
