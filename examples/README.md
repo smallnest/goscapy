@@ -32,6 +32,31 @@ go run main.go
 | 10 | [包解析](10-dissect/) | 将原始字节解析为结构化包 | `go run main.go` |
 | 16 | [Shortcut 函数](16-shortcuts/) | 所有快捷函数综合示例 | `go run main.go` |
 
+### 🛠️ 真实网络工具（goscapy 实现，需 root）
+
+| # | 工具 | 说明 | 运行 |
+|---|------|------|------|
+| 17 | [Ping](17-ping/) | 真实 ICMP Ping，RTT 测量与统计 | `sudo go run main.go <目标>` |
+| 18 | [Traceroute](18-traceroute/) | 变 TTL 逐跳路由追踪 | `sudo go run main.go <目标>` |
+| 23 | [DNS 客户端](23-dns-client/) | 发送 DNS 查询，解析 A/AAAA/MX 等记录 | `sudo go run main.go <域名>` |
+| 24 | [NTP 客户端](24-ntp-client/) | NTP 时间同步，测量时钟偏移 | `sudo go run main.go` |
+| 26 | [DHCP 客户端](26-dhcp-client/) | DHCP DORA 流程获取 IP | `sudo go run main.go` |
+| 27 | [ARP 扫描器](27-arp-scanner/) | ARP 局域网主机发现 | `sudo go run main.go -cidr 192.168.1.0/24` |
+
+### 🌐 真实网络工具（Go 标准库实现，无需 root）
+
+| # | 工具 | 说明 | 运行 |
+|---|------|------|------|
+| 19 | [TCP Echo Server](19-tcp-echo-server/) | TCP 并发回显服务器 | `go run main.go` |
+| 20 | [TCP Echo Client](20-tcp-echo-client/) | TCP 回显客户端（交互/单次模式） | `go run main.go` |
+| 21 | [UDP Echo Server](21-udp-echo-server/) | UDP 回显服务器 | `go run main.go` |
+| 22 | [UDP Echo Client](22-udp-echo-client/) | UDP 回显客户端 | `go run main.go` |
+| 25 | [HTTP GET](25-http-get/) | 手动构造 HTTP/1.1 GET，解析响应 | `go run main.go <URL>` |
+| 28 | [WoL 发送器](28-wol-sender/) | Wake-on-LAN 魔术包广播 | `go run main.go <MAC>` |
+| 29 | [TFTP 客户端](29-tftp-client/) | TFTP 文件下载 (RRQ) | `go run main.go <服务器> <文件>` |
+| 30 | [WHOIS 客户端](30-whois-client/) | WHOIS 域名信息查询 | `go run main.go <域名>` |
+| 31 | [端口扫描器](31-port-scanner/) | TCP Connect 并发端口扫描 | `go run main.go -p 80,443 <目标>` |
+
 ### 📡 网络操作（需要 root 权限）
 
 | # | 示例 | 说明 | 运行 |
@@ -53,12 +78,18 @@ go run main.go
 
 安全研究路径:
   01 → 02 → 03 → 10 → 11 → 12 → 13 → 14 → 15
+
+真实工具路径:
+  17 (Ping) → 18 (Traceroute) → 23 (DNS) → 27 (ARP Scanner) → 31 (Port Scanner)
+
+全栈网络工具路径:
+  19 (TCP Server) → 20 (TCP Client) → 21 (UDP Server) → 22 (UDP Client) → 25 (HTTP) → 30 (WHOIS)
 ```
 
 ## 权限说明
 
-- **不需要 root**: 示例 01-10, 15, 16（仅构建/解析数据包）
-- **需要 root**: 示例 11-14（发送/嗅探原始套接字）
+- **不需要 root**: 示例 01-10, 15-16, 19-22, 25, 28-31（构建/解析/标准网络库）
+- **需要 root**: 示例 11-14, 17-18, 23-24, 26-27（原始套接字发送/嗅探/收发）
   - macOS: 使用 `sudo go run main.go`
   - Linux: 使用 `sudo go run main.go` 或设置 `CAP_NET_RAW` 能力
 
