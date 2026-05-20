@@ -53,8 +53,8 @@ func main() {
 
 	fmt.Printf("Received %d bytes from %s\n", len(data), srcIP)
 
-	// 2. Convenience SendRaw / RecvRaw functions
-	fmt.Println("\n=== Testing SendRaw / RecvRaw convenience functions ===")
+	// 2. Using a second RawConn to send and receive
+	fmt.Println("\n=== Testing Send / Recv with a second RawConn ===")
 	// Build another ICMP Echo Request payload
 	icmp2 := layers.NewICMPEcho(0x6666, 1)
 	pkt2 := packet.NewFrom(icmp2)
@@ -63,19 +63,28 @@ func main() {
 		log.Fatalf("Failed to build ICMP payload 2: %v", err)
 	}
 
-	fmt.Println("Sending ICMP Echo Request using SendRaw to 127.0.0.1...")
-	err = sendrecv.SendRaw(1, payload2, "127.0.0.1")
+	// Note: SendRaw and RecvRaw each create ephemeral sockets. On loopback,
+	// the ICMP reply may arrive before RecvRaw opens its socket. Use a single
+	// RawConn for send+recv to avoid this race.
+	conn2, err := sendrecv.DialRaw(1)
 	if err != nil {
-		log.Fatalf("SendRaw failed: %v", err)
+		log.Fatalf("Failed to dial raw socket 2: %v", err)
+	}
+	defer conn2.Close()
+
+	fmt.Println("Sending ICMP Echo Request to 127.0.0.1...")
+	err = conn2.Send(payload2, "127.0.0.1")
+	if err != nil {
+		log.Fatalf("Send failed: %v", err)
 	}
 
-	fmt.Println("Waiting for response using RecvRaw...")
-	data2, srcIP2, err := sendrecv.RecvRaw(1, 3*time.Second)
+	fmt.Println("Waiting for response...")
+	data2, srcIP2, err := conn2.Recv(3 * time.Second)
 	if err != nil {
 		if errors.Is(err, sendrecv.ErrTimeout) {
-			log.Fatalf("Timeout waiting for response on RecvRaw")
+			log.Fatalf("Timeout waiting for response")
 		}
-		log.Fatalf("RecvRaw error: %v", err)
+		log.Fatalf("Recv error: %v", err)
 	}
 
 	fmt.Printf("Received %d bytes from %s using RecvRaw\n", len(data2), srcIP2)

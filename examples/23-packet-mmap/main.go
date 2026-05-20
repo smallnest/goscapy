@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -60,7 +61,7 @@ func main() {
 		for {
 			pkt, err := m.Recv(1 * time.Second)
 			if err != nil {
-				if err.Error() == "sendrecv: recv timeout" {
+				if errors.Is(err, sendrecv.ErrTimeout) {
 					continue
 				}
 				errChan <- err

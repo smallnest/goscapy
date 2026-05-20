@@ -8,8 +8,8 @@
 // 特性:
 //   - 支持并发发送 worker 控制（-workers）
 //   - 使用 sync.Map 记录发送时间并精确测量每个存活主机的 RTT (往返时延)
-//   - 对发送的原始套接字应用 drop-all BPF 过滤器，避免内核接收缓冲区被响应填满
-//   - 接收端使用 sniff.SniffChan 进行通道式嗅探，并应用针对性的 BPF 过滤提升性能
+//   - 使用 sendrecv.Send 进行 L3 发送，自动处理 IP_HDRINCL 和平台差异
+//   - 接收端使用 sendrecv.OpenFilteredReceiver 进行带 BPF 过滤的嗅探，提升性能
 //
 // 运行方式: sudo go run main.go -cidr <CIDR> [选项]
 // 示例:     sudo go run main.go -cidr 192.168.1.0/24 -mode icmp
@@ -83,54 +83,52 @@ func main() {
 	}
 	fmt.Println()
 
-	// 2. 准备连接和嗅探
-	var proto int
-	var filterExpr string
-	// 生成唯一的扫描标识
+	// 2. 准备嗅探 — 编译 BPF 过滤器
 	scannerID := uint16(os.Getpid() & 0xffff)
 	sport := uint16(30000 + time.Now().UnixNano()%20000)
 
+	var filterExpr string
 	if modeVal == "icmp" {
-		proto = int(layers.IPProtoICMP)
 		filterExpr = fmt.Sprintf("icmp and dst host %s", srcIP)
 	} else {
-		proto = int(layers.IPProtoTCP)
 		filterExpr = fmt.Sprintf("tcp and dst host %s and dst port %d", srcIP, sport)
 	}
 
-	// 创建专用于发送的 raw socket
-	sendConn, err := sendrecv.DialRaw(proto)
+	// 指定接口编译 BPF 过滤器，避免 macOS PKTAP 数据链路类型问题
+	instructions, err := sniff.CompileFilterOnIface(filterExpr, ifaceVal)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "创建发送 Raw Socket 失败: %v (是否使用了 sudo?)\n", err)
+		fmt.Fprintf(os.Stderr, "警告: BPF 过滤器编译失败 (%v)，将使用无过滤器模式\n", err)
+		instructions = nil
+	}
+
+	// 打开带过滤器的接收器（显式处理错误，避免静默失败）
+	rx, err := sendrecv.OpenFilteredReceiver(ifaceVal, instructions)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "错误: 无法打开接收器: %v\n", err)
 		os.Exit(1)
 	}
-	defer sendConn.Close()
-
-	// 对发送 Socket 应用 drop-all BPF 过滤器，防止内核接收缓冲区被填满
-	dropFilter := []sendrecv.BPFInstruction{
-		{Code: 0x06, K: 0}, // ret 0 (drop all)
-	}
-	if err := sendConn.AttachBPF(dropFilter); err != nil {
-		// macOS 等平台可能不支持直接对 RawConn 附加 BPF，打印提示但继续运行
-		fmt.Printf("[提示] 无法对发送 socket 附加空 BPF 过滤器: %v\n", err)
-	}
-
-	// 开启接收嗅探通道
-	sniffChan, stopSniff := sniff.SniffChan(sniff.SniffConfig{
-		Iface:  ifaceVal,
-		Filter: filterExpr,
-	})
-	defer stopSniff()
+	defer rx.Close()
 
 	// 3. 开启接收协程处理响应并测量时延
 	var aliveCount int32
 	var sentTrack sync.Map // key: targetIP (string), value: time.Time
-	var doneWG sync.WaitGroup
+	recvDone := make(chan struct{})
 
-	doneWG.Add(1)
 	go func() {
-		defer doneWG.Done()
-		for pkt := range sniffChan {
+		defer close(recvDone)
+		deadline := time.Now().Add(*timeout + 500*time.Millisecond)
+		for time.Now().Before(deadline) {
+			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				break
+			}
+			pkt, err := rx.Recv(remaining)
+			if err != nil {
+				// 超时、无有效包（无过滤器模式下常见）等都是正常情况，继续等待
+				// 直到 deadline 到期后自动退出循环
+				continue
+			}
+
 			ipLayer := pkt.GetLayer("IP")
 			if ipLayer == nil {
 				continue
@@ -184,6 +182,7 @@ func main() {
 	}()
 
 	// 4. 并发发送探测包
+	var sendErrCount int32
 	start := time.Now()
 	sem := make(chan struct{}, *workers)
 	var sendWG sync.WaitGroup
@@ -195,7 +194,7 @@ func main() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			// 记录发送时刻
+			// 记录发送时刻 (在发送之前记录，避免 RTT 偏大)
 			sentTrack.Store(targetIP, time.Now())
 
 			// 构造报文
@@ -221,29 +220,24 @@ func main() {
 					Packet()
 			}
 
-			pktBytes, err := pkt.Build()
-			if err != nil {
-				return
+			// 使用 sendrecv.Send 发送 L3 报文 (自动处理 IP_HDRINCL 和平台差异)
+			if err := sendrecv.Send(pkt, ifaceVal); err != nil {
+				sentTrack.Delete(targetIP)
+				atomic.AddInt32(&sendErrCount, 1)
 			}
-
-			// 发送探测包
-			_ = sendConn.Send(pktBytes, targetIP)
 		}(ip)
 	}
 
 	// 等待发送完毕
 	sendWG.Wait()
 
-	// 额外等待 -timeout 保证最后的响应有时间被接收
-	time.Sleep(*timeout)
-
-	// 停止接收，结束接收协程
-	stopSniff()
-	doneWG.Wait()
+	// 等待接收协程处理完所有响应
+	<-recvDone
 
 	elapsed := time.Since(start)
 	fmt.Println("\n------------------------------------------------")
-	fmt.Printf("扫描完成: 总数 %d, 存活 %d, 耗时 %.2f s\n", len(ips), atomic.LoadInt32(&aliveCount), elapsed.Seconds())
+	fmt.Printf("扫描完成: 总数 %d, 存活 %d, 发送失败 %d, 耗时 %.2f s\n",
+		len(ips), atomic.LoadInt32(&aliveCount), atomic.LoadInt32(&sendErrCount), elapsed.Seconds())
 }
 
 func cidrToIPs(cidr string) []string {

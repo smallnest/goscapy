@@ -22,7 +22,23 @@ import (
 //
 //	insns, err := CompileFilter("tcp port 80")
 func CompileFilter(filter string) ([]sendrecv.BPFInstruction, error) {
-	cmd := exec.Command("tcpdump", "-dd", filter)
+	return CompileFilterOnIface(filter, "")
+}
+
+// CompileFilterOnIface compiles a BPF filter expression into raw BPF instructions
+// by shelling out to tcpdump with an optional interface specification.
+// On macOS, specifying the interface avoids issues with PKTAP data link type.
+//
+// Example:
+//
+//	insns, err := CompileFilterOnIface("tcp port 80", "en0")
+func CompileFilterOnIface(filter string, iface string) ([]sendrecv.BPFInstruction, error) {
+	var args []string
+	if iface != "" {
+		args = append(args, "-i", iface)
+	}
+	args = append(args, "-dd", filter)
+	cmd := exec.Command("tcpdump", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

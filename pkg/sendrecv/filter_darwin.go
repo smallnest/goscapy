@@ -40,10 +40,17 @@ func openFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver
 
 	flushBPF(fd)
 
+	// Get Data Link Type (DLT) — needed by Recv to determine packet format.
+	var dlt uint32
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), 0x4004426A, uintptr(unsafe.Pointer(&dlt))); errno != 0 {
+		dlt = 1 // Default to DLT_EN10MB (Ethernet)
+	}
+
 	return &bpfReceiver{
 		fd:    fd,
 		buf:   make([]byte, bufSize),
 		iface: iface,
+		dlt:   dlt,
 	}, nil
 }
 

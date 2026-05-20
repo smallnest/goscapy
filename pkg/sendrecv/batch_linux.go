@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 type mmsghdr struct {
@@ -59,8 +61,8 @@ func (c *BatchConn) SendBatch(msgs []BatchMsg) (int, error) {
 		msgvec[i].Hdr.Iovlen = 1
 	}
 
-	r1, _, errno := syscall.Syscall6(
-		syscall.SYS_SENDMMSG,
+	r1, _, errno := unix.Syscall6(
+		unix.SYS_SENDMMSG,
 		uintptr(c.fd),
 		uintptr(unsafe.Pointer(&msgvec[0])),
 		uintptr(len(msgvec)),
@@ -107,8 +109,8 @@ func (c *BatchConn) RecvBatch(n int, timeout time.Duration) ([]BatchResult, erro
 		timeoutTS = &ts
 	}
 
-	r1, _, errno := syscall.Syscall6(
-		syscall.SYS_RECVMMSG,
+	r1, _, errno := unix.Syscall6(
+		unix.SYS_RECVMMSG,
 		uintptr(c.fd),
 		uintptr(unsafe.Pointer(&msgvec[0])),
 		uintptr(n),
