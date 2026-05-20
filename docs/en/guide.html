@@ -384,6 +384,28 @@ pkt.<span class="fn">HasLayer</span>(<span class="str">"TCP"</span>)       <span
           <div class="admonition-title">📝 Note</div>
           <code>SendRecv</code> opens the receiver <strong>before</strong> sending to avoid missing fast responses on loopback.
         </div>
+
+        <h3>Raw Socket Wrapper (RawConn)</h3>
+        <p>
+          For scenarios where you need direct access to a raw socket without manually handling file descriptors, address translation, and timeout logic, goscapy provides the <code>RawConn</code> object.
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Create a raw connection (1=ICMP, 6=TCP, 17=UDP)</span>
+conn, err := sendrecv.<span class="fn">DialRaw</span>(<span class="num">1</span>)
+<span class="key">if</span> err != <span class="key">nil</span> {
+    log.<span class="fn">Fatal</span>(err)
+}
+<span class="key">defer</span> conn.<span class="fn">Close</span>()
+
+<span class="cmt">// Send raw payload</span>
+err = conn.<span class="fn">Send</span>(data, <span class="str">"127.0.0.1"</span>)
+
+<span class="cmt">// Receive payload and source IP with timeout</span>
+reply, srcIP, err := conn.<span class="fn">Recv</span>(<span class="num">3</span> * time.Second)</pre>
+          </div>
+        </div>
       </div>
 
       <!-- Sniffing -->
