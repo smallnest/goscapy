@@ -460,6 +460,26 @@ ctx, cancel := context.<span class="fn">WithTimeout</span>(context.<span class="
 err = conn.<span class="fn">WaitZeroCopyCompletion</span>(ctx)</pre>
           </div>
         </div>
+
+        <p>
+          对于追求极致吞吐量并希望消除系统调用上下文切换开销的极端高性能场景，你可以使用基于 Linux <code>io_uring</code> 的 <code>UringConn</code> API。它使用内核 SQ/CQ 环形缓冲区实现完全异步的包发送以及批量收发操作（在 macOS 上会直接返回 <code>ErrNotSupported</code>）：
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 创建基于 io_uring 的 raw socket 连接</span>
+conn, err := sendrecv.<span class="fn">DialUringRaw</span>(<span class="num">1</span>) <span class="cmt">// 1 = IPPROTO_ICMP</span>
+
+<span class="cmt">// 异步提交发送 SQE 并返回操作 ID</span>
+opID, err := conn.<span class="fn">Send</span>(payload, <span class="str">"127.0.0.1"</span>)
+
+<span class="cmt">// 等待接收 CQE 并取得数据</span>
+reply, srcIP, err := conn.<span class="fn">Recv</span>(<span class="num">3</span> * time.Second)
+
+<span class="cmt">// 在单次系统调用中批量提交多个发送和接收 SQE 并批量等待 CQE</span>
+results, err := conn.<span class="fn">SendRecvBatch</span>(msgs)</pre>
+          </div>
+        </div>
       </div>
 
       <!-- 嗅探 -->
