@@ -3,6 +3,8 @@ package goscapy
 import (
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/layers/dns"
+	"github.com/smallnest/goscapy/pkg/layers/erspan"
+	"github.com/smallnest/goscapy/pkg/layers/lldp"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -145,5 +147,59 @@ func EtherIPUDPDHCP(srcMAC, dstMAC string, xid uint32, msgType uint8) ([]byte, e
 		Over(NewIP().SrcIP("0.0.0.0").DstIP("255.255.255.255")).
 		Over(NewUDP().SrcPort(68).DstPort(67)).
 		Over(NewDHCP().XID(xid).MessageType(msgType)).
+		Build()
+}
+
+// EtherLLDP builds an Ethernet + LLDP frame with default mandatory TLVs.
+// LLDP uses destination MAC 01:80:c2:00:00:0e (LLDP multicast) and EtherType 0x88CC.
+func EtherLLDP(srcMAC string, du *lldp.LLDPDU) ([]byte, error) {
+	tlvData, err := du.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	return NewEthernet().SrcMAC(srcMAC).DstMAC("01:80:c2:00:00:0e").Type(0x88CC).
+		Over(&rawBuilder{layers.NewRawWith(tlvData)}).
+		Build()
+}
+
+// EtherIPGREERSPAN builds an Ethernet + IP + GRE + ERSPAN v3 packet.
+// GRE protocol type is set to 0x88BE (ERSPAN). The ERSPAN header is serialized
+// from the provided ERSPAN struct.
+func EtherIPGREERSPAN(srcMAC, dstMAC, srcIP, dstIP string, e *erspan.ERSPAN, innerPayload []byte) ([]byte, error) {
+	erspanData, err := e.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	payload := append(erspanData, innerPayload...)
+	return NewEthernet().SrcMAC(srcMAC).DstMAC(dstMAC).
+		Over(NewIP().SrcIP(srcIP).DstIP(dstIP)).
+		Over(NewGRE().ProtocolType(0x88BE)).
+		Over(&rawBuilder{layers.NewRawWith(payload)}).
+		Build()
+}
+
+// IPOSPF builds an IPv4 + OSPF packet with specified header fields.
+// Default: OSPFv2 Hello message, router_id and area_id set from parameters.
+func IPOSPF(srcIP, dstIP, routerID, areaID string, msgType uint8) ([]byte, error) {
+	return NewIP().SrcIP(srcIP).DstIP(dstIP).Proto(89).
+		Over(NewOSPFLayer().RouterID(routerID).AreaID(areaID).Type(msgType)).
+		Build()
+}
+
+// IPTCPBGP builds an IPv4 + TCP + BGP packet.
+// BGP runs on TCP port 179. The BGP message type is set from the type parameter.
+func IPTCPBGP(srcIP, dstIP string, srcPort, dstPort uint16, msgType uint8) ([]byte, error) {
+	return NewIP().SrcIP(srcIP).DstIP(dstIP).
+		Over(NewTCP().SrcPort(srcPort).DstPort(dstPort)).
+		Over(NewBGPLayer().Type(msgType)).
+		Build()
+}
+
+// IPUDPQUIC builds an IPv4 + UDP + QUIC Long Header packet.
+// Default: QUIC v1 with provided connection IDs.
+func IPUDPQUIC(srcIP, dstIP string, srcPort, dstPort uint16, dcid, scid []byte) ([]byte, error) {
+	return NewIP().SrcIP(srcIP).DstIP(dstIP).
+		Over(NewUDP().SrcPort(srcPort).DstPort(dstPort)).
+		Over(NewQUICLayer().DCID(dcid).SCID(scid)).
 		Build()
 }

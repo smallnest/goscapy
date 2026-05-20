@@ -15,6 +15,16 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/vxlan"
 	// Register GRE layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/gre"
+	// Register LLDP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/lldp"
+	// Register ERSPAN layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/erspan"
+	// Register QUIC layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/quic"
+	// Register OSPF layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/ospf"
+	// Register BGP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/bgp"
 )
 
 func init() {
@@ -146,6 +156,28 @@ func init() {
 	// Dot1Q: Ethernet type 0x8100 (single VLAN) and 0x88A8 (QinQ outer).
 	packet.RegisterHeuristic("Ethernet", "type", uint16(0x8100), "Dot1Q")
 	packet.RegisterHeuristic("Ethernet", "type", uint16(0x88A8), "Dot1Q")
+
+	// LLDP: Ethernet type 0x88CC.
+	packet.RegisterHeuristic("Ethernet", "type", uint16(0x88CC), "LLDP")
+	// LLDP over Ethernet → Ether.type = 0x88CC
+	packet.RegisterBinding("LLDP", "Ethernet", "type", uint16(0x88CC))
+
+	// ERSPAN over GRE → GRE.proto = 0x88BE
+	packet.RegisterHeuristic("GRE", "proto", uint16(0x88BE), "ERSPAN")
+	packet.RegisterBinding("ERSPAN", "GRE", "proto", uint16(0x88BE))
+
+	// OSPF: IP protocol 89.
+	packet.RegisterHeuristic("IP", "proto", uint8(89), "OSPF")
+	// OSPF over IP → IP.proto = 89
+	packet.RegisterBinding("OSPF", "IP", "proto", uint8(89))
+
+	// BGP: TCP port 179.
+	packet.RegisterHeuristic("TCP", "dport", uint16(179), "BGP")
+	packet.RegisterHeuristic("TCP", "sport", uint16(179), "BGP")
+
+	// QUIC: UDP port 443.
+	packet.RegisterHeuristic("UDP", "dport", uint16(443), "QUIC")
+	packet.RegisterHeuristic("UDP", "sport", uint16(443), "QUIC")
 
 	// ---- Tunnel payload registrations ----
 
