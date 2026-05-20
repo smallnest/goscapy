@@ -275,6 +275,173 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                     </div>
                 </div>
 
+                <!-- Library Comparison -->
+                <div class="section" id="library-comparison">
+                    <div class="section-title">
+                        <div class="section-dot violet"></div>
+                        <h3>Library Comparison</h3>
+                    </div>
+                    <p>
+                        How does goscapy compare to other standard or popular network libraries in the Go ecosystem? Here is a breakdown of their features and recommended use cases.
+                    </p>
+
+                    <!-- Ability Matrix Table -->
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Core Capability Matrix</h3>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Capability</th>
+                                    <th>🦎 goscapy</th>
+                                    <th>📦 gopacket</th>
+                                    <th>🔵 golang.org/x/net</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Packet Crafting (Builder API)</strong></td>
+                                    <td>Fluent Builder + Shortcut functions</td>
+                                    <td>Requires manual <code>SerializeTo()</code></td>
+                                    <td>Requires manual struct marshalling</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Packet Dissecting (Dissector)</strong></td>
+                                    <td><code>packet.Dissect()</code> auto detection</td>
+                                    <td>Powerful DecodingLayerParser</td>
+                                    <td>Only ICMP/IPv4 message parsing</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>L2 Send/Receive (Raw Socket)</strong></td>
+                                    <td>✅ Ethernet level</td>
+                                    <td>❌ Depends on libpcap</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>L3 Send/Receive (Raw Socket)</strong></td>
+                                    <td>✅ IP level (ip4:tcp/udp/icmp)</td>
+                                    <td>❌</td>
+                                    <td>✅ <code>icmp.ListenPacket</code> / <code>ipv4.RawConn</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Sniffing</strong></td>
+                                    <td>✅ Channel + Callback + BPF</td>
+                                    <td>✅ libpcap/afpacket/pfring</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PCAP Read/Write</strong></td>
+                                    <td>❌</td>
+                                    <td>✅</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>TCP Stream Reassembly</strong></td>
+                                    <td>❌</td>
+                                    <td>✅ tcpassembly</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Auto Checksum</strong></td>
+                                    <td>✅ IP/TCP/UDP/ICMP</td>
+                                    <td>❌ Manual calculation</td>
+                                    <td>❌ Manual calculation</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Layer Binding (Auto Infer)</strong></td>
+                                    <td>✅ Automatically infers adjacent fields</td>
+                                    <td>❌</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>BPF Filter</strong></td>
+                                    <td>✅ Generate + Attach</td>
+                                    <td>✅ Generate + Attach</td>
+                                    <td>✅ <code>bpf.Assemble()</code> generation</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Protocol Coverage</strong></td>
+                                    <td>Ethernet, ARP, IP, TCP, UDP, ICMP</td>
+                                    <td>200+ protocols decoded</td>
+                                    <td>icmp, ipv4, bpf, etc.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Cross-Platform</strong></td>
+                                    <td>✅ Darwin + Linux</td>
+                                    <td>✅ Multi-platform</td>
+                                    <td>✅ Multi-platform</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Design Philosophy</strong></td>
+                                    <td>Scapy-like, elegant &amp; simple</td>
+                                    <td>Comprehensive decoding, academic/analysis</td>
+                                    <td>Lightweight standard library extension</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Recommended Scenarios Cards -->
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Recommended Scenarios</h3>
+                    <div class="cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot terracotta"></div>
+                                <h4>🚀 Custom Packet Crafting</h4>
+                            </div>
+                            <p><strong>Recommended: goscapy</strong></p>
+                            <p>Fluent builder API and one-line SendRecv functions get the job done instantly without boilerplate.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot sage"></div>
+                                <h4>📊 PCAP Analysis</h4>
+                            </div>
+                            <p><strong>Recommended: gopacket</strong></p>
+                            <p>Best-in-class support for PCAP read/write and TCP stream reassembly (tcpassembly).</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot plum"></div>
+                                <h4>⚡ Diagnostics &amp; Scanning</h4>
+                            </div>
+                            <p><strong>Recommended: goscapy</strong></p>
+                            <p>Perfect for building ping, traceroute, scanning, or probing tools with automatic checksums.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot blue"></div>
+                                <h4>⚡ High-Performance Sniffing</h4>
+                            </div>
+                            <p><strong>Recommended: gopacket</strong></p>
+                            <p>Supports low-level zero-copy sniffing with afpacket and pfring for high-throughput environments.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot amber"></div>
+                                <h4>🔵 Standard ICMP Only</h4>
+                            </div>
+                            <p><strong>Recommended: x/net/icmp</strong></p>
+                            <p>The most lightweight and zero-dependency solution if you only need standard ICMP functionality.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot violet"></div>
+                                <h4>🔬 Protocol Reverse Engineering</h4>
+                            </div>
+                            <p><strong>Recommended: gopacket</strong></p>
+                            <p>Decodes over 200+ protocols, making it suitable for deep security analysis and research.</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot teal"></div>
+                                <h4>📦 Zero CGO Dependencies</h4>
+                            </div>
+                            <p><strong>Recommended: goscapy or x/net</strong></p>
+                            <p>goscapy is written in pure Go without CGO or libpcap dependencies, unlike gopacket which requires libpcap C libraries.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Supported Protocols -->
                 <div class="section" id="protocols">
                     <div class="section-title">
