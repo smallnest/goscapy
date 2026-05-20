@@ -1,128 +1,170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>goscapy — Go 网络数据包构建库</title>
-  <meta name="description" content="纯 Go 语言实现的网络数据包构建、解析、发送、接收和嗅探库，提供类型安全的 Builder API 和一行式快捷函数。">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
-  <link rel="stylesheet" href="../css/style.css">
-</head>
-<body>
-  <canvas id="particleCanvas"></canvas>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>goscapy — Go 网络数据包构建库</title>
+        <meta
+            name="description"
+            content="纯 Go 语言实现的网络数据包构建、解析、发送、接收和嗅探库，提供类型安全的 Builder API 和一行式快捷函数。"
+        />
+        <link
+            rel="icon"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>"
+        />
+        <link rel="stylesheet" href="../css/style.css" />
+    </head>
+    <body>
+        <canvas id="particleCanvas"></canvas>
 
-  <div class="container">
+        <div class="container">
+            <!-- 页头 -->
+            <div id="navbar"></div>
 
-    <!-- 页头 -->
-    <div id="navbar"></div>
+            <main id="mainContent">
+                <!-- 核心特性 -->
+                <div class="section" id="features">
+                    <div class="section-title">
+                        <div class="section-dot terracotta"></div>
+                        <h3>核心特性</h3>
+                    </div>
+                    <p>
+                        从构建到嗅探 — goscapy 用简洁、地道的 Go API
+                        覆盖完整的数据包生命周期。
+                    </p>
+                    <div class="cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot terracotta"></div>
+                                <h4>🔨 Builder API</h4>
+                            </div>
+                            <p>
+                                流畅的方法链式调用，实现类型安全、显式的数据包构建，编译时即可保证正确性。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot sage"></div>
+                                <h4>⚡ 快捷函数</h4>
+                            </div>
+                            <p>
+                                针对常用协议栈的一行式构建函数，内置合理默认值，一个函数调用即可构建数据包。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot plum"></div>
+                                <h4>🔬 数据包解析</h4>
+                            </div>
+                            <p>
+                                将原始字节解析为结构化数据包，支持自动协议检测和分层提取。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot blue"></div>
+                                <h4>📡 发送与接收</h4>
+                            </div>
+                            <p>
+                                通过原始套接字在 L2（以太网）和
+                                L3（IP）层级发送和接收数据包。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot amber"></div>
+                                <h4>👃 数据包嗅探</h4>
+                            </div>
+                            <p>
+                                支持回调和通道两种方式的实时流量捕获，内置 BPF
+                                过滤器支持。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot teal"></div>
+                                <h4>✅ 自动校验和</h4>
+                            </div>
+                            <p>
+                                IP、TCP、UDP 和 ICMP
+                                校验和在序列化时自动计算，无需手动处理。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot violet"></div>
+                                <h4>🔗 层绑定</h4>
+                            </div>
+                            <p>
+                                相邻层之间自动推断字段 — IP
+                                叠加在以太网上会自动设置 EtherType。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot coral"></div>
+                                <h4>💻 跨平台</h4>
+                            </div>
+                            <p>
+                                支持 macOS（Darwin）和
+                                Linux，使用平台特定的原始套接字实现。
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-    <main id="mainContent">
+                <!-- 对比示例: Ping -->
+                <div class="section" id="comparison">
+                    <div class="section-title">
+                        <div class="section-dot coral"></div>
+                        <h3>三种方式写 Ping — 感受 goscapy 的简洁</h3>
+                    </div>
+                    <p>
+                        同样的任务 — 构建 ICMP 回显请求、发送、接收回复 — 分别用
+                        Python Scapy、goscapy 和 Go 标准库实现。看看 goscapy
+                        如何将 Scapy 的优雅带入 Go。
+                    </p>
 
-      <!-- 核心特性 -->
-      <div class="section" id="features">
-        <div class="section-title">
-          <div class="section-dot terracotta"></div>
-          <h3>核心特性</h3>
-        </div>
-        <p>从构建到嗅探 — goscapy 用简洁、地道的 Go API 覆盖完整的数据包生命周期。</p>
-        <div class="cards">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot terracotta"></div>
-              <h4>🔨 Builder API</h4>
-            </div>
-            <p>流畅的方法链式调用，实现类型安全、显式的数据包构建，编译时即可保证正确性。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot sage"></div>
-              <h4>⚡ 快捷函数</h4>
-            </div>
-            <p>针对常用协议栈的一行式构建函数，内置合理默认值，一个函数调用即可构建数据包。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot plum"></div>
-              <h4>🔬 数据包解析</h4>
-            </div>
-            <p>将原始字节解析为结构化数据包，支持自动协议检测和分层提取。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot blue"></div>
-              <h4>📡 发送与接收</h4>
-            </div>
-            <p>通过原始套接字在 L2（以太网）和 L3（IP）层级发送和接收数据包。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot amber"></div>
-              <h4>👃 数据包嗅探</h4>
-            </div>
-            <p>支持回调和通道两种方式的实时流量捕获，内置 BPF 过滤器支持。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot teal"></div>
-              <h4>✅ 自动校验和</h4>
-            </div>
-            <p>IP、TCP、UDP 和 ICMP 校验和在序列化时自动计算，无需手动处理。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot violet"></div>
-              <h4>🔗 层绑定</h4>
-            </div>
-            <p>相邻层之间自动推断字段 — IP 叠加在以太网上会自动设置 EtherType。</p>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-dot coral"></div>
-              <h4>💻 跨平台</h4>
-            </div>
-            <p>支持 macOS（Darwin）和 Linux，使用平台特定的原始套接字实现。</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 对比示例: Ping -->
-      <div class="section" id="comparison">
-        <div class="section-title">
-          <div class="section-dot coral"></div>
-          <h3>三种方式写 Ping — 感受 goscapy 的简洁</h3>
-        </div>
-        <p>同样的任务 — 构建 ICMP 回显请求、发送、接收回复 — 分别用 Python Scapy、goscapy 和 Go 标准库实现。看看 goscapy 如何将 Scapy 的优雅带入 Go。</p>
-
-        <div class="compare-grid">
-          <!-- Python Scapy -->
-          <div class="compare-card">
-            <div class="compare-header">
-              <span class="compare-lang">🐍 Python Scapy</span>
-              <span class="compare-lines">~4 行</span>
-            </div>
-            <div class="code-block">
-              <div class="code-header"><span class="code-lang">python</span><button class="code-copy">Copy</button></div>
-              <div class="code-body">
-<pre><span class="kw">from</span> scapy.all <span class="kw">import</span> *
+                    <div class="compare-grid">
+                        <!-- Python Scapy -->
+                        <div class="compare-card">
+                            <div class="compare-header">
+                                <span class="compare-lang"
+                                    >🐍 Python Scapy</span
+                                >
+                                <span class="compare-lines">~4 行</span>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-lang">python</span
+                                    ><button class="code-copy">Copy</button>
+                                </div>
+                                <div class="code-body">
+                                    <pre><span class="kw">from</span> scapy.all <span class="kw">import</span> *
 
 <span class="cmt"># 一行搞定：构建 + 发送 + 接收</span>
 ans = sr1(IP(dst=<span class="str">"8.8.8.8"</span>) /
           ICMP(), timeout=<span class="num">3</span>)
 ans.<span class="fn">show</span>()</pre>
-              </div>
-            </div>
-          </div>
+                                </div>
+                            </div>
+                        </div>
 
-          <!-- goscapy -->
-          <div class="compare-card compare-highlight">
-            <div class="compare-header">
-              <span class="compare-lang">🦎 goscapy（本项目）</span>
-              <span class="compare-lines">~6 行</span>
-            </div>
-            <div class="code-block">
-              <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-              <div class="code-body">
-<pre><span class="cmt">// 构建 + 发送 + 接收第一个回复</span>
+                        <!-- goscapy -->
+                        <div class="compare-card compare-highlight">
+                            <div class="compare-header">
+                                <span class="compare-lang"
+                                    >🦎 goscapy（本项目）</span
+                                >
+                                <span class="compare-lines">~4 行</span>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-lang">go</span
+                                    ><button class="code-copy">Copy</button>
+                                </div>
+                                <div class="code-body">
+                                    <pre><span class="cmt">// 构建 + 发送 + 接收第一个回复</span>
 pkt, _ := goscapy.<span class="fn">NewIP</span>().
     <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
     <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
@@ -132,20 +174,25 @@ pkt, _ := goscapy.<span class="fn">NewIP</span>().
 _, resp, _ := sendrecv.<span class="fn">SendRecv1</span>(
     pkt, <span class="str">"eth0"</span>, <span class="num">3</span>*time.Second)
 fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
-              </div>
-            </div>
-          </div>
+                                </div>
+                            </div>
+                        </div>
 
-          <!-- Go stdlib -->
-          <div class="compare-card">
-            <div class="compare-header">
-              <span class="compare-lang">🔵 Go net（标准库）</span>
-              <span class="compare-lines">~30+ 行</span>
-            </div>
-            <div class="code-block">
-              <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
-              <div class="code-body">
-<pre><span class="cmt">// 手动构造 ICMP 头</span>
+                        <!-- Go stdlib -->
+                        <div class="compare-card">
+                            <div class="compare-header">
+                                <span class="compare-lang"
+                                    >🔵 Go net（标准库）</span
+                                >
+                                <span class="compare-lines">~40+ 行</span>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-lang">go</span
+                                    ><button class="code-copy">Copy</button>
+                                </div>
+                                <div class="code-body">
+                                    <pre><span class="cmt">// 手动构造 ICMP 头</span>
 <span class="kw">type</span> icmpMsg <span class="kw">struct</span> {
     Type <span class="type">uint8</span>
     Code <span class="type">uint8</span>
@@ -163,96 +210,151 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
 <span class="cmt">// 无分层解析</span>
 <span class="cmt">// 无自动校验和</span>
 <span class="cmt">// 无跨平台抽象</span></pre>
-              </div>
-            </div>
-          </div>
-        </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-        <div class="table-wrapper" style="margin-top:1.5rem;">
-          <table>
-            <thead>
-              <tr><th>特性</th><th>🐍 Scapy</th><th>🦎 goscapy</th><th>🔵 Go 标准库</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>构建 ICMP 包</td><td>1 行</td><td>1 条链式调用</td><td>手动结构体 + 序列化</td></tr>
-              <tr><td>校验和</td><td>自动 ✅</td><td>自动 ✅</td><td>手动 ❌</td></tr>
-              <tr><td>发送 + 接收</td><td><code>sr1()</code></td><td><code>SendRecv1()</code></td><td>套接字 + 读取循环</td></tr>
-              <tr><td>解析响应</td><td>自动 ✅</td><td>自动 ✅</td><td>手动解析 ❌</td></tr>
-              <tr><td>性能</td><td>解释执行 🐢</td><td>编译执行 ⚡</td><td>编译执行 ⚡</td></tr>
-              <tr><td>类型安全</td><td>动态类型</td><td>编译时检查 ✅</td><td>手动保证</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <div class="table-wrapper" style="margin-top: 1.5rem">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>特性</th>
+                                    <th>🐍 Scapy</th>
+                                    <th>🦎 goscapy</th>
+                                    <th>🔵 Go 标准库</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>构建 ICMP 包</td>
+                                    <td>1 行</td>
+                                    <td>1 条链式调用</td>
+                                    <td>手动结构体 + 序列化</td>
+                                </tr>
+                                <tr>
+                                    <td>校验和</td>
+                                    <td>自动 ✅</td>
+                                    <td>自动 ✅</td>
+                                    <td>手动 ❌</td>
+                                </tr>
+                                <tr>
+                                    <td>发送 + 接收</td>
+                                    <td><code>sr1()</code></td>
+                                    <td><code>SendRecv1()</code></td>
+                                    <td>套接字 + 读取循环</td>
+                                </tr>
+                                <tr>
+                                    <td>解析响应</td>
+                                    <td>自动 ✅</td>
+                                    <td>自动 ✅</td>
+                                    <td>手动解析 ❌</td>
+                                </tr>
+                                <tr>
+                                    <td>性能</td>
+                                    <td>解释执行 🐢</td>
+                                    <td>编译执行 ⚡</td>
+                                    <td>编译执行 ⚡</td>
+                                </tr>
+                                <tr>
+                                    <td>类型安全</td>
+                                    <td>动态类型</td>
+                                    <td>编译时检查 ✅</td>
+                                    <td>手动保证</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-      <!-- 支持的协议 -->
-      <div class="section" id="protocols">
-        <div class="section-title">
-          <div class="section-dot sage"></div>
-          <h3>支持的协议</h3>
-        </div>
-        <p>全面覆盖网络协议栈各层。</p>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr><th>层级</th><th>协议</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><span class="layer-badge layer-link">链路层</span></td>
-                <td>Ethernet（CSMA/CD）、ARP</td>
-              </tr>
-              <tr>
-                <td><span class="layer-badge layer-network">网络层</span></td>
-                <td>IPv4</td>
-              </tr>
-              <tr>
-                <td><span class="layer-badge layer-transport">传输层</span></td>
-                <td>TCP、UDP、ICMP</td>
-              </tr>
-              <tr>
-                <td><span class="layer-badge layer-payload">载荷层</span></td>
-                <td>Raw 原始字节</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                <!-- 支持的协议 -->
+                <div class="section" id="protocols">
+                    <div class="section-title">
+                        <div class="section-dot sage"></div>
+                        <h3>支持的协议</h3>
+                    </div>
+                    <p>全面覆盖网络协议栈各层。</p>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>层级</th>
+                                    <th>协议</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge layer-link"
+                                            >链路层</span
+                                        >
+                                    </td>
+                                    <td>Ethernet（CSMA/CD）、ARP</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge layer-network"
+                                            >网络层</span
+                                        >
+                                    </td>
+                                    <td>IPv4</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span
+                                            class="layer-badge layer-transport"
+                                            >传输层</span
+                                        >
+                                    </td>
+                                    <td>TCP、UDP、ICMP</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge layer-payload"
+                                            >载荷层</span
+                                        >
+                                    </td>
+                                    <td>Raw 原始字节</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-      <!-- 安装 -->
-      <div class="section" id="install">
-        <div class="section-title">
-          <div class="section-dot plum"></div>
-          <h3>几秒即可开始</h3>
-        </div>
-        <p>只需一条命令即可将 goscapy 添加到你的项目中。</p>
-        <div class="code-block">
-          <div class="code-header">
-            <span class="code-lang">bash</span>
-            <button class="code-copy">Copy</button>
-          </div>
-          <div class="code-body">
-<pre><span class="cmt"># 安装最新版本</span>
+                <!-- 安装 -->
+                <div class="section" id="install">
+                    <div class="section-title">
+                        <div class="section-dot plum"></div>
+                        <h3>几秒即可开始</h3>
+                    </div>
+                    <p>只需一条命令即可将 goscapy 添加到你的项目中。</p>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">bash</span>
+                            <button class="code-copy">Copy</button>
+                        </div>
+                        <div class="code-body">
+                            <pre><span class="cmt"># 安装最新版本</span>
 <span class="kw">go</span> get github.com/smallnest/goscapy</pre>
-          </div>
-        </div>
-      </div>
+                        </div>
+                    </div>
+                </div>
 
-      <!-- 快速开始 -->
-      <div class="section" id="quickstart">
-        <div class="section-title">
-          <div class="section-dot amber"></div>
-          <h3>一行代码构建数据包</h3>
-        </div>
+                <!-- 快速开始 -->
+                <div class="section" id="quickstart">
+                    <div class="section-title">
+                        <div class="section-dot amber"></div>
+                        <h3>一行代码构建数据包</h3>
+                    </div>
 
-        <h3 style="margin-top:1rem;">🔨 Builder API</h3>
-        <div class="code-block">
-          <div class="code-header">
-            <span class="code-lang">go</span>
-            <button class="code-copy">Copy</button>
-          </div>
-          <div class="code-body">
-<pre><span class="cmt">// Ethernet + IP + ICMP Echo Request</span>
+                    <h3 style="margin-top: 1rem">🔨 Builder API</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">go</span>
+                            <button class="code-copy">Copy</button>
+                        </div>
+                        <div class="code-body">
+                            <pre><span class="cmt">// Ethernet + IP + ICMP Echo Request</span>
 pkt, err := <span class="fn">goscapy.NewEthernet</span>().
     <span class="fn">SrcMAC</span>(<span class="str">"aa:bb:cc:dd:ee:ff"</span>).
     <span class="fn">DstMAC</span>(<span class="str">"ff:ff:ff:ff:ff:ff"</span>).
@@ -262,58 +364,69 @@ pkt, err := <span class="fn">goscapy.NewEthernet</span>().
     <span class="fn">Over</span>(<span class="fn">goscapy.NewICMP</span>().
         <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
     <span class="fn">Build</span>()</pre>
-          </div>
-        </div>
+                        </div>
+                    </div>
 
-        <h3 style="margin-top:1rem;">⚡ 快捷函数</h3>
-        <div class="code-block">
-          <div class="code-header">
-            <span class="code-lang">go</span>
-            <button class="code-copy">Copy</button>
-          </div>
-          <div class="code-body">
-<pre><span class="cmt">// 同样的数据包，一行搞定</span>
+                    <h3 style="margin-top: 1rem">⚡ 快捷函数</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">go</span>
+                            <button class="code-copy">Copy</button>
+                        </div>
+                        <div class="code-body">
+                            <pre><span class="cmt">// 同样的数据包，一行搞定</span>
 pkt, err := <span class="fn">goscapy.EtherIPICMP</span>(
     <span class="str">"ff:ff:ff:ff:ff:ff"</span>,
     <span class="str">"8.8.8.8"</span>,
     <span class="num">8</span>, <span class="num">0</span>,
 )</pre>
-          </div>
-        </div>
+                        </div>
+                    </div>
 
-        <h3 style="margin-top:1rem;">🔬 解析原始字节</h3>
-        <div class="code-block">
-          <div class="code-header">
-            <span class="code-lang">go</span>
-            <button class="code-copy">Copy</button>
-          </div>
-          <div class="code-body">
-<pre><span class="cmt">// 将原始字节解析为结构化数据包</span>
+                    <h3 style="margin-top: 1rem">🔬 解析原始字节</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-lang">go</span>
+                            <button class="code-copy">Copy</button>
+                        </div>
+                        <div class="code-body">
+                            <pre><span class="cmt">// 将原始字节解析为结构化数据包</span>
 raw := []<span class="type">byte</span>{<span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, ...}
 pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
 fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span></pre>
-          </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 页脚 -->
+            <p class="footer">
+                <span class="footer-links">
+                    <a
+                        href="https://github.com/smallnest/goscapy"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://pkg.go.dev/github.com/smallnest/goscapy"
+                        target="_blank"
+                        rel="noopener"
+                        >Go Reference</a
+                    >
+                    <a
+                        href="https://github.com/smallnest/goscapy/blob/main/LICENSE"
+                        >MIT 许可证</a
+                    >
+                </span>
+                &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+            </p>
         </div>
-      </div>
 
-    </main>
-
-    <!-- 页脚 -->
-    <p class="footer">
-      <span class="footer-links">
-        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
-        <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT 许可证</a>
-      </span>
-      &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
-    </p>
-
-  </div>
-
-  <!-- 脚本 -->
-  <script src="../js/particles.js"></script>
-  <script src="../js/nav.js"></script>
-  <script src="../js/sidebar.js"></script>
-  <script src="../js/animations.js"></script>
-</body>
+        <!-- 脚本 -->
+        <script src="../js/particles.js"></script>
+        <script src="../js/nav.js"></script>
+        <script src="../js/sidebar.js"></script>
+        <script src="../js/animations.js"></script>
+    </body>
 </html>

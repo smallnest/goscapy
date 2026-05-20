@@ -124,6 +124,50 @@ func SendRecv1(pkt *packet.Packet, iface string, timeout time.Duration) (*packet
 	return pkt, responses[0], nil
 }
 
+// SendRecvFiltered is like SendRecv but applies a BPF filter to the receiver,
+// so only packets matching the filter are captured.
+func SendRecvFiltered(pkt *packet.Packet, iface string, timeout time.Duration, instructions []BPFInstruction) (*packet.Packet, []*packet.Packet, error) {
+	rx, err := OpenFilteredReceiver(iface, instructions)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sendrecv: SendRecvFiltered open receiver: %w", err)
+	}
+	defer rx.Close()
+
+	if err := Send(pkt, iface); err != nil {
+		return nil, nil, fmt.Errorf("sendrecv: SendRecvFiltered send: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+	var responses []*packet.Packet
+
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+
+		resp, err := rx.Recv(remaining)
+		if err != nil {
+			break
+		}
+		responses = append(responses, resp)
+	}
+
+	return pkt, responses, nil
+}
+
+// SendRecvFiltered1 is like SendRecv1 but applies a BPF filter.
+func SendRecvFiltered1(pkt *packet.Packet, iface string, timeout time.Duration, instructions []BPFInstruction) (*packet.Packet, *packet.Packet, error) {
+	_, responses, err := SendRecvFiltered(pkt, iface, timeout, instructions)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(responses) == 0 {
+		return pkt, nil, nil
+	}
+	return pkt, responses[0], nil
+}
+
 // Platform-specific implementations are provided in:
 //   - sendrecv_darwin.go (macOS: BPF + AF_INET)
 //   - sendrecv_linux.go  (Linux: AF_PACKET + AF_INET)
