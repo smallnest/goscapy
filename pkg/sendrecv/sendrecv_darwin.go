@@ -130,6 +130,7 @@ type bpfReceiver struct {
 	buf   []byte
 	iface string
 	queue []*packet.Packet // packets parsed from last batch read but not yet returned
+	dlt   uint32
 }
 
 func openReceiver(iface string) (Receiver, error) {
@@ -155,14 +156,26 @@ func openReceiver(iface string) (Receiver, error) {
 		_ = err
 	}
 
-	// Flush any stale packets.
-	flushBPF(fd)
+	// Get Data Link Type (DLT).
+	var dlt uint32
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), 0x4004426A, uintptr(unsafe.Pointer(&dlt))); errno != 0 {
+		dlt = 1 // Default to DLT_EN10MB (Ethernet)
+	}
 
 	return &bpfReceiver{
 		fd:    fd,
 		buf:   make([]byte, bufSize),
 		iface: iface,
+		dlt:   dlt,
 	}, nil
+}
+
+func ipStartFn(_ []byte) (string, error) {
+	return "IP", nil
+}
+
+func ip6StartFn(_ []byte) (string, error) {
+	return "IPv6", nil
 }
 
 func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
@@ -220,7 +233,26 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 		raw := make([]byte, pktLen)
 		copy(raw, data[pktStart:pktStart+pktLen])
 
-		pkt, err := packet.Dissect(raw, ethernetStartFn)
+		var pkt *packet.Packet
+		if r.dlt == 0 { // DLT_NULL (loopback)
+			if len(raw) >= 4 {
+				family := *(*uint32)(unsafe.Pointer(&raw[0]))
+				if family == 2 { // PF_INET (IPv4)
+					pkt, err = packet.Dissect(raw[4:], ipStartFn)
+				} else if family == 30 { // PF_INET6 (IPv6)
+					pkt, err = packet.Dissect(raw[4:], ip6StartFn)
+				} else {
+					data = data[alignedLen:]
+					continue
+				}
+			} else {
+				data = data[alignedLen:]
+				continue
+			}
+		} else { // DLT_EN10MB (Ethernet)
+			pkt, err = packet.Dissect(raw, ethernetStartFn)
+		}
+
 		if err != nil {
 			// Skip malformed packets and continue to the next one.
 			data = data[alignedLen:]
