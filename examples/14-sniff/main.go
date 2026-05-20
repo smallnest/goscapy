@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -30,7 +31,7 @@ func main() {
 	fmt.Println("=== goscapy 示例 14: 包嗅探 ===")
 	fmt.Println()
 
-	iface := "en0"
+	iface := defaultIface()
 	if len(os.Args) > 1 {
 		iface = os.Args[1]
 	}
@@ -179,4 +180,21 @@ func main() {
 	fmt.Println("  \"not port 22\"       - 排除 SSH")
 	fmt.Println()
 	fmt.Println("下一步: 运行 15-bpf-filter 示例，学习 BPF 过滤器编译")
+}
+
+func defaultIface() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "en0"
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		if len(addrs) > 0 {
+			return iface.Name
+		}
+	}
+	return "en0"
 }

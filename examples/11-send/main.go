@@ -20,6 +20,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/smallnest/goscapy/pkg/goscapy"
@@ -37,7 +38,7 @@ func main() {
 	// 网络接口是发送数据包的出口，例如:
 	//   macOS: en0 (Wi-Fi), en1 (以太网), lo0 (回环)
 	//   Linux: eth0, wlan0, lo
-	iface := "en0"
+	iface := sendrecv.LoopbackName() // 因为本示例默认目的地是 127.0.0.1 (回环地址)
 	if len(os.Args) > 1 {
 		iface = os.Args[1]
 	}
@@ -134,4 +135,21 @@ func main() {
 	fmt.Println("  - Ping、端口扫描                     - 自定义 Ethernet 帧")
 	fmt.Println()
 	fmt.Println("下一步: 运行 12-sendrecv 示例，学习发送并接收响应")
+}
+
+func defaultIface() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "en0"
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		if len(addrs) > 0 {
+			return iface.Name
+		}
+	}
+	return "en0"
 }

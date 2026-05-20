@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -31,14 +32,22 @@ func main() {
 	fmt.Println("=== goscapy 示例 13: TCP SYN 端口扫描 ===")
 	fmt.Println()
 
-	iface := "en0"
 	targetIP := "127.0.0.1"
+	if len(os.Args) > 2 {
+		targetIP = os.Args[2]
+	}
 
+	iface := ""
 	if len(os.Args) > 1 {
 		iface = os.Args[1]
 	}
-	if len(os.Args) > 2 {
-		targetIP = os.Args[2]
+
+	if iface == "" {
+		if isLocalIP(targetIP) {
+			iface = sendrecv.LoopbackName()
+		} else {
+			iface = defaultIface()
+		}
 	}
 
 	fmt.Printf("目标: %s, 接口: %s\n", targetIP, iface)
@@ -134,4 +143,49 @@ func scanPort(iface, targetIP string, port uint16) string {
 	}
 
 	return fmt.Sprintf("未知 (TCP 标志: 0x%02x)", tcpFlags)
+}
+
+func defaultIface() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "en0"
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		if len(addrs) > 0 {
+			return iface.Name
+		}
+	}
+	return "en0"
+}
+
+func isLocalIP(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return false
+	}
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				if ipnet.IP.Equal(ip) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

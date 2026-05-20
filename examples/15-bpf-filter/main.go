@@ -82,7 +82,7 @@ func main() {
 
 	// 使用预编译的指令创建 SniffConfig
 	_ = sniff.SniffConfig{
-		Iface:        "en0",
+		Iface:        sendrecv.LoopbackName(),
 		Instructions: instructions,  // 预编译的 BPF 指令
 		Count:        10,
 	}
@@ -106,7 +106,7 @@ func main() {
 	fmt.Println()
 
 	// 也可以用于 OpenFilteredReceiver
-	_, _ = sendrecv.OpenFilteredReceiver("en0", manualInstructions)
+	_, _ = sendrecv.OpenFilteredReceiver(sendrecv.LoopbackName(), manualInstructions)
 	fmt.Println("  可传给 sendrecv.OpenFilteredReceiver 或 SniffConfig.Instructions")
 	fmt.Println()
 

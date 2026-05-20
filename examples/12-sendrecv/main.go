@@ -21,6 +21,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"time"
 
@@ -33,7 +34,7 @@ func main() {
 	fmt.Println("=== goscapy 示例 12: 发送并接收 ===")
 	fmt.Println()
 
-	iface := "en0"
+	iface := sendrecv.LoopbackName() // 因为本示例默认目的地是 127.0.0.1 (回环地址)
 	if len(os.Args) > 1 {
 		iface = os.Args[1]
 	}
@@ -188,4 +189,21 @@ func main() {
 	fmt.Println("    → 打开带 BPF 过滤的接收器")
 	fmt.Println()
 	fmt.Println("下一步: 运行 13-tcp-syn-scan 示例，学习 TCP 端口扫描")
+}
+
+func defaultIface() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "en0"
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		if len(addrs) > 0 {
+			return iface.Name
+		}
+	}
+	return "en0"
 }

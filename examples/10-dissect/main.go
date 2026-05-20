@@ -99,14 +99,14 @@ func main() {
 		fmt.Printf("    类型:     0x%04x\n", etherType)
 	}
 
-	// 访问 IPv4 层
-	ipLayer := dissectedPkt.GetLayer("IPv4")
+	// 访问 IP 层 (IPv4)
+	ipLayer := dissectedPkt.GetLayer("IP")
 	if ipLayer != nil {
 		srcIP, _ := ipLayer.Get("src")
 		dstIP, _ := ipLayer.Get("dst")
 		ttl, _ := ipLayer.Get("ttl")
 		proto, _ := ipLayer.Get("proto")
-		fmt.Printf("  IPv4:\n")
+		fmt.Printf("  IP (IPv4):\n")
 		fmt.Printf("    源 IP:  %v\n", srcIP)
 		fmt.Printf("    目标 IP: %v\n", dstIP)
 		fmt.Printf("    TTL:    %v\n", ttl)
@@ -170,7 +170,7 @@ func main() {
 	fmt.Println()
 
 	fmt.Printf("  包含 Ethernet 层? %v\n", dissectedPkt.HasLayer("Ethernet"))
-	fmt.Printf("  包含 IPv4 层?     %v\n", dissectedPkt.HasLayer("IPv4"))
+	fmt.Printf("  包含 IP 层?       %v\n", dissectedPkt.HasLayer("IP"))
 	fmt.Printf("  包含 TCP 层?      %v\n", dissectedPkt.HasLayer("TCP"))
 	fmt.Printf("  包含 UDP 层?      %v\n", dissectedPkt.HasLayer("UDP"))
 	fmt.Printf("  总层数:           %d\n", dissectedPkt.Len())
@@ -182,7 +182,7 @@ func main() {
 	fmt.Println("--- 解析 API 参考 ---")
 	fmt.Println()
 	fmt.Println("  packet.DissectByProto(raw, \"Ethernet\")  - 从 Ethernet 开始解析")
-	fmt.Println("  packet.DissectByProto(raw, \"IPv4\")      - 从 IPv4 开始解析 (无 Ethernet)")
+	fmt.Println("  packet.DissectByProto(raw, \"IP\")        - 从 IP (IPv4) 开始解析 (无 Ethernet)")
 	fmt.Println("  packet.DissectByProto(raw, \"IPv6\")      - 从 IPv6 开始解析")
 	fmt.Println()
 	fmt.Println("  pkt.GetLayer(\"TCP\")   - 获取指定协议层")
