@@ -4,13 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 )
 
 // RawConn represents a raw socket connection.
 type RawConn struct {
-	fd int
+	fd            int
+	zeroCopy      bool
+	zeroCopyMu    sync.Mutex
+	nextSendSeq   uint32
+	completed     map[uint32]bool
+	lowestPending uint32
 }
 
 // Send transmits raw payload bytes to the target destination IP.
@@ -31,7 +37,15 @@ func (c *RawConn) Send(data []byte, dst string) error {
 		Addr: dstIP,
 	}
 
-	if err := syscall.Sendto(c.fd, data, 0, &addr); err != nil {
+	flags := 0
+	if c.zeroCopy {
+		flags = msgZeroCopy
+		c.zeroCopyMu.Lock()
+		c.nextSendSeq++
+		c.zeroCopyMu.Unlock()
+	}
+
+	if err := syscall.Sendto(c.fd, data, flags, &addr); err != nil {
 		return fmt.Errorf("rawconn: sendto: %w", err)
 	}
 	return nil

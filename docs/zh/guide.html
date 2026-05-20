@@ -441,6 +441,25 @@ nSent, err := batch.<span class="fn">SendBatch</span>(msgs)
 results, err := batch.<span class="fn">RecvBatch</span>(<span class="num">2</span>, <span class="num">3</span> * time.Second)</pre>
           </div>
         </div>
+
+        <p>
+          对于发送大报文（如巨型帧或大文件传输）且希望避免内核拷贝开销的场景，你可以开启 <code>ZeroCopy</code>。该操作在 Linux 上会设置 <code>SO_ZEROCOPY</code> 套接字选项，并使 <code>Send</code> 时自动使用 <code>MSG_ZEROCOPY</code> 标志（在 macOS 上会直接返回 <code>ErrNotSupported</code>）：
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 启用零拷贝模式</span>
+err := conn.<span class="fn">SetZeroCopy</span>(<span class="kw">true</span>)
+
+<span class="cmt">// 发送大原始载荷</span>
+err = conn.<span class="fn">Send</span>(largePayload, <span class="str">"127.0.0.1"</span>)
+
+<span class="cmt">// 等待所有零拷贝报文被内核传输完毕并释放用户态内存</span>
+ctx, cancel := context.<span class="fn">WithTimeout</span>(context.<span class="fn">Background</span>(), <span class="num">5</span> * time.Second)
+<span class="key">defer</span> <span class="fn">cancel</span>()
+err = conn.<span class="fn">WaitZeroCopyCompletion</span>(ctx)</pre>
+          </div>
+        </div>
       </div>
 
       <!-- 嗅探 -->
