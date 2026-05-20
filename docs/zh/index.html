@@ -267,6 +267,173 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                     </div>
                 </div>
 
+                <!-- 与其他库的对比 -->
+                <div class="section" id="library-comparison">
+                    <div class="section-title">
+                        <div class="section-dot violet"></div>
+                        <h3>与其他库的对比</h3>
+                    </div>
+                    <p>
+                        goscapy 与 Go 生态中其他常用的网络库相比有哪些异同？以下是它们的核心能力对比和场景推荐，帮助你快速做出选择。
+                    </p>
+
+                    <!-- 核心能力矩阵 -->
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">核心能力矩阵</h3>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>能力</th>
+                                    <th>🦎 goscapy</th>
+                                    <th>📦 gopacket</th>
+                                    <th>🔵 golang.org/x/net</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>包构建 (Builder API)</strong></td>
+                                    <td>链式 Builder + 快捷函数</td>
+                                    <td>需手写 <code>SerializeTo()</code></td>
+                                    <td>需手写 struct marshal</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>包解析 (Dissector)</strong></td>
+                                    <td><code>packet.Dissect()</code> 自动分层</td>
+                                    <td>强大的 DecodingLayerParser</td>
+                                    <td>仅 icmp/ipv4 提供 Message 解析</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>L2 收发 (Raw Socket)</strong></td>
+                                    <td>✅ Ethernet 层</td>
+                                    <td>❌ 依赖 libpcap</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>L3 收发 (Raw Socket)</strong></td>
+                                    <td>✅ IP 层 (ip4:tcp/udp/icmp)</td>
+                                    <td>❌</td>
+                                    <td>✅ <code>icmp.ListenPacket</code> / <code>ipv4.RawConn</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Sniffing 嗅探</strong></td>
+                                    <td>✅ Channel + Callback + BPF</td>
+                                    <td>✅ libpcap/afpacket/pfring</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PCAP 文件读写</strong></td>
+                                    <td>❌</td>
+                                    <td>✅</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>TCP 流重组</strong></td>
+                                    <td>❌</td>
+                                    <td>✅ tcpassembly</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>自动校验和</strong></td>
+                                    <td>✅ IP/TCP/UDP/ICMP</td>
+                                    <td>❌ 手动计算</td>
+                                    <td>❌ 手动计算</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>层绑定 (Auto Infer)</strong></td>
+                                    <td>✅ 邻层字段自动推断</td>
+                                    <td>❌</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>BPF 过滤器</strong></td>
+                                    <td>✅ 生成 + 附加</td>
+                                    <td>✅ 生成 + 附加</td>
+                                    <td>✅ <code>bpf.Assemble()</code> 生成</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>协议覆盖</strong></td>
+                                    <td>Ethernet, ARP, IP, TCP, UDP, ICMP</td>
+                                    <td>200+ 协议解码</td>
+                                    <td>icmp, ipv4, bpf 等</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>跨平台</strong></td>
+                                    <td>✅ Darwin + Linux</td>
+                                    <td>✅ 多平台</td>
+                                    <td>✅ 多平台</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>设计哲学</strong></td>
+                                    <td>类 Scapy，简洁优雅</td>
+                                    <td>完整解码体系，学术/分析</td>
+                                    <td>轻量标准库扩展</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 场景推荐 -->
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">场景推荐</h3>
+                    <div class="cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot terracotta"></div>
+                                <h4>🚀 快速构建与发送自定义包</h4>
+                            </div>
+                            <p><strong>推荐库：goscapy</strong></p>
+                            <p>Builder API + SendRecv 一行搞定，免去繁琐的样板代码。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot sage"></div>
+                                <h4>📊 PCAP 分析与离线包解析</h4>
+                            </div>
+                            <p><strong>推荐库：gopacket</strong></p>
+                            <p>具备最完整的 PCAP 读写与 TCP 流重组（tcpassembly）支持。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot plum"></div>
+                                <h4>⚡ 轻量级诊断与扫描</h4>
+                            </div>
+                            <p><strong>推荐库：goscapy</strong></p>
+                            <p>极度适合编写 ping、traceroute 等自定义诊断工具，内置自动计算校验和能力。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot blue"></div>
+                                <h4>⚡ 高性能实时嗅探</h4>
+                            </div>
+                            <p><strong>推荐库：gopacket</strong></p>
+                            <p>支持 afpacket/pfring 等零拷贝技术，适合高吞吐量的包捕获环境。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot amber"></div>
+                                <h4>🔵 仅需标准 ICMP 通信</h4>
+                            </div>
+                            <p><strong>推荐库：x/net/icmp</strong></p>
+                            <p>如果不需要其他复杂协议或分层，官方的 <code>x/net</code> 是最轻量且无额外依赖的方案。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot violet"></div>
+                                <h4>🔬 协议逆向与研究分析</h4>
+                            </div>
+                            <p><strong>推荐库：gopacket</strong></p>
+                            <p>支持 200+ 协议解码，最适合作为深度的协议逆向分析框架。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot teal"></div>
+                                <h4>📦 零 CGO 依赖</h4>
+                            </div>
+                            <p><strong>推荐库：goscapy 或 x/net</strong></p>
+                            <p>goscapy 是纯 Go 实现，无 CGO 或 libpcap 运行时依赖；而 gopacket 在许多平台上依赖 libpcap C 库。</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 支持的协议 -->
                 <div class="section" id="protocols">
                     <div class="section-title">
