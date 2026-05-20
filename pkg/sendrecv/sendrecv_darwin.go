@@ -46,6 +46,13 @@ type bpfHdr struct {
 	_pad    uint16
 }
 
+var isLittleEndian bool
+
+func init() {
+	var i int16 = 1
+	isLittleEndian = *(*byte)(unsafe.Pointer(&i)) == 1
+}
+
 func loopbackName() string { return "lo0" }
 
 // --- L3 Send (AF_INET raw socket) ---
@@ -54,6 +61,15 @@ func sendL3(pkt *packet.Packet, iface string) error {
 	rawBytes, err := buildL3(pkt)
 	if err != nil {
 		return fmt.Errorf("sendrecv: L3 build: %w", err)
+	}
+
+	// On Darwin raw sockets, ip_len and ip_off fields in the IPv4 header
+	// must be in host byte order.
+	if len(rawBytes) >= 20 {
+		if isLittleEndian {
+			rawBytes[2], rawBytes[3] = rawBytes[3], rawBytes[2]
+			rawBytes[6], rawBytes[7] = rawBytes[7], rawBytes[6]
+		}
 	}
 
 	dstIP, err := extractDstIP(pkt)
@@ -195,6 +211,11 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 			break // truncated batch, stop parsing
 		}
 
+		alignedLen := (totalLen + 3) &^ 3
+		if alignedLen > len(data) {
+			alignedLen = len(data)
+		}
+
 		// Copy the raw packet bytes so the shared r.buf can be reused safely.
 		raw := make([]byte, pktLen)
 		copy(raw, data[pktStart:pktStart+pktLen])
@@ -202,15 +223,14 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 		pkt, err := packet.Dissect(raw, ethernetStartFn)
 		if err != nil {
 			// Skip malformed packets and continue to the next one.
-			data = data[totalLen:]
+			data = data[alignedLen:]
 			continue
 		}
 		r.queue = append(r.queue, pkt)
 
 		// BPF requires advancing by hdr.hdrlen (which includes alignment padding)
-		// rounded up to the kernel's alignment boundary. The standard approach is
-		// to advance by totalLen, which works because BPF aligns each packet.
-		data = data[totalLen:]
+		// rounded up to the kernel's alignment boundary.
+		data = data[alignedLen:]
 	}
 
 	// Return the first parsed packet, keep the rest in the queue.

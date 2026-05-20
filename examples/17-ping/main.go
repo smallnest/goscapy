@@ -3,6 +3,7 @@
 // 本示例演示如何使用 goscapy 实现真实的 Ping 工具。
 // 你将学到:
 //   - ICMP Echo Request/Reply 的发送与接收
+//   - sendrecv.Sr1() + DefaultMatch 的自动回包匹配
 //   - RTT (往返时间) 的精确测量
 //   - 域名解析到 IP 地址
 //   - 丢包率和延迟统计
@@ -17,23 +18,28 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"math"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/packet"
+	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
 func main() {
 	count := flag.Int("c", 4, "发包次数")
 	interval := flag.Duration("i", time.Second, "发包间隔")
+	iface := flag.String("I", "", "网络接口 (默认自动检测)")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -51,19 +57,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("PING %s (%s): %d data bytes\n", target, ip, 56)
+	dstIP := net.ParseIP(ip).To4()
+	if dstIP == nil {
+		fmt.Fprintf(os.Stderr, "无效的 IPv4 地址: %s\n", ip)
+		os.Exit(1)
+	}
+
+	fmt.Printf("PING %s (%s): 56 data bytes\n", target, ip)
 	if ip != target {
 		fmt.Printf("  解析到: %s\n", ip)
 	}
 
-	// 打开 raw ICMP socket。使用 IPPROTO_ICMP 而非 IPPROTO_RAW，
-	// 内核会处理 IP 头部并正确投递 ICMP 回复到我们的 socket。
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "无法创建 ICMP socket: %v\n", err)
+	// 确定网络接口。
+	nic := *iface
+	if nic == "" {
+		nic = detectInterface(dstIP)
+	}
+
+	// 获取本地 IP（IPPROTO_RAW + IP_HDRINCL 需要完整 IP 头）。
+	srcIP := getLocalIP(nic)
+	if srcIP == nil {
+		fmt.Fprintf(os.Stderr, "无法获取接口 %s 的本地 IPv4 地址\n", nic)
 		os.Exit(1)
 	}
-	defer syscall.Close(fd)
+	fmt.Printf("  使用接口: %s (本地 IP: %s)\n", nic, srcIP)
 
 	pid := uint16(os.Getpid() & 0xFFFF)
 
@@ -80,14 +97,8 @@ func main() {
 		close(done)
 	}()
 
-	dstIP := net.ParseIP(ip).To4()
-	if dstIP == nil {
-		fmt.Fprintf(os.Stderr, "无效的 IPv4 地址: %s\n", ip)
-		os.Exit(1)
-	}
-	var addr [4]byte
-	copy(addr[:], dstIP)
-	sockAddr := &syscall.SockaddrInet4{Addr: addr}
+	// 接收超时 = 发包间隔。
+	recvTimeout := *interval
 
 loop:
 	for seq := 1; seq <= *count; seq++ {
@@ -99,56 +110,54 @@ loop:
 
 		start := time.Now()
 
-		// 用 goscapy 构建 ICMP Echo Request 报文
-		icmpBytes, err := buildICMPEchoRequest(pid, uint16(seq))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "构建 ICMP 报文失败: %v\n", err)
-			os.Exit(1)
-		}
+		// 用 goscapy 构建 IP + ICMP Echo Request 报文。
+		ipLayer := layers.NewIP()
+		ipLayer.Set("src", srcIP)
+			ipLayer.Set("dst", dstIP)
+		ipLayer.Set("ttl", uint8(64))
+		icmpLayer := layers.NewICMPEcho(pid, uint16(seq))
+		pkt := ipLayer.Over(icmpLayer)
 
-		// 发送 ICMP Echo Request
-		if err := syscall.Sendto(fd, icmpBytes, 0, sockAddr); err != nil {
-			fmt.Fprintf(os.Stderr, "发送失败: %v\n", err)
-			os.Exit(1)
-		}
+		// Sr1: 发送并等待第一个匹配的回包。
+		// match=nil 表示使用 DefaultMatch 自动匹配:
+		//   received.IP.src == sent.IP.dst &&
+		//   received.ICMP.type == EchoReply &&
+		//   received.ICMP.id == sent.ICMP.id
+		_, resp, recvErr := sendrecv.Sr1(pkt, nic, recvTimeout, nil)
+
 		sent++
 
-		// 设置读取超时
-		tv := syscall.NsecToTimeval(interval.Nanoseconds())
-		syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
-
-		// 接收 ICMP 回复 (recvfrom 返回 IP 头 + ICMP 头)
-		buf := make([]byte, 1500)
-		n, _, recvErr := syscall.Recvfrom(fd, buf, 0)
-
 		if recvErr != nil {
+			if errors.Is(recvErr, sendrecv.ErrTimeout) {
+				fmt.Printf("请求超时 (seq=%d)\n", seq)
+			} else {
+				fmt.Printf("发送失败 (seq=%d): %v\n", seq, recvErr)
+			}
+		} else if resp == nil {
 			fmt.Printf("请求超时 (seq=%d)\n", seq)
 		} else {
 			rtt := time.Since(start).Seconds() * 1000
 
-			// 用 goscapy 从 IP 层解析收到的回复
-			replyPkt, err := packet.DissectByProto(buf[:n], "IP")
-			if err != nil {
-				fmt.Printf("解析回复失败 (seq=%d): %v\n", seq, err)
-			} else {
-				ttl := getTTL(replyPkt)
-				icmpType, icmpCode := getICMPInfo(replyPkt)
+			ttl := getTTL(resp)
+			icmpType, icmpCode := getICMPInfo(resp)
 
-				if icmpType == 0 { // Echo Reply
-					received++
-					rtts = append(rtts, rtt)
-					fmt.Printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%.2f ms\n",
-						84, ip, seq, ttl, rtt)
-				} else if icmpType == 3 {
-					fmt.Printf("来自 %s 的目标不可达 (type=%d, code=%d)\n", ip, icmpType, icmpCode)
-				} else {
-					fmt.Printf("来自 %s 的响应: type=%d, code=%d, seq=%d\n", ip, icmpType, icmpCode, seq)
-				}
+			switch icmpType {
+			case 0: // Echo Reply
+				received++
+				rtts = append(rtts, rtt)
+				fmt.Printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%.2f ms\n",
+					84, ip, seq, ttl, rtt)
+			case 3:
+				fmt.Printf("来自 %s 的目标不可达 (type=%d, code=%d)\n", ip, icmpType, icmpCode)
+			case 11:
+				fmt.Printf("来自 %s 的 TTL 超时 (type=%d, code=%d)\n", ip, icmpType, icmpCode)
+			default:
+				fmt.Printf("来自 %s 的响应: type=%d, code=%d, seq=%d\n", ip, icmpType, icmpCode, seq)
 			}
 		}
 
 		elapsed := time.Since(start)
-		if seq < *count && sent < *count && elapsed < *interval {
+		if seq < *count && elapsed < *interval {
 			select {
 			case <-done:
 				break loop
@@ -180,31 +189,45 @@ loop:
 	}
 }
 
-// buildICMPEchoRequest 用 goscapy 构建 ICMP Echo Request 报文（ICMP 头 + 56 字节 payload）。
-func buildICMPEchoRequest(id, seq uint16) ([]byte, error) {
-	icmpLayer := layers.NewICMPEcho(id, seq)
-	hdrBytes, err := icmpLayer.SerializeFields()
-	if err != nil {
-		return nil, err
+// detectInterface 自动检测到达目标 IP 的网络接口。
+func detectInterface(dstIP net.IP) string {
+	// macOS: 通过 route get 获取默认路由接口。
+	if out, err := exec.Command("route", "-n", "get", dstIP.String()).Output(); err == nil {
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "interface:") {
+				name := strings.TrimSpace(strings.TrimPrefix(line, "interface:"))
+				if name != "" {
+					return name
+				}
+			}
+		}
 	}
 
-	// 附加 56 字节 payload (标准 ping 数据大小)
-	payload := make([]byte, 56)
-	for i := range payload {
-		payload[i] = byte(i & 0xFF)
+	// 回退: 枚举所有接口，取第一个非 loopback 的 IPv4 接口。
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			if iface.Flags&net.FlagUp == 0 {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+					return iface.Name
+				}
+			}
+		}
 	}
 
-	pkt := make([]byte, 0, len(hdrBytes)+len(payload))
-	pkt = append(pkt, hdrBytes...)
-	pkt = append(pkt, payload...)
-
-	// 计算 ICMP 校验和
-	csum := layers.ICMPChecksum(pkt)
-	// 写回校验和字段 (offset 2, 2 bytes)
-	pkt[2] = byte(csum >> 8)
-	pkt[3] = byte(csum)
-
-	return pkt, nil
+	// macOS 默认。
+	return "en0"
 }
 
 func resolveHost(host string) (string, error) {
@@ -216,6 +239,27 @@ func resolveHost(host string) (string, error) {
 		return "", err
 	}
 	return addrs[0], nil
+}
+
+
+// getLocalIP 返回指定接口的第一个 IPv4 地址。
+func getLocalIP(ifaceName string) net.IP {
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil
+	}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok {
+			if ip4 := ipnet.IP.To4(); ip4 != nil {
+				return ip4
+			}
+		}
+	}
+	return nil
 }
 
 func getTTL(pkt *packet.Packet) uint8 {
