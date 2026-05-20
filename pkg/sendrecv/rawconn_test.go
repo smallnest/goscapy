@@ -184,3 +184,24 @@ func TestSendRawRecvRawICMP(t *testing.T) {
 	}
 }
 
+func TestRawConnAttachBPF(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("skipping TestRawConnAttachBPF: requires root privileges")
+	}
+
+	conn, err := DialRaw(1)
+	if err != nil {
+		t.Fatalf("failed to dial raw socket: %v", err)
+	}
+	defer conn.Close()
+
+	dropFilter := []BPFInstruction{
+		{Code: 0x06, K: 0},
+	}
+	err = conn.AttachBPF(dropFilter)
+	if err != nil {
+		t.Fatalf("failed to attach BPF: %v", err)
+	}
+}
+
+
