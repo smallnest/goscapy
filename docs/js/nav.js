@@ -29,6 +29,7 @@
       { label: 'Home', href: prefix + 'index.html' },
       { label: 'Quick Start', href: prefix + 'quickstart.html' },
       { label: 'Guide', href: prefix + 'guide.html' },
+      { label: 'Send / Recv', href: prefix + 'sendrecv.html' },
       { label: 'Examples', dropdown: [
         { label: 'Basic', href: prefix + 'examples/basic.html' },
         { label: 'Send / Recv', href: prefix + 'examples/send-recv.html' },
@@ -44,6 +45,7 @@
       { label: '首页', href: prefix + 'index.html' },
       { label: '快速开始', href: prefix + 'quickstart.html' },
       { label: '完整指南', href: prefix + 'guide.html' },
+      { label: '高性能发送/接收', href: prefix + 'sendrecv.html' },
       { label: '示例', dropdown: [
         { label: '基础组包', href: prefix + 'examples/basic.html' },
         { label: '发送/接收', href: prefix + 'examples/send-recv.html' },
