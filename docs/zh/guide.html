@@ -420,6 +420,27 @@ err := sendrecv.<span class="fn">SendRaw</span>(<span class="num">1</span>, data
 reply, srcIP, err := sendrecv.<span class="fn">RecvRaw</span>(<span class="num">1</span>, <span class="num">3</span> * time.Second)</pre>
           </div>
         </div>
+
+        <p>
+          对于高并发/高性能场景（如扫描或批量 ping 探测），你可以使用 <code>BatchConn</code> API 在单次系统调用中发送/接收多个报文（在 Linux 上利用 <code>sendmmsg</code> 和 <code>recvmmsg</code>，在 macOS 上自动降级为循环处理）：
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 从现有 RawConn 取得 BatchConn</span>
+batch := conn.<span class="fn">Batch</span>()
+
+<span class="cmt">// 批量发送多个报文</span>
+msgs := []sendrecv.<span class="type">BatchMsg</span>{
+    {Data: payload1, Dst: <span class="str">"127.0.0.1"</span>},
+    {Data: payload2, Dst: <span class="str">"127.0.0.1"</span>},
+}
+nSent, err := batch.<span class="fn">SendBatch</span>(msgs)
+
+<span class="cmt">// 批量接收多个报文</span>
+results, err := batch.<span class="fn">RecvBatch</span>(<span class="num">2</span>, <span class="num">3</span> * time.Second)</pre>
+          </div>
+        </div>
       </div>
 
       <!-- 嗅探 -->

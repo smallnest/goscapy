@@ -420,6 +420,27 @@ err := sendrecv.<span class="fn">SendRaw</span>(<span class="num">1</span>, data
 reply, srcIP, err := sendrecv.<span class="fn">RecvRaw</span>(<span class="num">1</span>, <span class="num">3</span> * time.Second)</pre>
           </div>
         </div>
+
+        <p>
+          For high-performance scenarios (such as scanning or bulk pinging), you can use the <code>BatchConn</code> API to send/receive multiple packets in a single system call (utilizing <code>sendmmsg</code> and <code>recvmmsg</code> on Linux, falling back to a sequential loop on macOS):
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Get a BatchConn from an existing RawConn</span>
+batch := conn.<span class="fn">Batch</span>()
+
+<span class="cmt">// Batch send multiple messages</span>
+msgs := []sendrecv.<span class="type">BatchMsg</span>{
+    {Data: payload1, Dst: <span class="str">"127.0.0.1"</span>},
+    {Data: payload2, Dst: <span class="str">"127.0.0.1"</span>},
+}
+nSent, err := batch.<span class="fn">SendBatch</span>(msgs)
+
+<span class="cmt">// Batch receive multiple messages</span>
+results, err := batch.<span class="fn">RecvBatch</span>(<span class="num">2</span>, <span class="num">3</span> * time.Second)</pre>
+          </div>
+        </div>
       </div>
 
       <!-- Sniffing -->
