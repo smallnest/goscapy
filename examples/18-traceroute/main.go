@@ -5,7 +5,7 @@
 //   - TTL (Time To Live) 递增技术追踪路由路径
 //   - ICMP Time Exceeded 消息的解析
 //   - 每跳多探测包实现延迟测量
-//   - 原始 ICMP socket 的使用 (与 ping 示例相同的方式)
+//   - 使用 sendrecv 进行数据包发送与接收匹配
 //
 // 运行方式: sudo go run main.go [选项] <目标>
 // 示例:     sudo go run main.go 8.8.8.8
@@ -16,22 +16,25 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/packet"
+	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
 func main() {
 	maxHops := flag.Int("m", 30, "最大跳数")
 	nqueries := flag.Int("q", 3, "每跳探测包数量")
 	timeout := flag.Duration("w", 2*time.Second, "每跳探测超时")
+	iface := flag.String("I", "", "网络接口 (默认自动检测)")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -49,89 +52,192 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("traceroute to %s (%s), %d hops max, %d probes per hop\n\n",
-		target, ip, *maxHops, *nqueries)
-
-	// 打开 raw ICMP socket。使用 IPPROTO_ICMP 而非 IPPROTO_RAW，
-	// 内核会处理 IP 头部并正确投递 ICMP 回复到我们的 socket。
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "无法创建 ICMP socket: %v\n", err)
-		os.Exit(1)
-	}
-	defer syscall.Close(fd)
-
-	pid := uint16(os.Getpid() & 0xFFFF)
-
 	dstIP := net.ParseIP(ip).To4()
 	if dstIP == nil {
 		fmt.Fprintf(os.Stderr, "无效的 IPv4 地址: %s\n", ip)
 		os.Exit(1)
 	}
-	var addr [4]byte
-	copy(addr[:], dstIP)
-	sockAddr := &syscall.SockaddrInet4{Addr: addr}
+
+	// 确定网络接口。
+	nic := *iface
+	if nic == "" {
+		nic = detectInterface(dstIP)
+	}
+
+	// 获取本地 IP（IPPROTO_RAW + IP_HDRINCL 需要完整 IP 头）。
+	srcIP := getLocalIP(nic)
+	if srcIP == nil {
+		fmt.Fprintf(os.Stderr, "无法获取接口 %s 的本地 IPv4 地址\n", nic)
+		os.Exit(1)
+	}
+
+	fmt.Printf("traceroute to %s (%s), %d hops max, %d probes per hop\n", target, ip, *maxHops, *nqueries)
+	fmt.Printf("  使用接口: %s (本地 IP: %s)\n\n", nic, srcIP)
+
+	pid := uint16(os.Getpid() & 0xFFFF)
+
+	// 自定义 MatchFunc 用以匹配返回的 ICMP Echo Reply 或 ICMP Time Exceeded / Dest Unreachable。
+	match := func(sent, received *packet.Packet) bool {
+		// 获取接收报文的 IP 和 ICMP 层。
+		recvIP := received.GetLayer("IP")
+		recvICMP := received.GetLayer("ICMP")
+		if recvIP == nil || recvICMP == nil {
+			return false
+		}
+
+		recvTypeVal, err := recvICMP.Get("type")
+		if err != nil || recvTypeVal == nil {
+			return false
+		}
+		recvType, ok := recvTypeVal.(uint8)
+		if !ok {
+			return false
+		}
+
+		sentIP := sent.GetLayer("IP")
+		sentICMP := sent.GetLayer("ICMP")
+		if sentIP == nil || sentICMP == nil {
+			return false
+		}
+
+		var sentDstIP net.IP
+		if dstVal, err := sentIP.Get("dst"); err == nil && dstVal != nil {
+			sentDstIP, _ = dstVal.(net.IP)
+		}
+		if sentDstIP == nil {
+			return false
+		}
+
+		var sentID uint16
+		if idVal, err := sentICMP.Get("id"); err == nil && idVal != nil {
+			sentID, _ = idVal.(uint16)
+		}
+		var sentSeq uint16
+		if seqVal, err := sentICMP.Get("seq"); err == nil && seqVal != nil {
+			sentSeq, _ = seqVal.(uint16)
+		}
+
+		switch recvType {
+		case 0: // Echo Reply
+			// 响应源 IP 必须是目标 IP。
+			var recvSrcIP net.IP
+			if srcVal, err := recvIP.Get("src"); err == nil && srcVal != nil {
+				recvSrcIP, _ = srcVal.(net.IP)
+			}
+			if recvSrcIP == nil || !recvSrcIP.Equal(sentDstIP) {
+				return false
+			}
+
+			// ICMP 标识符和序列号必须匹配。
+			var recvID uint16
+			if idVal, err := recvICMP.Get("id"); err == nil && idVal != nil {
+				recvID, _ = idVal.(uint16)
+			}
+			var recvSeq uint16
+			if seqVal, err := recvICMP.Get("seq"); err == nil && seqVal != nil {
+				recvSeq, _ = seqVal.(uint16)
+			}
+
+			return recvID == sentID && recvSeq == sentSeq
+
+		case 3, 11: // Destination Unreachable 或 Time Exceeded
+			// 导致错误的原始数据包被嵌入在 ICMP 负荷 (Raw layer) 中。
+			rawLayer := received.GetLayer("Raw")
+			if rawLayer == nil {
+				return false
+			}
+			loadVal, err := rawLayer.Get("load")
+			if err != nil || loadVal == nil {
+				return false
+			}
+			loadBytes, ok := loadVal.([]byte)
+			if !ok {
+				return false
+			}
+
+			// 解包原始报文（从 IP 层开始解析）。
+			innerPkt, err := packet.DissectByProto(loadBytes, "IP")
+			if err != nil {
+				return false
+			}
+
+			innerIP := innerPkt.GetLayer("IP")
+			innerICMP := innerPkt.GetLayer("ICMP")
+			if innerIP == nil || innerICMP == nil {
+				return false
+			}
+
+			// 内部包的目的 IP 必须匹配我们的目标 IP，且 ICMP 标识符及序列号匹配。
+			var innerDstIP net.IP
+			if dstVal, err := innerIP.Get("dst"); err == nil && dstVal != nil {
+				innerDstIP, _ = dstVal.(net.IP)
+			}
+			if innerDstIP == nil || !innerDstIP.Equal(sentDstIP) {
+				return false
+			}
+
+			var innerID uint16
+			if idVal, err := innerICMP.Get("id"); err == nil && idVal != nil {
+				innerID, _ = idVal.(uint16)
+			}
+			var innerSeq uint16
+			if seqVal, err := innerICMP.Get("seq"); err == nil && seqVal != nil {
+				innerSeq, _ = seqVal.(uint16)
+			}
+
+			return innerID == sentID && innerSeq == sentSeq
+		}
+
+		return false
+	}
 
 	for ttl := 1; ttl <= *maxHops; ttl++ {
 		fmt.Printf("%2d  ", ttl)
-
-		// 设置 TTL
-		if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TTL, ttl); err != nil {
-			fmt.Fprintf(os.Stderr, "设置 TTL 失败: %v\n", err)
-			os.Exit(1)
-		}
 
 		var routerIP string
 		var rtts []string
 		reachedTarget := false
 
 		for probe := 0; probe < *nqueries; probe++ {
+			// 构建 IP + ICMP Echo Request 报文
+			ipLayer := layers.NewIP()
+			ipLayer.Set("src", srcIP)
+			ipLayer.Set("dst", dstIP)
+			ipLayer.Set("ttl", uint8(ttl))
+			icmpLayer := layers.NewICMPEcho(pid, uint16(ttl*1000+probe))
+			pkt := ipLayer.Over(icmpLayer)
+
 			start := time.Now()
-
-			// 用 goscapy 构建 ICMP Echo Request 报文
-			icmpBytes, err := buildICMPEchoRequest(pid, uint16(probe))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "构建 ICMP 报文失败: %v\n", err)
-				os.Exit(1)
-			}
-
-			// 发送 ICMP Echo Request
-			if err := syscall.Sendto(fd, icmpBytes, 0, sockAddr); err != nil {
-				fmt.Fprintf(os.Stderr, "发送失败: %v\n", err)
-				os.Exit(1)
-			}
-
-			// 设置读取超时
-			tv := syscall.NsecToTimeval(timeout.Nanoseconds())
-			syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
-
-			// 接收 ICMP 回复 (recvfrom 返回 IP 头 + ICMP 头)
-			buf := make([]byte, 1500)
-			n, _, recvErr := syscall.Recvfrom(fd, buf, 0)
-
+			// Sr1: 发送并接收匹配的响应包
+			_, resp, recvErr := sendrecv.Sr1(pkt, nic, *timeout, match)
 			rtt := time.Since(start)
 
 			if recvErr != nil {
-				rtts = append(rtts, "*")
-			} else {
-				// 用 goscapy 从 IP 层解析收到的回复
-				replyPkt, err := packet.DissectByProto(buf[:n], "IP")
-				if err != nil {
+				if errors.Is(recvErr, sendrecv.ErrTimeout) || resp == nil {
 					rtts = append(rtts, "*")
 				} else {
-					srcIP := getSrcIP(replyPkt)
-					icmpType, _ := getICMPInfo(replyPkt)
-
-					if srcIP != "" {
-						routerIP = srcIP
-					}
-
-					if icmpType == 0 { // Echo Reply - reached target
-						reachedTarget = true
-					}
-
-					rtts = append(rtts, fmt.Sprintf("%.2f ms", rtt.Seconds()*1000))
+					rtts = append(rtts, "?")
 				}
+			} else if resp == nil {
+				rtts = append(rtts, "*")
+			} else {
+				respIPLayer := resp.GetLayer("IP")
+				if respIPLayer != nil {
+					if srcVal, err := respIPLayer.Get("src"); err == nil && srcVal != nil {
+						routerIP = srcVal.(net.IP).String()
+					}
+				}
+
+				respICMPLayer := resp.GetLayer("ICMP")
+				if respICMPLayer != nil {
+					if typeVal, err := respICMPLayer.Get("type"); err == nil && typeVal != nil {
+						if typeVal.(uint8) == 0 { // Echo Reply (说明到达了最终目标)
+							reachedTarget = true
+						}
+					}
+				}
+
+				rtts = append(rtts, fmt.Sprintf("%.2f ms", rtt.Seconds()*1000))
 			}
 		}
 
@@ -148,31 +254,65 @@ func main() {
 	}
 }
 
-// buildICMPEchoRequest 用 goscapy 构建 ICMP Echo Request 报文（ICMP 头 + 56 字节 payload）。
-func buildICMPEchoRequest(id, seq uint16) ([]byte, error) {
-	icmpLayer := layers.NewICMPEcho(id, seq)
-	hdrBytes, err := icmpLayer.SerializeFields()
+// detectInterface 自动检测到达目标 IP 的网络接口。
+func detectInterface(dstIP net.IP) string {
+	// macOS: 通过 route get 获取默认路由接口。
+	if out, err := exec.Command("route", "-n", "get", dstIP.String()).Output(); err == nil {
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "interface:") {
+				name := strings.TrimSpace(strings.TrimPrefix(line, "interface:"))
+				if name != "" {
+					return name
+				}
+			}
+		}
+	}
+
+	// 回退: 枚举所有接口，取第一个非 loopback 的 IPv4 接口。
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			if iface.Flags&net.FlagUp == 0 {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+					return iface.Name
+				}
+			}
+		}
+	}
+
+	// macOS 默认。
+	return "en0"
+}
+
+// getLocalIP 返回指定接口的第一个 IPv4 地址。
+func getLocalIP(ifaceName string) net.IP {
+	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-
-	// 附加 56 字节 payload (标准 ping 数据大小)
-	payload := make([]byte, 56)
-	for i := range payload {
-		payload[i] = byte(i & 0xFF)
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil
 	}
-
-	pkt := make([]byte, 0, len(hdrBytes)+len(payload))
-	pkt = append(pkt, hdrBytes...)
-	pkt = append(pkt, payload...)
-
-	// 计算 ICMP 校验和
-	csum := layers.ICMPChecksum(pkt)
-	// 写回校验和字段 (offset 2, 2 bytes)
-	pkt[2] = byte(csum >> 8)
-	pkt[3] = byte(csum)
-
-	return pkt, nil
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok {
+			if ip4 := ipnet.IP.To4(); ip4 != nil {
+				return ip4
+			}
+		}
+	}
+	return nil
 }
 
 func resolveHost(host string) (string, error) {
@@ -184,29 +324,4 @@ func resolveHost(host string) (string, error) {
 		return "", err
 	}
 	return addrs[0], nil
-}
-
-func getSrcIP(pkt *packet.Packet) string {
-	if ipLayer := pkt.GetLayer("IP"); ipLayer != nil {
-		if src, err := ipLayer.Get("src"); err == nil && src != nil {
-			return src.(net.IP).String()
-		}
-	}
-	return ""
-}
-
-func getICMPInfo(pkt *packet.Packet) (uint8, uint8) {
-	if icmpLayer := pkt.GetLayer("ICMP"); icmpLayer != nil {
-		t, _ := icmpLayer.Get("type")
-		c, _ := icmpLayer.Get("code")
-		var typ, cod uint8
-		if t != nil {
-			typ = t.(uint8)
-		}
-		if c != nil {
-			cod = c.(uint8)
-		}
-		return typ, cod
-	}
-	return 255, 255
 }

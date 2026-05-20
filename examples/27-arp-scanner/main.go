@@ -107,7 +107,7 @@ func arpProbe(iface, srcMAC, srcIP, targetIP string) string {
 			DstIP(targetIP)).
 		Packet()
 
-	_, reply, err := sendrecv.SendRecv1(pkt, iface, 1500*time.Millisecond)
+	_, reply, err := sendrecv.Srp1(pkt, iface, 1500*time.Millisecond, nil)
 	if err != nil || reply == nil {
 		return ""
 	}
@@ -122,7 +122,11 @@ func arpProbe(iface, srcMAC, srcIP, targetIP string) string {
 		return ""
 	}
 
-	mac := hwSrc.(string)
+	macVal, ok := hwSrc.(net.HardwareAddr)
+	if !ok {
+		return ""
+	}
+	mac := macVal.String()
 	if mac == "00:00:00:00:00:00" {
 		return ""
 	}

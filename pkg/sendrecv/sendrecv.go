@@ -628,6 +628,81 @@ func Sr1(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFun
 	return pkt, nil, nil
 }
 
+// Srp sends a packet at L2 and collects matching response packets.
+// It uses the provided MatchFunc (or DefaultMatch if nil) to match responses
+// against the sent packet, mimicking Scapy's srp() function.
+func Srp(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFunc) (*packet.Packet, []*packet.Packet, error) {
+	if match == nil {
+		match = DefaultMatch(pkt)
+	}
+
+	rx, err := OpenReceiver(iface)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sendrecv: Srp open receiver: %w", err)
+	}
+	defer rx.Close()
+
+	if err := Sendp(pkt, iface); err != nil {
+		return nil, nil, fmt.Errorf("sendrecv: Srp send: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+	var responses []*packet.Packet
+
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+
+		resp, err := rx.Recv(remaining)
+		if err != nil {
+			break
+		}
+		if match(pkt, resp) {
+			responses = append(responses, resp)
+		}
+	}
+
+	return pkt, responses, nil
+}
+
+// Srp1 sends a packet at L2 and returns the first matching response.
+// It mimics Scapy's srp1() function. If match is nil, DefaultMatch is used.
+func Srp1(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFunc) (*packet.Packet, *packet.Packet, error) {
+	if match == nil {
+		match = DefaultMatch(pkt)
+	}
+
+	rx, err := OpenReceiver(iface)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sendrecv: Srp1 open receiver: %w", err)
+	}
+	defer rx.Close()
+
+	if err := Sendp(pkt, iface); err != nil {
+		return nil, nil, fmt.Errorf("sendrecv: Srp1 send: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+
+		resp, err := rx.Recv(remaining)
+		if err != nil {
+			break
+		}
+		if match(pkt, resp) {
+			return pkt, resp, nil
+		}
+	}
+
+	return pkt, nil, nil
+}
+
 // Platform-specific implementations are provided in:
 //   - sendrecv_darwin.go (macOS: BPF + AF_INET)
 //   - sendrecv_linux.go  (Linux: AF_PACKET + AF_INET)

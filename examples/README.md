@@ -47,7 +47,6 @@ go run main.go
 
 | # | 工具 | 说明 | 运行 |
 |---|------|------|------|
-| 25 | [HTTP GET](25-http-get/) | 手动构造 HTTP/1.1 GET，解析响应 | `go run main.go <URL>` |
 | 28 | [WoL 发送器](28-wol-sender/) | Wake-on-LAN 魔术包广播 | `go run main.go <MAC>` |
 | 29 | [TFTP 客户端](29-tftp-client/) | TFTP 文件下载 (RRQ) | `go run main.go <服务器> <文件>` |
 | 30 | [WHOIS 客户端](30-whois-client/) | WHOIS 域名信息查询 | `go run main.go <域名>` |
@@ -81,7 +80,7 @@ go run main.go
 
 ## 权限说明
 
-- **不需要 root**: 示例 01-10, 15-16, 25, 28-31（构建/解析/标准网络库）
+- **不需要 root**: 示例 01-10, 15-16, 28-31（构建/解析/标准网络库）
 - **需要 root**: 示例 11-14, 17-18, 23-24, 26-27（原始套接字发送/嗅探/收发）
   - macOS: 使用 `sudo go run main.go`
   - Linux: 使用 `sudo go run main.go` 或设置 `CAP_NET_RAW` 能力

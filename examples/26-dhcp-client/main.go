@@ -15,6 +15,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -22,6 +23,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/smallnest/goscapy/pkg/fields"
 	"github.com/smallnest/goscapy/pkg/goscapy"
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/layers/dhcp"
@@ -59,14 +61,15 @@ func main() {
 	}
 
 	// 等待 DHCP Offer
-	offerPkt := waitForDHCP(ifaceVal, dhcp.DHCPOFFER, 3*time.Second)
+	offerPkt := waitForDHCP(ifaceVal, xid, dhcp.DHCPOFFER, 3*time.Second)
 	if offerPkt == nil {
 		fmt.Println("  未收到 DHCP Offer (超时)")
 		os.Exit(1)
 	}
 
 	dhcpLayer := offerPkt.GetLayer("DHCP")
-	yiaddr, _ := dhcpLayer.Get("yiaddr")
+	yiaddrVal, _ := dhcpLayer.Get("yiaddr")
+	yiaddr := yiaddrVal.(net.IP).String()
 	serverIP := getDHCPServerID(dhcpLayer)
 
 	fmt.Printf("  收到 DHCP Offer!\n")
@@ -75,7 +78,7 @@ func main() {
 
 	// Step 2: DHCP Request (广播)
 	fmt.Println("[2/4] 发送 DHCP Request (广播)...")
-	requestPkt := buildDHCPRequest(xid, mac, yiaddr.(string), serverIP)
+	requestPkt := buildDHCPRequest(xid, mac, yiaddr, serverIP)
 	err = sendrecv.Sendp(requestPkt, ifaceVal)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "发送 Request 失败: %v\n", err)
@@ -83,7 +86,7 @@ func main() {
 	}
 
 	// 等待 DHCP ACK
-	ackPkt := waitForDHCP(ifaceVal, dhcp.DHCPACK, 5*time.Second)
+	ackPkt := waitForDHCP(ifaceVal, xid, dhcp.DHCPACK, 5*time.Second)
 	if ackPkt == nil {
 		fmt.Println("  未收到 DHCP ACK (超时)")
 		os.Exit(1)
@@ -123,6 +126,11 @@ func buildDHCPDiscover(xid uint32, chaddr []byte) *packet.Packet {
 }
 
 func buildDHCPRequest(xid uint32, chaddr []byte, requestedIP, serverID string) *packet.Packet {
+	opts := []fields.TLVOption{
+		dhcp.NewMessageTypeOption(dhcp.DHCPREQUEST),
+		dhcp.NewRequestedIPOption(requestedIP),
+		dhcp.NewServerIDOption(serverID),
+	}
 	return goscapy.NewEthernet().
 		DstMAC("ff:ff:ff:ff:ff:ff").
 		SrcMAC(formatMAC(chaddr)).
@@ -139,42 +147,104 @@ func buildDHCPRequest(xid uint32, chaddr []byte, requestedIP, serverID string) *
 			Op(1).
 			XID(xid).
 			CHAddr(chaddr).
-			MessageType(dhcp.DHCPREQUEST)).
+			Options(dhcp.BuildDHCPOptions(opts))).
 		Packet()
 }
 
-func waitForDHCP(iface string, expectedType uint8, timeout time.Duration) *packet.Packet {
+func waitForDHCP(iface string, xid uint32, expectedType uint8, timeout time.Duration) *packet.Packet {
 	rx, err := sendrecv.OpenReceiver(iface)
 	if err != nil {
 		return nil
 	}
 	defer rx.Close()
 
-	pkt, err := rx.Recv(timeout)
-	if err != nil {
+	deadline := time.Now().Add(timeout)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return nil
+		}
+
+		pkt, err := rx.Recv(remaining)
+		if err != nil {
+			return nil
+		}
+
+		dhcpLayer := pkt.GetLayer("DHCP")
+		if dhcpLayer == nil {
+			continue
+		}
+
+		// Verify transaction ID
+		xidVal, err := dhcpLayer.Get("xid")
+		if err != nil || xidVal.(uint32) != xid {
+			continue
+		}
+
+		optionsVal, err := dhcpLayer.Get("options")
+		if err != nil {
+			continue
+		}
+		optionsBytes, ok := optionsVal.([]byte)
+		if !ok {
+			continue
+		}
+
+		opts, err := dhcp.ParseDHCPOptions(optionsBytes)
+		if err != nil {
+			continue
+		}
+
+		msgType := dhcp.GetMessageType(opts)
+		if msgType != expectedType {
+			continue
+		}
+
+		return pkt
+	}
+}
+
+func parseIPOption(opt *fields.TLVOption) string {
+	if opt == nil || len(opt.Value) < 4 {
+		return ""
+	}
+	return net.IP(opt.Value[:4]).String()
+}
+
+func parseIPsOption(opt *fields.TLVOption) []string {
+	if opt == nil || len(opt.Value)%4 != 0 {
 		return nil
 	}
-
-	dhcpLayer := pkt.GetLayer("DHCP")
-	if dhcpLayer == nil {
-		return nil
+	var ips []string
+	for i := 0; i < len(opt.Value); i += 4 {
+		ips = append(ips, net.IP(opt.Value[i:i+4]).String())
 	}
+	return ips
+}
 
-	msgType, _ := dhcpLayer.Get("msg_type")
-	if msgType == nil {
-		return nil
+func parseUint32Option(opt *fields.TLVOption) uint32 {
+	if opt == nil || len(opt.Value) < 4 {
+		return 0
 	}
-
-	if msgType.(uint8) != expectedType {
-		return nil
-	}
-
-	return pkt
+	return binary.BigEndian.Uint32(opt.Value[:4])
 }
 
 func getDHCPServerID(layer *packet.Layer) string {
+	// First check Option 54 (Server Identifier)
+	if optVal, err := layer.Get("options"); err == nil {
+		if optBytes, ok := optVal.([]byte); ok {
+			if opts, err := dhcp.ParseDHCPOptions(optBytes); err == nil {
+				if serverIDOpt := dhcp.GetDHCPOption(opts, dhcp.OptServerID); serverIDOpt != nil {
+					return parseIPOption(serverIDOpt)
+				}
+			}
+		}
+	}
+	// Fallback to siaddr field
 	if siaddr, err := layer.Get("siaddr"); err == nil && siaddr != nil {
-		return siaddr.(string)
+		if ip, ok := siaddr.(net.IP); ok {
+			return ip.String()
+		}
 	}
 	return "0.0.0.0"
 }
@@ -182,17 +252,30 @@ func getDHCPServerID(layer *packet.Layer) string {
 func parseDHCPOptions(layer *packet.Layer) {
 	fmt.Println("\n--- DHCP 配置信息 ---")
 
-	if subnet, err := layer.Get("subnet_mask"); err == nil && subnet != nil {
-		fmt.Printf("  子网掩码: %s\n", subnet)
+	optVal, err := layer.Get("options")
+	if err != nil {
+		return
 	}
-	if router, err := layer.Get("router"); err == nil && router != nil {
-		fmt.Printf("  网关: %s\n", router)
+	optBytes, ok := optVal.([]byte)
+	if !ok {
+		return
 	}
-	if dns, err := layer.Get("dns"); err == nil && dns != nil {
-		fmt.Printf("  DNS: %s\n", dns)
+	opts, err := dhcp.ParseDHCPOptions(optBytes)
+	if err != nil {
+		return
 	}
-	if leaseTime, err := layer.Get("lease_time"); err == nil && leaseTime != nil {
-		lt := leaseTime.(uint32)
+
+	if subnetOpt := dhcp.GetDHCPOption(opts, dhcp.OptSubnetMask); subnetOpt != nil {
+		fmt.Printf("  子网掩码: %s\n", parseIPOption(subnetOpt))
+	}
+	if routerOpt := dhcp.GetDHCPOption(opts, dhcp.OptRouter); routerOpt != nil {
+		fmt.Printf("  网关: %s\n", parseIPOption(routerOpt))
+	}
+	if dnsOpt := dhcp.GetDHCPOption(opts, dhcp.OptDNS); dnsOpt != nil {
+		fmt.Printf("  DNS: %v\n", parseIPsOption(dnsOpt))
+	}
+	if leaseTimeOpt := dhcp.GetDHCPOption(opts, dhcp.OptLeaseTime); leaseTimeOpt != nil {
+		lt := parseUint32Option(leaseTimeOpt)
 		fmt.Printf("  租约时间: %d 秒 (%d 小时)\n", lt, lt/3600)
 	}
 	if yiaddr, err := layer.Get("yiaddr"); err == nil && yiaddr != nil {
