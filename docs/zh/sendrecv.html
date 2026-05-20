@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发送与接收 API 参考 — goscapy</title>
+  <meta name="description" content="goscapy 中 sendrecv 包的详细 API 参考。涵盖 RawConn, BatchConn, ZeroCopy, UringConn 和 PacketMMAP (TPACKET_V3)，并包含平台兼容性矩阵。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- Platform Compatibility -->
+      <div class="section" id="platform-compatibility">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>平台兼容性矩阵</h3>
+        </div>
+        <p>
+          <code>sendrecv</code> 包在提供标准原始套接字的同时，还针对 Linux 系统进行了高度优化的深层次高性能网络收发特征封装。
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>功能 / API</th>
+                <th>macOS (Darwin)</th>
+                <th>Linux</th>
+                <th>权限要求与内核选项</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>RawConn</strong> (DialRaw)</td>
+                <td>✅ 支持</td>
+                <td>✅ 支持</td>
+                <td>需要 Root 权限以开启原始套接字</td>
+              </tr>
+              <tr>
+                <td><strong>SendRaw / RecvRaw</strong></td>
+                <td>✅ 支持</td>
+                <td>✅ 支持</td>
+                <td>包级别的无状态便捷调用接口；需要 Root 权限</td>
+              </tr>
+              <tr>
+                <td><strong>BatchConn</strong> (SendBatch / RecvBatch)</td>
+                <td>⚠️ 顺序降级模拟</td>
+                <td>✅ 支持</td>
+                <td>在 Linux 下利用 <code>sendmmsg</code> 与 <code>recvmmsg</code> 系统调用减少切换</td>
+              </tr>
+              <tr>
+                <td><strong>ZeroCopy</strong> (SetZeroCopy / MSG_ZEROCOPY)</td>
+                <td>❌ 返回 <code>ErrNotSupported</code></td>
+                <td>✅ 支持</td>
+                <td>要求 Linux 内核 4.14+；开启 <code>SO_ZEROCOPY</code> 选项</td>
+              </tr>
+              <tr>
+                <td><strong>UringConn</strong> (io_uring 异步 IO)</td>
+                <td>❌ 返回 <code>ErrNotSupported</code></td>
+                <td>✅ 支持</td>
+                <td>要求 Linux 内核 5.1+；自动映射 SQ/CQ 双环缓冲区</td>
+              </tr>
+              <tr>
+                <td><strong>PacketMMAP</strong> (TPACKET_V3 捕获)</td>
+                <td>❌ 返回 <code>ErrNotSupported</code></td>
+                <td>✅ 支持</td>
+                <td>需要 Linux 特有的 AF_PACKET 链路层捕获机制</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RawConn Reference -->
+      <div class="section" id="rawconn">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>原始套接字连接 (RawConn)</h3>
+        </div>
+        <p>
+          <code>RawConn</code> 负责管理长连接原始套接字。通过 <code>DialRaw</code> 接口进行创建。
+        </p>
+
+        <h4>DialRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">DialRaw</span>(proto <span class="type">int</span>) (*<span class="type">RawConn</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          针对指定的 IP 协议号（如 <code>1</code> 表示 ICMP, <code>6</code> 表示 TCP, <code>17</code> 表示 UDP）建立长连接原始套接字。如果由于权限不足等原因导致套接字创建失败，则返回 error。
+        </p>
+
+        <h4>Send</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Send</span>(payload []<span class="type">byte</span>, dst <span class="type">string</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          向目标 IP 发送原始载荷数据（无需包含以太网帧头）。如果开启了零拷贝模式，该发送会异步标记对应载荷内存，直到内核完成发送。
+        </p>
+
+        <h4>Recv</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Recv</span>(timeout time.<span class="type">Duration</span>) ([]<span class="type">byte</span>, <span class="type">string</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          阻塞式接收报文，直至报文到达或超时。返回报文载荷字节流、源端 IP 地址和错误信息。超时将返回 <code>sendrecv.ErrTimeout</code>。
+        </p>
+
+        <h4>Batch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Batch</span>() *<span class="type">BatchConn</span></pre>
+          </div>
+        </div>
+        <p>
+          返回绑定于当前原始连接的 <code>BatchConn</code> 实例，用于批量发送与接收报文。
+        </p>
+
+        <h4>SetZeroCopy</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">SetZeroCopy</span>(enable <span class="type">bool</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          启用或禁用零拷贝发送模式。在 Linux 下会调用 <code>SO_ZEROCOPY</code> 套接字选项；在 macOS 下会返回 <code>sendrecv.ErrNotSupported</code> 错误。
+        </p>
+
+        <h4>WaitZeroCopyCompletion</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">WaitZeroCopyCompletion</span>(ctx context.<span class="type">Context</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          同步等待 Linux 内核完全释放所有未完成的零拷贝发送内存。如果上下文超时仍未完成则返回 error。
+        </p>
+
+        <h4>Close</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Close</span>() <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          关闭原始套接字文件描述符，释放系统资源。
+        </p>
+      </div>
+
+      <!-- Convenience API Reference -->
+      <div class="section" id="convenience-api">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>无状态便捷接口</h3>
+        </div>
+        <p>
+          对于无需复用连接的简单单次调用，可以使用以下包级别全局函数：
+        </p>
+
+        <h4>SendRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">SendRaw</span>(proto <span class="type">int</span>, payload []<span class="type">byte</span>, dst <span class="type">string</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          临时创建原始套接字，向指定目标地址发送数据并立即关闭套接字。
+        </p>
+
+        <h4>RecvRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">RecvRaw</span>(proto <span class="type">int</span>, timeout time.<span class="type">Duration</span>) ([]<span class="type">byte</span>, <span class="type">string</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          临时创建原始套接字，阻塞式接收报文直至超时或报文到达，随后关闭套接字。
+        </p>
+      </div>
+
+      <!-- BatchConn Reference -->
+      <div class="section" id="batchconn">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>批量发送与接收 (BatchConn)</h3>
+        </div>
+        <p>
+          <code>BatchConn</code> 利用 Linux 的 <code>sendmmsg</code> 与 <code>recvmmsg</code> 系统调用进行批量读写，显著减少用户态与内核态之间的上下文切换次数。
+        </p>
+
+        <h4>SendBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (b *<span class="type">BatchConn</span>) <span class="fn">SendBatch</span>(msgs []<span class="type">BatchMsg</span>) (<span class="type">int</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          批量发送多个载荷包。在 macOS 下会自动降级为顺序发送循环。返回成功发送的报文数量。
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre><span class="kw">type</span> <span class="type">BatchMsg</span> <span class="kw">struct</span> {
+    Data []<span class="type">byte</span>
+    Dst  <span class="type">string</span>
+}</pre>
+          </div>
+        </div>
+
+        <h4>RecvBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (b *<span class="type">BatchConn</span>) <span class="fn">RecvBatch</span>(n <span class="type">int</span>, timeout time.<span class="type">Duration</span>) ([]<span class="type">BatchResult</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          阻塞接收最多 <code>n</code> 个报文，直至超时。返回 <code>BatchResult</code> 数组。
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre><span class="kw">type</span> <span class="type">BatchResult</span> <span class="kw">struct</span> {
+    Data  []<span class="type">byte</span>
+    SrcIP <span class="type">string</span>
+    Err   <span class="type">error</span>
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- UringConn Reference -->
+      <div class="section" id="uringconn">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>io_uring 异步套接字 (UringConn)</h3>
+        </div>
+        <p>
+          <code>UringConn</code> 基于现代 Linux 的 <code>io_uring</code> 异步 I/O 架构。通过将读写请求推送到提交队列（SQ）并轮询完成队列（CQ）来取得极致吞吐量，规避系统调用中断消耗。
+        </p>
+
+        <h4>DialUringRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">DialUringRaw</span>(proto <span class="type">int</span>) (*<span class="type">UringConn</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          在 Linux 上初始化绑定 `io_uring` 原始队列的套接字连接。在 macOS 或版本低于 5.1 的 Linux 内核上返回 <code>sendrecv.ErrNotSupported</code> 错误。
+        </p>
+
+        <h4>Send</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">Send</span>(payload []<span class="type">byte</span>, dst <span class="type">string</span>) (<span class="type">uint64</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          向 SQ 提交一个非阻塞的原始报文写请求。返回一个唯一的任务操作 ID，供以后轮询 CQ 时识别。
+        </p>
+
+        <h4>Recv</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">Recv</span>(timeout time.<span class="type">Duration</span>) ([]<span class="type">byte</span>, <span class="type">string</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          轮询 CQ 完成队列，等待并在超时范围内提取最近读到的数据。
+        </p>
+
+        <h4>SendRecvBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">SendRecvBatch</span>(msgs []<span class="type">BatchMsg</span>) ([]<span class="type">BatchResult</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          单次系统调用向内核环提交一批并行的读与写任务。
+        </p>
+
+        <h4>Close</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">Close</span>() <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          销毁 SQ/CQ 映射区域并安全地关闭对应的原始套接字句柄。
+        </p>
+      </div>
+
+      <!-- PacketMMAP Reference -->
+      <div class="section" id="packetmmap">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>环形缓冲区报文捕获 (PacketMMAP)</h3>
+        </div>
+        <p>
+          <code>PacketMMAP</code> 在 Linux 上通过映射一个零拷贝环形缓冲区（TPACKET_V3）与 AF_PACKET 链路层套接字相连，实现高性能的报文侦听抓包。
+        </p>
+
+        <h4>NewPacketMMAP</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">NewPacketMMAP</span>(iface <span class="type">string</span>) (*<span class="type">PacketMMAP</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          在指定网卡接口（例如 <code>eth0</code>）上创建并映射 AF_PACKET 链路层捕获队列。在 macOS 上会返回 <code>sendrecv.ErrNotSupported</code> 错误。
+        </p>
+
+        <h4>Recv</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">Recv</span>(timeout time.<span class="type">Duration</span>) (*packet.<span class="type">Packet</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          从共享环缓冲区内存中收取下一个数据帧，并自动从链路层协议开始利用 goscapy 解析器进行拆包处理。
+        </p>
+
+        <h4>RecvBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">RecvBatch</span>(n <span class="type">int</span>, timeout time.<span class="type">Duration</span>) ([]*packet.<span class="type">Packet</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          一次性从缓存环中批量取出并解析最多 <code>n</code> 个数据包。
+        </p>
+
+        <h4>Stats</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">Stats</span>() <span class="type">PacketMMAPStats</span></pre>
+          </div>
+        </div>
+        <p>
+          直接提取底层的实时捕获与丢包统计信息（tp_packets, tp_drops, tp_freeze_q_cnt 等）。
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre><span class="kw">type</span> <span class="type">PacketMMAPStats</span> <span class="kw">struct</span> {
+    Received <span class="type">uint32</span>
+    Dropped  <span class="type">uint32</span>
+    Freeze   <span class="type">uint32</span>
+}</pre>
+          </div>
+        </div>
+
+        <h4>Close</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">Close</span>() <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          卸载已映射的内存物理页并彻底关闭套接字描述符。
+        </p>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+        <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT License</a>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/particles.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/animations.js"></script>
+</body>
+</html>

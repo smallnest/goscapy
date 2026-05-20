@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send & Receive API Reference — goscapy</title>
+  <meta name="description" content="Detailed API reference for the sendrecv package in goscapy. Covers RawConn, BatchConn, ZeroCopy, UringConn, and PacketMMAP (TPACKET_V3) with platform support matrix.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦎</text></svg>">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="container">
+    <div id="navbar"></div>
+    <div id="toc"></div>
+
+    <main id="mainContent">
+
+      <!-- Platform Compatibility -->
+      <div class="section" id="platform-compatibility">
+        <div class="section-title">
+          <div class="section-dot terracotta"></div>
+          <h3>Platform Compatibility Matrix</h3>
+        </div>
+        <p>
+          The <code>sendrecv</code> package provides standard raw socket capabilities with advanced high-performance features optimized for Linux systems.
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Feature / API</th>
+                <th>macOS (Darwin)</th>
+                <th>Linux</th>
+                <th>Requirements &amp; Kernel Options</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>RawConn</strong> (DialRaw)</td>
+                <td>✅ Supported</td>
+                <td>✅ Supported</td>
+                <td>Requires root privileges (raw socket permission)</td>
+              </tr>
+              <tr>
+                <td><strong>SendRaw / RecvRaw</strong></td>
+                <td>✅ Supported</td>
+                <td>✅ Supported</td>
+                <td>Package-level stateless convenience functions; requires root</td>
+              </tr>
+              <tr>
+                <td><strong>BatchConn</strong> (SendBatch / RecvBatch)</td>
+                <td>⚠️ Sequential Fallback</td>
+                <td>✅ Supported</td>
+                <td>Uses <code>sendmmsg</code> and <code>recvmmsg</code> system calls under Linux</td>
+              </tr>
+              <tr>
+                <td><strong>ZeroCopy</strong> (SetZeroCopy / MSG_ZEROCOPY)</td>
+                <td>❌ Returns <code>ErrNotSupported</code></td>
+                <td>✅ Supported</td>
+                <td>Linux 4.14+ kernels; sets <code>SO_ZEROCOPY</code> socket option</td>
+              </tr>
+              <tr>
+                <td><strong>UringConn</strong> (io_uring Async IO)</td>
+                <td>❌ Returns <code>ErrNotSupported</code></td>
+                <td>✅ Supported</td>
+                <td>Linux 5.1+ kernels; maps Submission &amp; Completion queues</td>
+              </tr>
+              <tr>
+                <td><strong>PacketMMAP</strong> (TPACKET_V3 Capture)</td>
+                <td>❌ Returns <code>ErrNotSupported</code></td>
+                <td>✅ Supported</td>
+                <td>Requires AF_PACKET raw socket mapping (Linux only)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RawConn Reference -->
+      <div class="section" id="rawconn">
+        <div class="section-title">
+          <div class="section-dot sage"></div>
+          <h3>Raw Socket Connection (RawConn)</h3>
+        </div>
+        <p>
+          <code>RawConn</code> manages a connection-oriented raw socket. Created using the <code>DialRaw</code> function.
+        </p>
+
+        <h4>DialRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">DialRaw</span>(proto <span class="type">int</span>) (*<span class="type">RawConn</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Opens a raw connection for the specified IP protocol number (e.g. <code>1</code> for ICMP, <code>6</code> for TCP, <code>17</code> for UDP). Returns an error if raw socket creation fails (e.g. insufficient privileges).
+        </p>
+
+        <h4>Send</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Send</span>(payload []<span class="type">byte</span>, dst <span class="type">string</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Sends the raw payload (without Ethernet header) to the target destination IP address. If ZeroCopy is enabled, it sends asynchronously and marks the payload memory until completion is monitored.
+        </p>
+
+        <h4>Recv</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Recv</span>(timeout time.<span class="type">Duration</span>) ([]<span class="type">byte</span>, <span class="type">string</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Blocks until a packet arrives or the specified timeout is reached. Returns the raw payload bytes, source IP address, and an error. If the timeout is exceeded, it returns <code>sendrecv.ErrTimeout</code>.
+        </p>
+
+        <h4>Batch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Batch</span>() *<span class="type">BatchConn</span></pre>
+          </div>
+        </div>
+        <p>
+          Returns a <code>BatchConn</code> wrapper bound to this raw connection to perform multi-packet IO operations.
+        </p>
+
+        <h4>SetZeroCopy</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">SetZeroCopy</span>(enable <span class="type">bool</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Enables or disables zero-copy transmitting. On Linux, this enables <code>SO_ZEROCOPY</code> on the socket. On macOS, this returns <code>sendrecv.ErrNotSupported</code>.
+        </p>
+
+        <h4>WaitZeroCopyCompletion</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">WaitZeroCopyCompletion</span>(ctx context.<span class="type">Context</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Waits for the Linux kernel to release all pending zero-copy buffers. Returns an error if the context expires before completions are received.
+        </p>
+
+        <h4>Close</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (c *<span class="type">RawConn</span>) <span class="fn">Close</span>() <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Closes the raw socket file descriptor and releases system resources.
+        </p>
+      </div>
+
+      <!-- Convenience API Reference -->
+      <div class="section" id="convenience-api">
+        <div class="section-title">
+          <div class="section-dot plum"></div>
+          <h3>Stateless Convenience API</h3>
+        </div>
+        <p>
+          For simple operations where connection reuse is not required, use these package-level functions.
+        </p>
+
+        <h4>SendRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">SendRaw</span>(proto <span class="type">int</span>, payload []<span class="type">byte</span>, dst <span class="type">string</span>) <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Opens a temporary raw socket, transmits the payload to the target IP, and immediately closes the socket.
+        </p>
+
+        <h4>RecvRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">RecvRaw</span>(proto <span class="type">int</span>, timeout time.<span class="type">Duration</span>) ([]<span class="type">byte</span>, <span class="type">string</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Opens a temporary raw socket, blocks until a packet arrives or timeout is exceeded, and closes the socket.
+        </p>
+      </div>
+
+      <!-- BatchConn Reference -->
+      <div class="section" id="batchconn">
+        <div class="section-title">
+          <div class="section-dot blue"></div>
+          <h3>Batch Operations (BatchConn)</h3>
+        </div>
+        <p>
+          <code>BatchConn</code> leverages Linux system calls <code>sendmmsg</code> and <code>recvmmsg</code> to perform batch sending and receiving, significantly reducing kernel-user mode transitions.
+        </p>
+
+        <h4>SendBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (b *<span class="type">BatchConn</span>) <span class="fn">SendBatch</span>(msgs []<span class="type">BatchMsg</span>) (<span class="type">int</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Sends multiple payloads in a single batch. On macOS, this falls back to a sequential sending loop. Returns the number of successfully transmitted packets.
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre><span class="kw">type</span> <span class="type">BatchMsg</span> <span class="kw">struct</span> {
+    Data []<span class="type">byte</span>
+    Dst  <span class="type">string</span>
+}</pre>
+          </div>
+        </div>
+
+        <h4>RecvBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (b *<span class="type">BatchConn</span>) <span class="fn">RecvBatch</span>(n <span class="type">int</span>, timeout time.<span class="type">Duration</span>) ([]<span class="type">BatchResult</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Attempts to read up to <code>n</code> packets within the specified timeout. Returns a slice of <code>BatchResult</code> messages.
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre><span class="kw">type</span> <span class="type">BatchResult</span> <span class="kw">struct</span> {
+    Data  []<span class="type">byte</span>
+    SrcIP <span class="type">string</span>
+    Err   <span class="type">error</span>
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- UringConn Reference -->
+      <div class="section" id="uringconn">
+        <div class="section-title">
+          <div class="section-dot amber"></div>
+          <h3>io_uring Socket (UringConn)</h3>
+        </div>
+        <p>
+          <code>UringConn</code> utilizes the modern Linux <code>io_uring</code> subsystem. By submitting asynchronous socket read/write requests directly to submission queues (SQ) and polling completion queues (CQ), it provides maximum IO throughput and eliminates context switching.
+        </p>
+
+        <h4>DialUringRaw</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">DialUringRaw</span>(proto <span class="type">int</span>) (*<span class="type">UringConn</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Dials a raw socket using a mapped <code>io_uring</code> queue on Linux. Returns <code>sendrecv.ErrNotSupported</code> on non-Linux platforms or Linux kernels older than 5.1.
+        </p>
+
+        <h4>Send</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">Send</span>(payload []<span class="type">byte</span>, dst <span class="type">string</span>) (<span class="type">uint64</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Enqueues a non-blocking raw packet write to the Submission Queue (SQ). Returns a unique operation ID which corresponds to the kernel's completion event.
+        </p>
+
+        <h4>Recv</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">Recv</span>(timeout time.<span class="type">Duration</span>) ([]<span class="type">byte</span>, <span class="type">string</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Polls the Completion Queue (CQ) or waits for a read operation to complete within the specified timeout.
+        </p>
+
+        <h4>SendRecvBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">SendRecvBatch</span>(msgs []<span class="type">BatchMsg</span>) ([]<span class="type">BatchResult</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Submits a batch of write and read events to the ring buffer in a single operation.
+        </p>
+
+        <h4>Close</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (u *<span class="type">UringConn</span>) <span class="fn">Close</span>() <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Tears down the submission and completion rings and closes the associated raw socket file descriptor.
+        </p>
+      </div>
+
+      <!-- PacketMMAP Reference -->
+      <div class="section" id="packetmmap">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>Packet Capture Ring Buffer (PacketMMAP)</h3>
+        </div>
+        <p>
+          <code>PacketMMAP</code> implements a high-performance network sniffer by memory-mapping (mmap) a ring buffer structure (TPACKET_V3) over an AF_PACKET raw socket on Linux.
+        </p>
+
+        <h4>NewPacketMMAP</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func <span class="fn">NewPacketMMAP</span>(iface <span class="type">string</span>) (*<span class="type">PacketMMAP</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Maps an AF_PACKET capture ring on the specified interface (e.g. <code>eth0</code>). Returns <code>sendrecv.ErrNotSupported</code> on macOS.
+        </p>
+
+        <h4>Recv</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">Recv</span>(timeout time.<span class="type">Duration</span>) (*packet.<span class="type">Packet</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Retrieves the next packet from the memory ring buffer. It automatically parses and dissects the payload using the goscapy parser starting from the link layer.
+        </p>
+
+        <h4>RecvBatch</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">RecvBatch</span>(n <span class="type">int</span>, timeout time.<span class="type">Duration</span>) ([]*packet.<span class="type">Packet</span>, <span class="type">error</span>)</pre>
+          </div>
+        </div>
+        <p>
+          Reads up to <code>n</code> packets from the mapped memory area.
+        </p>
+
+        <h4>Stats</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">Stats</span>() <span class="type">PacketMMAPStats</span></pre>
+          </div>
+        </div>
+        <p>
+          Retrieves real-time packet statistics (received packets, dropped packets, queue freezes) directly from the socket option (TPACKET_STATS_V3).
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre><span class="kw">type</span> <span class="type">PacketMMAPStats</span> <span class="kw">struct</span> {
+    Received <span class="type">uint32</span>
+    Dropped  <span class="type">uint32</span>
+    Freeze   <span class="type">uint32</span>
+}</pre>
+          </div>
+        </div>
+
+        <h4>Close</h4>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+            <pre>func (m *<span class="type">PacketMMAP</span>) <span class="fn">Close</span>() <span class="type">error</span></pre>
+          </div>
+        </div>
+        <p>
+          Unmaps the ring memory and releases the packet socket interface.
+        </p>
+      </div>
+
+    </main>
+
+    <p class="footer">
+      <span class="footer-links">
+        <a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
+        <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT License</a>
+      </span>
+      &copy; 2025 goscapy contributors. Licensed under MIT.
+    </p>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/particles.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/animations.js"></script>
+</body>
+</html>
