@@ -38,10 +38,11 @@ go run main.go
 |---|------|------|------|
 | 17 | [Ping](17-ping/) | 真实 ICMP Ping，RTT 测量与统计 | `sudo go run main.go <目标>` |
 | 18 | [Traceroute](18-traceroute/) | 变 TTL 逐跳路由追踪 | `sudo go run main.go <目标>` |
-| 23 | [DNS 客户端](23-dns-client/) | 发送 DNS 查询，解析 A/AAAA/MX 等记录 | `sudo go run main.go <域名>` |
-| 24 | [NTP 客户端](24-ntp-client/) | NTP 时间同步，测量时钟偏移 | `sudo go run main.go` |
+| 24 | [DNS 客户端](24-dns-client/) | 发送 DNS 查询，解析 A/AAAA/MX 等记录 | `sudo go run main.go <域名>` |
+| 25 | [NTP 客户端](25-ntp-client/) | NTP 时间同步，测量时钟偏移 | `sudo go run main.go` |
 | 26 | [DHCP 客户端](26-dhcp-client/) | DHCP DORA 流程获取 IP | `sudo go run main.go` |
 | 27 | [ARP 扫描器](27-arp-scanner/) | ARP 局域网主机发现 | `sudo go run main.go -cidr 192.168.1.0/24` |
+| 32 | [Fishfinder 探测器](32-fishfinder/) | 并发高能 IP/时延扫描器 (ICMP/TCP) | `sudo go run main.go -cidr 192.168.1.0/24` |
 
 ### 🌐 真实网络工具（Go 标准库实现，无需 root）
 
@@ -75,13 +76,13 @@ go run main.go
   01 → 02 → 03 → 10 → 11 → 12 → 13 → 14 → 15
 
 真实工具路径:
-  17 (Ping) → 18 (Traceroute) → 23 (DNS) → 27 (ARP Scanner) → 31 (Port Scanner)
+  17 (Ping) → 18 (Traceroute) → 24 (DNS) → 27 (ARP Scanner) → 32 (Fishfinder) → 31 (Port Scanner)
 ```
 
 ## 权限说明
 
 - **不需要 root**: 示例 01-10, 15-16, 28-31（构建/解析/标准网络库）
-- **需要 root**: 示例 11-14, 17-18, 23-24, 26-27（原始套接字发送/嗅探/收发）
+- **需要 root**: 示例 11-14, 17, 18-27, 32（原始套接字/嗅探/收发/高级特性）
   - macOS: 使用 `sudo go run main.go`
   - Linux: 使用 `sudo go run main.go` 或设置 `CAP_NET_RAW` 能力
 

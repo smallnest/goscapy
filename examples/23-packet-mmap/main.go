@@ -13,13 +13,13 @@ import (
 func main() {
 	if os.Getuid() != 0 {
 		fmt.Println("Warning: This example requires root privileges to open raw AF_PACKET sockets.")
-		fmt.Println("Please run with sudo: sudo go run examples/22-packet-mmap/main.go <interface>")
+		fmt.Println("Please run with sudo: sudo go run examples/23-packet-mmap/main.go <interface>")
 		os.Exit(1)
 	}
 
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: sudo go run examples/22-packet-mmap/main.go <interface>")
-		fmt.Println("Example: sudo go run examples/22-packet-mmap/main.go eth0")
+		fmt.Println("Usage: sudo go run examples/23-packet-mmap/main.go <interface>")
+		fmt.Println("Example: sudo go run examples/23-packet-mmap/main.go eth0")
 		os.Exit(1)
 	}
 

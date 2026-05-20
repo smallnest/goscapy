@@ -40,7 +40,7 @@ func buildICMPEcho(id, seq uint16) []byte {
 func main() {
 	if os.Getuid() != 0 {
 		fmt.Println("Warning: This example requires root privileges to open raw sockets.")
-		fmt.Println("Please run with sudo: sudo go run examples/21-uring-raw-socket/main.go")
+		fmt.Println("Please run with sudo: sudo go run examples/22-uring-raw-socket/main.go")
 		os.Exit(1)
 	}
 

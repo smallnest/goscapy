@@ -30,7 +30,7 @@
 - [ ] `RawConn.Recv(timeout time.Duration) ([]byte, string, error)` 接收数据，返回原始数据和来源 IP
 - [ ] `RawConn.Close() error` 关闭 socket
 - [ ] 平台文件：`rawconn_darwin.go` 和 `rawconn_linux.go`
-- [ ] 示例代码：`examples/18-raw-socket/main.go`，演示 Send/Recv 完整流程
+- [ ] 示例代码：`examples/19-raw-socket/main.go`，演示 Send/Recv 完整流程
 - [ ] 文档更新：`docs/zh/` 和 `docs/en/` 添加 RawConn API 说明
 - [ ] Typecheck/lint 通过
 
@@ -42,7 +42,7 @@
 - [ ] `sendrecv.SendRaw(proto int, data []byte, dst string) error`
 - [ ] `sendrecv.RecvRaw(proto int, timeout time.Duration) ([]byte, string, error)`
 - [ ] 基于 `RawConn` 实现
-- [ ] 示例：在 `examples/18-raw-socket/main.go` 中演示便捷函数用法
+- [ ] 示例：在 `examples/19-raw-socket/main.go` 中演示便捷函数用法
 - [ ] 文档更新：`docs/zh/` 和 `docs/en/` 添加 SendRaw/RecvRaw 说明
 - [ ] Typecheck/lint 通过
 
@@ -74,7 +74,7 @@
 - [ ] 零拷贝发送先返回成功，完成后通过 `SO_EE_ORIGIN_ZEROCOPY` 错误队列通知——API 需提供 `WaitZeroCopyCompletion(ctx) error` 等待完成确认
 - [ ] Linux 平台通过 `setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, &one)` 启用
 - [ ] macOS 平台 `SetZeroCopy` 和 `WaitZeroCopyCompletion` 直接返回 `ErrNotSupported`
-- [ ] 示例：`examples/20-zerocopy/main.go`，对比零拷贝 vs 普通拷贝的吞吐量
+- [ ] 示例：`examples/21-zerocopy/main.go`，对比零拷贝 vs 普通拷贝的吞吐量
 - [ ] 文档更新：`docs/zh/` 和 `docs/en/` 添加 ZeroCopy API 说明
 - [ ] Typecheck/lint 通过
 
@@ -90,7 +90,7 @@
 - [ ] 内部通过 `golang.org/x/sys/unix` 的 `io_uring` 支持实现（Go 1.23+ 官方支持）
 - [ ] `UringConn.Close()` 关闭 io_uring 实例
 - [ ] macOS 平台 `DialUringRaw` 返回 `ErrNotSupported`
-- [ ] 示例：`examples/21-uring-raw-socket/main.go`，演示 io_uring 异步收发
+- [ ] 示例：`examples/22-uring-raw-socket/main.go`，演示 io_uring 异步收发
 - [ ] 文档更新：`docs/zh/` 和 `docs/en/` 添加 UringConn API 说明
 - [ ] Typecheck/lint 通过
 
@@ -106,7 +106,7 @@
 - [ ] `PacketMMAP.Close() error` — 解除映射，关闭 socket
 - [ ] 内部使用 `AF_PACKET + SOCK_RAW` + `setsockopt(PACKET_RX_RING)` + `mmap`
 - [ ] macOS 平台 `NewPacketMMAP` 返回 `ErrNotSupported`
-- [ ] 示例：`examples/22-packet-mmap/main.go`，演示环形缓冲区捕获 + 统计
+- [ ] 示例：`examples/23-packet-mmap/main.go`，演示环形缓冲区捕获 + 统计
 - [ ] 文档更新：`docs/zh/` 和 `docs/en/` 添加 PacketMMAP API 说明
 - [ ] Typecheck/lint 通过
 
@@ -126,11 +126,11 @@
 **Description:** As a 开发者，我希望每个新增的 sendrecv 功能都有独立可运行的示例，方便快速上手和理解用法。
 
 **Acceptance Criteria:**
-- [ ] `examples/18-raw-socket/main.go` — RawConn + SendRaw/RecvRaw 完整示例（ICMP ping 简化版）
-- [ ] `examples/19-batch-raw-socket/main.go` — BatchConn 批量收发示例（仅 Linux 有效，macOS 降级提示）
-- [ ] `examples/20-zerocopy/main.go` — ZeroCopy 零拷贝发送示例（仅 Linux 有效，macOS 提示不支持）
-- [ ] `examples/21-uring-raw-socket/main.go` — UringConn io_uring 异步 IO 示例（仅 Linux 5.1+ 有效）
-- [ ] `examples/22-packet-mmap/main.go` — PacketMMAP 环形缓冲区捕获示例（仅 Linux 有效）
+- [ ] `examples/19-raw-socket/main.go` — RawConn + SendRaw/RecvRaw 完整示例（ICMP ping 简化版）
+- [ ] `examples/20-batch-raw-socket/main.go` — BatchConn 批量收发示例（仅 Linux 有效，macOS 降级提示）
+- [ ] `examples/21-zerocopy/main.go` — ZeroCopy 零拷贝发送示例（仅 Linux 有效，macOS 提示不支持）
+- [ ] `examples/22-uring-raw-socket/main.go` — UringConn io_uring 异步 IO 示例（仅 Linux 5.1+ 有效）
+- [ ] `examples/23-packet-mmap/main.go` — PacketMMAP 环形缓冲区捕获示例（仅 Linux 有效）
 - [ ] 每个示例包含清晰的注释说明用法和平台要求
 - [ ] Typecheck/lint 通过
 

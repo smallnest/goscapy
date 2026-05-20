@@ -16,3 +16,10 @@ func DialRaw(proto int) (*RawConn, error) {
 	}
 	return &RawConn{fd: fd}, nil
 }
+
+// AttachBPF attaches a classic BPF program to the RawConn socket.
+// On macOS, raw sockets do not support direct BPF attachment, so this is a no-op.
+func (c *RawConn) AttachBPF(instructions []BPFInstruction) error {
+	return nil
+}
+
