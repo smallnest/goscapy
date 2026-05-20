@@ -106,3 +106,81 @@ func TestRawConnSendRecvICMP(t *testing.T) {
 		t.Errorf("expected source IP 127.0.0.1, got %s", srcIP)
 	}
 }
+
+func TestSendRawRecvRawPermission(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("skipping TestSendRawRecvRawPermission: running as root")
+	}
+
+	err := SendRaw(1, []byte("test"), "127.0.0.1")
+	if err == nil {
+		t.Fatal("expected SendRaw to fail for non-root user")
+	}
+
+	_, _, err = RecvRaw(1, 1*time.Second)
+	if err == nil {
+		t.Fatal("expected RecvRaw to fail for non-root user")
+	}
+}
+
+func TestSendRawRecvRawICMP(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("skipping TestSendRawRecvRawICMP: requires root privileges")
+	}
+
+	// Build an ICMP Echo Request payload
+	icmp := layers.NewICMPEcho(0x8888, 1)
+	pkt := packet.NewFrom(icmp)
+	payload, err := pkt.Build()
+	if err != nil {
+		t.Fatalf("failed to build ICMP payload: %v", err)
+	}
+
+	// Send to localhost
+	err = SendRaw(1, payload, "127.0.0.1")
+	if err != nil {
+		t.Fatalf("SendRaw failed: %v", err)
+	}
+
+	// Receive response
+	deadline := time.Now().Add(2 * time.Second)
+	var reply []byte
+	var srcIP string
+
+	for time.Now().Before(deadline) {
+		remaining := time.Until(deadline)
+		data, ip, err := RecvRaw(1, remaining)
+		if err != nil {
+			if errors.Is(err, ErrTimeout) {
+				t.Fatalf("timeout waiting for response")
+			}
+			t.Fatalf("RecvRaw error: %v", err)
+		}
+
+		if len(data) >= 20 {
+			pktReply, err := packet.Dissect(data, testIPStartFn)
+			if err != nil {
+				continue
+			}
+			icmpLayer := pktReply.GetLayer("ICMP")
+			if icmpLayer != nil {
+				icmpType, _ := icmpLayer.Get("type")
+				icmpID, _ := icmpLayer.Get("id")
+				if icmpType == uint8(0) && icmpID == uint16(0x8888) {
+					reply = data
+					srcIP = ip
+					break
+				}
+			}
+		}
+	}
+
+	if len(reply) == 0 {
+		t.Fatal("failed to capture matching ICMP echo reply using RecvRaw")
+	}
+
+	if srcIP != "127.0.0.1" {
+		t.Errorf("expected source IP 127.0.0.1, got %s", srcIP)
+	}
+}
+
