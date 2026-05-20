@@ -78,7 +78,7 @@
   navbar.innerHTML =
     '<div class="header-row">' +
       '<div class="header-left">' +
-        '<div class="pulse-dot" id="pulseDot"></div>' +
+        '<div class="pulse-dot" id="pulseDot" style="background: none; border-radius: 0; width: auto; height: auto; font-size: 1.5rem; animation: none; display: flex; align-items: center; justify-content: center; user-select: none;">🦎</div>' +
         '<h1>' + title + '</h1>' +
       '</div>' +
       '<nav class="header-nav">' +
