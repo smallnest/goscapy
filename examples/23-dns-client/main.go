@@ -3,15 +3,15 @@
 // 本示例演示如何使用 goscapy 实现真实的 DNS 查询客户端。
 // 你将学到:
 //   - 使用 DNS Builder 构造查询包
-//   - 通过 UDP/53 发送 DNS 查询并接收响应
-//   - 解析 DNS 响应中的 Answer 资源记录
+//   - 通过标准 UDP socket 发送 DNS 查询并接收响应
+//   - 使用 goscapy 解析 DNS 响应中的 Answer 资源记录
 //   - 支持多种记录类型 (A, AAAA, MX, NS, TXT, CNAME)
 //
-// 运行方式: sudo go run main.go [选项] <域名>
-// 示例:     sudo go run main.go example.com
-//           sudo go run main.go -type MX -server 1.1.1.1 google.com
+// 运行方式: go run main.go [选项] <域名>
+// 示例:     go run main.go example.com
+//           go run main.go -type MX -server 1.1.1.1 google.com
 //
-// ⚠️  需要 root 权限 (sudo) 或 CAP_NET_RAW 能力。
+// 无需 root 权限。
 
 package main
 
@@ -28,7 +28,6 @@ import (
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/layers/dns"
 	"github.com/smallnest/goscapy/pkg/packet"
-	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
 var typeNames = map[string]uint16{
@@ -56,21 +55,16 @@ var typeLabels = map[uint16]string{
 func main() {
 	qtype := flag.String("type", "A", "查询类型: A, AAAA, MX, NS, TXT, CNAME, PTR, SOA")
 	server := flag.String("server", "8.8.8.8", "DNS 服务器地址")
-	iface := flag.String("I", "", "网络接口 (默认自动选择)")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "用法: sudo go run main.go [选项] <域名>\n")
-		fmt.Fprintf(os.Stderr, "示例: sudo go run main.go example.com\n")
-		fmt.Fprintf(os.Stderr, "      sudo go run main.go -type MX -server 1.1.1.1 google.com\n")
+		fmt.Fprintf(os.Stderr, "用法: go run main.go [选项] <域名>\n")
+		fmt.Fprintf(os.Stderr, "示例: go run main.go example.com\n")
+		fmt.Fprintf(os.Stderr, "      go run main.go -type MX -server 1.1.1.1 google.com\n")
 		os.Exit(1)
 	}
 
 	domain := flag.Arg(0)
-	ifaceVal := *iface
-	if ifaceVal == "" {
-		ifaceVal = defaultIface()
-	}
 
 	qt, ok := typeNames[strings.ToUpper(*qtype)]
 	if !ok {
@@ -86,29 +80,33 @@ func main() {
 	}
 
 	start := time.Now()
-	pkt := buildDNSQuery(*server, questions)
-	_, reply, err := sendrecv.SendRecv1(pkt, ifaceVal, 3*time.Second)
-	rtt := time.Since(start)
+	queryPkt := buildDNSQuery(questions)
 
+	// 序列化 DNS 查询载荷（跳过 Ethernet/IP/UDP 头，只用 DNS 层字节）
+	queryBytes, err := queryPkt.BuildFrom(3)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "序列化 DNS 查询失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 通过标准 UDP socket 发送查询并接收响应
+	rawResp, err := sendDNSQuery(*server, queryBytes, 3*time.Second)
+	rtt := time.Since(start)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "查询失败: %v\n", err)
 		os.Exit(1)
 	}
 
-	if reply == nil {
-		fmt.Println("查询超时: 未收到响应")
-		os.Exit(1)
-	}
-
-	dnsLayer := reply.GetLayer("DNS")
-	if dnsLayer == nil {
-		fmt.Println("响应中没有 DNS 层")
-		os.Exit(1)
-	}
-
-	answers, err := dns.GetAnswers(dnsLayer)
+	// 用 goscapy 解析 DNS 响应
+	reply, err := packet.DissectByProto(rawResp, "DNS")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "解析 DNS 响应失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	answers, err := dns.GetAnswers(reply.GetLayer("DNS"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "提取 DNS 回答失败: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -130,11 +128,11 @@ func main() {
 	}
 }
 
-func buildDNSQuery(serverIP string, questions []dns.DNSQuestion) *packet.Packet {
+func buildDNSQuery(questions []dns.DNSQuestion) *packet.Packet {
 	return goscapy.NewEthernet().
 		Over(goscapy.NewIP().
 			SrcIP("0.0.0.0").
-			DstIP(serverIP).
+			DstIP("0.0.0.0").
 			TTL(64).
 			Proto(layers.IPProtoUDP)).
 		Over(goscapy.NewUDP().
@@ -145,6 +143,32 @@ func buildDNSQuery(serverIP string, questions []dns.DNSQuestion) *packet.Packet 
 			Flags(0x0100).
 			Questions(questions)).
 		Packet()
+}
+
+func sendDNSQuery(server string, query []byte, timeout time.Duration) ([]byte, error) {
+	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(server, "53"))
+	if err != nil {
+		return nil, fmt.Errorf("解析服务器地址失败: %w", err)
+	}
+
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("连接 DNS 服务器失败: %w", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.Write(query); err != nil {
+		return nil, fmt.Errorf("发送 DNS 查询失败: %w", err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(timeout))
+	buf := make([]byte, 4096)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return nil, fmt.Errorf("接收 DNS 响应失败: %w", err)
+	}
+
+	return buf[:n], nil
 }
 
 func formatRData(rr dns.DNSRR) string {
@@ -197,21 +221,4 @@ func formatSOA(rdata []byte) string {
 		return fmt.Sprintf("<SOA 解析错误>")
 	}
 	return fmt.Sprintf("mname=%s rname=%s", mname, rname)
-}
-
-func defaultIface() string {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "en0"
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		if len(addrs) > 0 {
-			return iface.Name
-		}
-	}
-	return "en0"
 }

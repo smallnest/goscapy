@@ -175,6 +175,10 @@ func init() {
 	packet.RegisterHeuristic("TCP", "dport", uint16(179), "BGP")
 	packet.RegisterHeuristic("TCP", "sport", uint16(179), "BGP")
 
+	// DNS: UDP port 53.
+	packet.RegisterHeuristic("UDP", "dport", uint16(53), "DNS")
+	packet.RegisterHeuristic("UDP", "sport", uint16(53), "DNS")
+
 	// QUIC: UDP port 443.
 	packet.RegisterHeuristic("UDP", "dport", uint16(443), "QUIC")
 	packet.RegisterHeuristic("UDP", "sport", uint16(443), "QUIC")
