@@ -76,3 +76,25 @@ func (c *RawConn) Close() error {
 	}
 	return nil
 }
+
+// SendRaw dials a temporary raw socket connection, sends the data to the destination IP,
+// and closes the connection.
+func SendRaw(proto int, data []byte, dst string) error {
+	conn, err := DialRaw(proto)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	return conn.Send(data, dst)
+}
+
+// RecvRaw dials a temporary raw socket connection, receives one packet payload within the
+// specified timeout, and closes the connection.
+func RecvRaw(proto int, timeout time.Duration) ([]byte, string, error) {
+	conn, err := DialRaw(proto)
+	if err != nil {
+		return nil, "", err
+	}
+	defer conn.Close()
+	return conn.Recv(timeout)
+}

@@ -19,6 +19,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 1. Connection-oriented RawConn API
+	fmt.Println("=== Testing RawConn connection-oriented API ===")
 	fmt.Println("Dialing raw ICMP socket...")
 	conn, err := sendrecv.DialRaw(1) // 1 = ICMP
 	if err != nil {
@@ -51,12 +53,38 @@ func main() {
 
 	fmt.Printf("Received %d bytes from %s\n", len(data), srcIP)
 
+	// 2. Convenience SendRaw / RecvRaw functions
+	fmt.Println("\n=== Testing SendRaw / RecvRaw convenience functions ===")
+	// Build another ICMP Echo Request payload
+	icmp2 := layers.NewICMPEcho(0x6666, 1)
+	pkt2 := packet.NewFrom(icmp2)
+	payload2, err := pkt2.Build()
+	if err != nil {
+		log.Fatalf("Failed to build ICMP payload 2: %v", err)
+	}
+
+	fmt.Println("Sending ICMP Echo Request using SendRaw to 127.0.0.1...")
+	err = sendrecv.SendRaw(1, payload2, "127.0.0.1")
+	if err != nil {
+		log.Fatalf("SendRaw failed: %v", err)
+	}
+
+	fmt.Println("Waiting for response using RecvRaw...")
+	data2, srcIP2, err := sendrecv.RecvRaw(1, 3*time.Second)
+	if err != nil {
+		if errors.Is(err, sendrecv.ErrTimeout) {
+			log.Fatalf("Timeout waiting for response on RecvRaw")
+		}
+		log.Fatalf("RecvRaw error: %v", err)
+	}
+
+	fmt.Printf("Received %d bytes from %s using RecvRaw\n", len(data2), srcIP2)
+
 	// Dissect response to inspect it
-	// On raw sockets, the received data includes the IP header.
 	ipStartFn := func(_ []byte) (string, error) {
 		return "IP", nil
 	}
-	pktReply, err := packet.Dissect(data, ipStartFn)
+	pktReply, err := packet.Dissect(data2, ipStartFn)
 	if err != nil {
 		log.Fatalf("Failed to dissect received packet: %v", err)
 	}
