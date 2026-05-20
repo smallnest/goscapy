@@ -20,10 +20,15 @@ package goscapy
 import (
 	"github.com/smallnest/goscapy/pkg/fields"
 	"github.com/smallnest/goscapy/pkg/layers"
+	"github.com/smallnest/goscapy/pkg/layers/bgp"
 	"github.com/smallnest/goscapy/pkg/layers/dhcp"
 	"github.com/smallnest/goscapy/pkg/layers/dns"
 	"github.com/smallnest/goscapy/pkg/layers/dot1q"
+	"github.com/smallnest/goscapy/pkg/layers/erspan"
 	"github.com/smallnest/goscapy/pkg/layers/gre"
+	"github.com/smallnest/goscapy/pkg/layers/lldp"
+	"github.com/smallnest/goscapy/pkg/layers/ospf"
+	"github.com/smallnest/goscapy/pkg/layers/quic"
 	"github.com/smallnest/goscapy/pkg/layers/vxlan"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
@@ -695,6 +700,170 @@ func (b *GREBuilder) SetChecksum(csum uint16) *GREBuilder {
 
 // Over stacks an upper layer on top of this GRE layer and returns a PacketBuilder.
 func (b *GREBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- LLDPBuilder ----
+
+// LLDPBuilder builds LLDP frame layers.
+type LLDPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewLLDPLayer creates an LLDP builder with default TLV data.
+func NewLLDPLayer() *LLDPBuilder {
+	return &LLDPBuilder{layer: lldp.NewLLDP()}
+}
+
+func (b *LLDPBuilder) Layer() *packet.Layer { return b.layer }
+
+// TLVData sets the raw TLV data bytes.
+func (b *LLDPBuilder) TLVData(data []byte) *LLDPBuilder {
+	b.layer.Set("tlv_data", data)
+	return b
+}
+
+// LLDPDU sets the TLV data from a structured LLDPDU.
+func (b *LLDPBuilder) LLDPDU(du *lldp.LLDPDU) *LLDPBuilder {
+	data, err := du.Serialize()
+	if err != nil {
+		return b
+	}
+	b.layer.Set("tlv_data", data)
+	return b
+}
+
+// ---- ERSPANBuilder ----
+
+// ERSPANBuilder builds ERSPAN v3 encapsulation layers.
+type ERSPANBuilder struct {
+	layer *packet.Layer
+}
+
+// NewERSPANLayer creates an ERSPAN v3 builder with default values.
+func NewERSPANLayer() *ERSPANBuilder {
+	return &ERSPANBuilder{layer: erspan.NewERSPAN()}
+}
+
+func (b *ERSPANBuilder) Layer() *packet.Layer { return b.layer }
+
+// FromERSPAN sets the layer fields from an ERSPAN struct.
+func (b *ERSPANBuilder) FromERSPAN(e *erspan.ERSPAN) *ERSPANBuilder {
+	data, err := e.Serialize()
+	if err != nil {
+		return b
+	}
+	// Set individual fields from serialized data
+	b.layer.Set("ver_vlan_hi", data[0])
+	b.layer.Set("vlan_lo_cos_bso_en", uint16(data[1])<<8|uint16(data[2]))
+	b.layer.Set("session_id_flags", data[3])
+	b.layer.Set("reserved", data[4])
+	ts := uint32(data[5])<<24 | uint32(data[6])<<16 | uint32(data[7])<<8 | uint32(data[8])
+	b.layer.Set("timestamp", ts)
+	b.layer.Set("sgt_p_ft", uint16(data[9])<<8|uint16(data[10]))
+	b.layer.Set("offset_hw", uint16(data[11])<<8)
+	return b
+}
+
+// ---- OSPFBuilder ----
+
+// OSPFBuilder builds OSPFv2 header layers.
+type OSPFBuilder struct {
+	layer *packet.Layer
+}
+
+// NewOSPFLayer creates an OSPFv2 header builder with default values.
+func NewOSPFLayer() *OSPFBuilder {
+	return &OSPFBuilder{layer: ospf.NewOSPF()}
+}
+
+func (b *OSPFBuilder) Layer() *packet.Layer { return b.layer }
+
+// RouterID sets the OSPF Router ID.
+func (b *OSPFBuilder) RouterID(ip string) *OSPFBuilder {
+	b.layer.Set("router_id", ip)
+	return b
+}
+
+// AreaID sets the OSPF Area ID.
+func (b *OSPFBuilder) AreaID(ip string) *OSPFBuilder {
+	b.layer.Set("area_id", ip)
+	return b
+}
+
+// Type sets the OSPF message type (Hello, DBD, LSR, LSU, LSAck).
+func (b *OSPFBuilder) Type(t uint8) *OSPFBuilder {
+	b.layer.Set("type", t)
+	return b
+}
+
+// Over stacks an upper layer on top of this OSPF layer and returns a PacketBuilder.
+func (b *OSPFBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- BGPBuilder ----
+
+// BGPBuilder builds BGP common header layers.
+type BGPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewBGPLayer creates a BGP common header builder with default values.
+func NewBGPLayer() *BGPBuilder {
+	return &BGPBuilder{layer: bgp.NewBGP()}
+}
+
+func (b *BGPBuilder) Layer() *packet.Layer { return b.layer }
+
+// Type sets the BGP message type (OPEN, UPDATE, NOTIFICATION, KEEPALIVE).
+func (b *BGPBuilder) Type(t uint8) *BGPBuilder {
+	b.layer.Set("type", t)
+	return b
+}
+
+// Over stacks an upper layer on top of this BGP layer and returns a PacketBuilder.
+func (b *BGPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- QUICBuilder ----
+
+// QUICBuilder builds QUIC packet layers.
+type QUICBuilder struct {
+	layer *packet.Layer
+}
+
+// NewQUICLayer creates a QUIC Long Header builder with default values.
+func NewQUICLayer() *QUICBuilder {
+	return &QUICBuilder{layer: quic.NewQUICLongHeader()}
+}
+
+func (b *QUICBuilder) Layer() *packet.Layer { return b.layer }
+
+// Version sets the QUIC version.
+func (b *QUICBuilder) Version(v uint32) *QUICBuilder {
+	b.layer.Set("version", v)
+	return b
+}
+
+// DCID sets the Destination Connection ID.
+func (b *QUICBuilder) DCID(cid []byte) *QUICBuilder {
+	b.layer.Set("dcid", cid)
+	return b
+}
+
+// SCID sets the Source Connection ID.
+func (b *QUICBuilder) SCID(cid []byte) *QUICBuilder {
+	b.layer.Set("scid", cid)
+	return b
+}
+
+// Over stacks an upper layer on top of this QUIC layer and returns a PacketBuilder.
+func (b *QUICBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }
