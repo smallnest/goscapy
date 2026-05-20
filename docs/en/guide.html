@@ -516,6 +516,29 @@ results, err := conn.<span class="fn">SendRecvBatch</span>(msgs)</pre>
 }</pre>
           </div>
         </div>
+
+        <h3>PacketMMAP (TPACKET_V3) API</h3>
+        <p>
+          For high-performance packet capture scenarios on Linux, you can utilize the memory-mapped ring buffer interface (TPACKET_V3). This bypasses BPF overhead and achieves much higher throughput (returns <code>ErrNotSupported</code> on macOS):
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// Initialize PacketMMAP on a given interface</span>
+m, err := sendrecv.<span class="fn">NewPacketMMAP</span>(<span class="str">"eth0"</span>)
+<span class="key">defer</span> m.<span class="fn">Close</span>()
+
+<span class="cmt">// Read next packet (blocking with timeout)</span>
+pkt, err := m.<span class="fn">Recv</span>(<span class="num">1</span> * time.Second)
+
+<span class="cmt">// Batch read packets</span>
+pkts, err := m.<span class="fn">RecvBatch</span>(<span class="num">10</span>, <span class="num">2</span> * time.Second)
+
+<span class="cmt">// Retrieve capture statistics</span>
+stats := m.<span class="fn">Stats</span>()
+fmt.<span class="fn">Printf</span>(<span class="str">"Received: %d | Dropped: %d"</span>, stats.Received, stats.Dropped)</pre>
+          </div>
+        </div>
       </div>
 
       <!-- BPF Filters -->
