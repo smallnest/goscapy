@@ -58,6 +58,9 @@ func init() {
 	packet.RegisterBuildHook("TCP", tcpBuildHook)
 	packet.RegisterBuildHook("UDP", udpBuildHook)
 
+	// Post-parse hooks for variable-length header fields.
+	packet.RegisterPostParseHook("TCP", tcpPostParseHook)
+
 	// ---- Dissect (parsing) registrations ----
 
 	// Register layer factories.

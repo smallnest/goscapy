@@ -32,6 +32,7 @@ func NewTCP() *packet.Layer {
 		fields.NewShortField("window", 8192),
 		fields.NewShortField("chksum", 0), // auto-computed during Build
 		fields.NewShortField("urgptr", 0),
+		newTCPOptionsField(), // variable-length TCP options
 	})
 }
 
@@ -50,9 +51,19 @@ func TCPDataOffset(dataofs uint8) int {
 }
 
 // tcpBuildHook is called during Packet.Build() for TCP layers.
-// It auto-computes the TCP checksum using the IPv4 or IPv6 pseudo-header.
+// It auto-computes dataofs (based on options length) and the TCP checksum
+// using the IPv4 or IPv6 pseudo-header.
 func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
 	layer := pkt.Layers()[layerIdx]
+
+	// Compute dataofs from serialized options.
+	optsVal, _ := layer.Get("options")
+	var optsBytes []byte
+	if opts, ok := optsVal.([]TCPOption); ok && len(opts) > 0 {
+		optsBytes = SerializeTCPOptions(opts)
+	}
+	hdrLen := 20 + len(optsBytes)
+	layer.Set("dataofs", uint8((hdrLen/4)<<4))
 
 	// Zero checksum, serialize header.
 	layer.Set("chksum", uint16(0))
