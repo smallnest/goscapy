@@ -1,6 +1,7 @@
 # goscapy
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/smallnest/goscapy.svg)](https://pkg.go.dev/github.com/smallnest/goscapy)
+[![CI](https://github.com/smallnest/goscapy/actions/workflows/ci.yml/badge.svg)](https://github.com/smallnest/goscapy/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D1.26-blue)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
