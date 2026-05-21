@@ -19,22 +19,30 @@ type DissectorFunc func(data []byte) (proto string, skip int, err error)
 // maxTunnelDepth limits recursive tunnel dissection to prevent stack overflow.
 const maxTunnelDepth = 8
 
+// PostParseHook is called after a layer's fixed fields are parsed and the
+// actual header size is determined. It receives the "extra" bytes between
+// the fixed fields and the full header boundary (e.g., TCP/IP options).
+// The hook can parse these bytes and store results in the layer via Set.
+type PostParseHook func(layer *Layer, extra []byte) error
+
 type dissectReg struct {
-	factories     map[string]LayerFactory
-	nextLayer     map[string]map[uint64]string // proto → field value → next proto name
-	keyField      map[string]string            // proto → field name used for next-layer lookup
-	headerSizeFn  map[string]HeaderSizeFunc    // proto → function to compute variable header size
-	dissectors    map[string]DissectorFunc     // proto → function to identify this protocol from raw bytes
-	tunnelPayload map[string]string            // proto → inner proto for tunnel-encapsulated payloads
+	factories      map[string]LayerFactory
+	nextLayer      map[string]map[uint64]string // proto → field value → next proto name
+	keyField       map[string]string            // proto → field name used for next-layer lookup
+	headerSizeFn   map[string]HeaderSizeFunc    // proto → function to compute variable header size
+	dissectors     map[string]DissectorFunc     // proto → function to identify this protocol from raw bytes
+	tunnelPayload  map[string]string            // proto → inner proto for tunnel-encapsulated payloads
+	postParseHooks map[string]PostParseHook     // proto → hook called after fixed fields are parsed
 }
 
 var dissectRegistry = dissectReg{
-	factories:     make(map[string]LayerFactory),
-	nextLayer:     make(map[string]map[uint64]string),
-	keyField:      make(map[string]string),
-	headerSizeFn:  make(map[string]HeaderSizeFunc),
-	dissectors:    make(map[string]DissectorFunc),
-	tunnelPayload: make(map[string]string),
+	factories:      make(map[string]LayerFactory),
+	nextLayer:      make(map[string]map[uint64]string),
+	keyField:       make(map[string]string),
+	headerSizeFn:   make(map[string]HeaderSizeFunc),
+	dissectors:     make(map[string]DissectorFunc),
+	tunnelPayload:  make(map[string]string),
+	postParseHooks: make(map[string]PostParseHook),
 }
 
 // RegisterLayer registers a layer factory for the given protocol name.
@@ -81,6 +89,14 @@ func RegisterDissector(proto string, fn DissectorFunc) {
 func RegisterHeuristic(lowerProto, field string, value any, nextProto string) {
 	RegisterKeyField(lowerProto, field)
 	RegisterNextLayer(lowerProto, toUint64(value), nextProto)
+}
+
+// RegisterPostParseHook registers a hook called after a layer's fixed fields
+// are parsed and the actual header size is computed. The hook receives the
+// "extra" header bytes (e.g., TCP options, IP options) that fall between
+// the fixed field boundary and the full header size.
+func RegisterPostParseHook(proto string, hook PostParseHook) {
+	dissectRegistry.postParseHooks[proto] = hook
 }
 
 // RegisterTunnelPayload marks a protocol as a tunnel whose payload starts
@@ -159,6 +175,14 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 		if actualHeaderSize > len(remaining) {
 			return nil, fmt.Errorf("packet: Dissect: layer %s: header size %d exceeds remaining bytes %d",
 				currentProto, actualHeaderSize, len(remaining))
+		}
+
+		if hook, hasHook := dissectRegistry.postParseHooks[currentProto]; hasHook {
+			if actualHeaderSize > consumed {
+				if err := hook(layer, remaining[consumed:actualHeaderSize]); err != nil {
+					return nil, fmt.Errorf("packet: Dissect: layer %s post-parse: %w", currentProto, err)
+				}
+			}
 		}
 
 		pkt.Push(layer)
