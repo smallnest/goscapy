@@ -16,11 +16,12 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"net"
 	"os"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -69,26 +70,24 @@ func main() {
 	var wg sync.WaitGroup
 
 	for _, ip := range ips {
-		wg.Add(1)
-		go func(targetIP string) {
-			defer wg.Done()
+		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			mac := arpProbe(ifaceVal, srcMAC, srcIP, targetIP)
+			mac := arpProbe(ifaceVal, srcMAC, srcIP, ip)
 			if mac != "" {
 				mu.Lock()
-				results = append(results, result{targetIP, mac})
-				fmt.Printf("%-16s %s\n", targetIP, mac)
+				results = append(results, result{ip, mac})
+				fmt.Printf("%-16s %s\n", ip, mac)
 				mu.Unlock()
 			}
-		}(ip)
+		})
 	}
 	wg.Wait()
 
 	elapsed := time.Since(start)
 
-	sort.Slice(results, func(i, j int) bool { return results[i].ip < results[j].ip })
+	slices.SortFunc(results, func(a, b result) int { return cmp.Compare(a.ip, b.ip) })
 
 	fmt.Println("------------------------------------")
 	fmt.Printf("\n扫描完成: 总数 %d, 存活 %d, 耗时 %.2f s\n", len(ips), len(results), elapsed.Seconds())

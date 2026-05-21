@@ -55,7 +55,7 @@ func TestSniffCount(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Send more packets than the count limit; sniffer should stop at 3.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		sendICMPLoopback(t, uint8(i))
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -134,7 +134,7 @@ func TestSniffChan(t *testing.T) {
 	// Send packets in background.
 	go func() {
 		time.Sleep(200 * time.Millisecond)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			sendICMPLoopback(t, uint8(i))
 			time.Sleep(50 * time.Millisecond)
 		}

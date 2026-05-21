@@ -13,12 +13,13 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"math/rand"
 	"net"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -113,25 +114,23 @@ func main() {
 	var wg sync.WaitGroup
 
 	for _, port := range portList {
-		wg.Add(1)
-		go func(p int) {
-			defer wg.Done()
+		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			res := scanPort(ifaceVal, srcIP, targetIP.String(), p)
+			res := scanPort(ifaceVal, srcIP, targetIP.String(), port)
 			if res.state == "OPEN" {
 				mu.Lock()
 				results = append(results, res)
-				fmt.Printf("%-8d %-12s %s\n", p, "OPEN", res.service)
+				fmt.Printf("%-8d %-12s %s\n", port, "OPEN", res.service)
 				mu.Unlock()
 			}
-		}(port)
+		})
 	}
 	wg.Wait()
 
 	elapsed := time.Since(start)
-	sort.Slice(results, func(i, j int) bool { return results[i].port < results[j].port })
+	slices.SortFunc(results, func(a, b scanResult) int { return cmp.Compare(a.port, b.port) })
 
 	fmt.Println(strings.Repeat("-", 35))
 	fmt.Printf("\n扫描完成: 扫描 %d 端口, %d 开放, 耗时 %.2f s\n",

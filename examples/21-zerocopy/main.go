@@ -56,7 +56,7 @@ func main() {
 		numSends, len(fullPayload), float64(totalBytes)/(1024*1024))
 
 	startNormal := time.Now()
-	for i := 0; i < numSends; i++ {
+	for range numSends {
 		err = conn.Send(fullPayload, "127.0.0.1")
 		if err != nil {
 			log.Fatalf("Normal send failed: %v", err)
@@ -84,7 +84,7 @@ func main() {
 		numSends, len(fullPayload), float64(totalBytes)/(1024*1024))
 
 	startZero := time.Now()
-	for i := 0; i < numSends; i++ {
+	for range numSends {
 		err = conn.Send(fullPayload, "127.0.0.1")
 		if err != nil {
 			log.Fatalf("ZeroCopy send failed: %v", err)

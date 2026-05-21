@@ -148,7 +148,7 @@ func DecodeName(msg []byte, offset int, msgStart int) (string, int, error) {
 func ParseQuestions(data []byte, offset int, n int, msgStart int) ([]DNSQuestion, int, error) {
 	pos := offset
 	var out []DNSQuestion
-	for i := 0; i < n; i++ {
+	for range n {
 		name, c, err := DecodeName(data, pos, msgStart)
 		if err != nil {
 			return nil, 0, err
@@ -169,7 +169,7 @@ func ParseQuestions(data []byte, offset int, n int, msgStart int) ([]DNSQuestion
 func ParseRRs(data []byte, offset int, n int, msgStart int) ([]DNSRR, int, error) {
 	pos := offset
 	var out []DNSRR
-	for i := 0; i < n; i++ {
+	for range n {
 		name, c, err := DecodeName(data, pos, msgStart)
 		if err != nil {
 			return nil, 0, err
@@ -291,7 +291,7 @@ func ParseAAAARData(rdata []byte) string {
 		return ""
 	}
 	parts := make([]string, 8)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		parts[i] = fmt.Sprintf("%x", binary.BigEndian.Uint16(rdata[i*2:]))
 	}
 	return strings.Join(parts, ":")

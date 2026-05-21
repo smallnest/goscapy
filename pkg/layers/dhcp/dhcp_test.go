@@ -721,7 +721,7 @@ func TestDHCPChaddr(t *testing.T) {
 
 	// chaddr is at offset 28 (after 4+4+4+16 bytes of IP fields).
 	// Actually: op(1)+htype(1)+hlen(1)+hops(1)+xid(4)+secs(2)+flags(2)+ciaddr(4)+yiaddr(4)+siaddr(4)+giaddr(4) = 28
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		if raw[28+i] != mac[i] {
 			t.Errorf("chaddr[%d] = %#x, want %#x", i, raw[28+i], mac[i])
 		}
