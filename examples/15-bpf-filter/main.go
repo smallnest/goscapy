@@ -7,15 +7,15 @@
 //   - 常用的过滤模式
 //   - 过滤器与嗅探的配合使用
 //
-// 运行方式: go run main.go
+// 运行方式: sudo go run main.go [接口名]
 // 注意: 编译 BPF 过滤器需要系统上安装 tcpdump。
-//       macOS 上可能需要 root 权限才能编译过滤器。
+//       macOS 上需要 root 权限才能编译过滤器。
 
 package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/smallnest/goscapy/pkg/sendrecv"
 	"github.com/smallnest/goscapy/pkg/sniff"
@@ -37,6 +37,12 @@ func main() {
 	//   - 不需要的包不会从内核拷贝到用户空间
 	//   - 类 tcpdump 语法，易于使用
 
+	// 可选指定接口，macOS 上需要指定接口或以 root 运行
+	iface := ""
+	if len(os.Args) > 1 {
+		iface = os.Args[1]
+	}
+
 	// -----------------------------------------------------------------------
 	// 第一部分: 编译基本过滤器
 	// -----------------------------------------------------------------------
@@ -52,17 +58,33 @@ func main() {
 		"src net 192.168.0.0/16",
 	}
 
+	compileOK := false
 	for _, f := range filters {
-		insns, err := sniff.CompileFilter(f)
+		var insns []sendrecv.BPFInstruction
+		var err error
+		if iface != "" {
+			insns, err = sniff.CompileFilterOnIface(f, iface)
+		} else {
+			insns, err = sniff.CompileFilter(f)
+		}
 		if err != nil {
 			fmt.Printf("  过滤器 %q: 编译失败 (%v)\n", f, err)
 			continue
 		}
+		compileOK = true
 		fmt.Printf("  过滤器 %q: %d 条 BPF 指令\n", f, len(insns))
 		for i, ins := range insns {
 			fmt.Printf("    [%d] code=0x%04x jt=%d jf=%d k=0x%08x\n",
 				i, ins.Code, ins.Jt, ins.Jf, ins.K)
 		}
+		fmt.Println()
+	}
+
+	if !compileOK {
+		fmt.Println("  ⚠️  所有过滤器编译失败。可能原因:")
+		fmt.Println("     - macOS: 需要 root 权限 (sudo) 或指定接口 (如 en0)")
+		fmt.Println("     - Linux: 需要 root 权限或 CAP_NET_RAW 能力")
+		fmt.Println("     - 系统未安装 tcpdump")
 		fmt.Println()
 	}
 
@@ -75,18 +97,24 @@ func main() {
 	fmt.Println()
 
 	// 编译 "tcp port 80" 过滤器
-	instructions, err := sniff.CompileFilter("tcp port 80")
-	if err != nil {
-		log.Fatalf("编译过滤器失败: %v", err)
+	var instructions []sendrecv.BPFInstruction
+	if iface != "" {
+		instructions, _ = sniff.CompileFilterOnIface("tcp port 80", iface)
+	} else {
+		instructions, _ = sniff.CompileFilter("tcp port 80")
 	}
 
-	// 使用预编译的指令创建 SniffConfig
-	_ = sniff.SniffConfig{
-		Iface:        sendrecv.LoopbackName(),
-		Instructions: instructions,  // 预编译的 BPF 指令
-		Count:        10,
+	if instructions != nil {
+		// 使用预编译的指令创建 SniffConfig
+		_ = sniff.SniffConfig{
+			Iface:        sendrecv.LoopbackName(),
+			Instructions: instructions, // 预编译的 BPF 指令
+			Count:        10,
+		}
+		fmt.Println("  预编译 'tcp port 80' 成功，可传给 SniffConfig.Instructions")
+	} else {
+		fmt.Println("  预编译 'tcp port 80' 失败 (需要 root 权限)")
 	}
-	fmt.Println("  预编译 'tcp port 80' 成功，可传给 SniffConfig.Instructions")
 	fmt.Println()
 
 	// -----------------------------------------------------------------------

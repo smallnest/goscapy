@@ -36,6 +36,10 @@ func CompileFilterOnIface(filter string, iface string) ([]sendrecv.BPFInstructio
 	var args []string
 	if iface != "" {
 		args = append(args, "-i", iface)
+	} else {
+		// On macOS, tcpdump defaults to PKTAP data link type which does not
+		// support BPF filter compilation. Force EN10MB (Ethernet) instead.
+		args = append(args, "-y", "EN10MB")
 	}
 	args = append(args, "-dd", filter)
 	cmd := exec.Command("tcpdump", args...)
