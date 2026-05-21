@@ -367,3 +367,219 @@ func equalBytes(t *testing.T, got, want []byte) bool {
 	t.Helper()
 	return bytes.Equal(got, want)
 }
+
+func TestBuildIPv6TCPDirect(t *testing.T) {
+	// IPv6 + TCP (no extension headers) — TCP checksum uses IPv6 pseudo-header.
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6NextHdrTCP))
+	ipv6.Set("hl", uint8(64))
+
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+
+	pkt := packet.NewFrom(ipv6, tcp)
+
+	got, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv6 header (40) + TCP header (20) = 60 bytes
+	if len(got) != 60 {
+		t.Fatalf("len = %d, want 60", len(got))
+	}
+
+	// Verify IPv6 next header is TCP (6)
+	if got[6] != 6 {
+		t.Errorf("IPv6 NH = %d, want 6 (TCP)", got[6])
+	}
+
+	// Verify TCP checksum using IPv6 pseudo-header
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	tcpAndPayload := got[40:]
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrTCP, tcpAndPayload); csum != 0 {
+		t.Errorf("TCP over IPv6 checksum invalid: %#x", csum)
+	}
+}
+
+func TestBuildIPv6UDPDirect(t *testing.T) {
+	// IPv6 + UDP (no extension headers) — UDP checksum uses IPv6 pseudo-header.
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6NextHdrUDP))
+	ipv6.Set("hl", uint8(64))
+
+	udp := NewUDPWith(12345, 53)
+	raw := NewRawWith([]byte("test"))
+
+	pkt := packet.NewFrom(ipv6, udp, raw)
+
+	got, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv6 header (40) + UDP header (8) + "test" (4) = 52 bytes
+	if len(got) != 52 {
+		t.Fatalf("len = %d, want 52", len(got))
+	}
+
+	// Verify UDP length
+	udpLen := binary.BigEndian.Uint16(got[44:46])
+	if udpLen != 12 {
+		t.Errorf("UDP.len = %d, want 12", udpLen)
+	}
+
+	// Verify UDP checksum using IPv6 pseudo-header
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	udpAndPayload := got[40:]
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrUDP, udpAndPayload); csum != 0 {
+		t.Errorf("UDP over IPv6 checksum invalid: %#x", csum)
+	}
+}
+
+func TestBuildIPv6HopByHopTCP(t *testing.T) {
+	// IPv6 + Hop-by-Hop extension header + TCP
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
+	ipv6.Set("hl", uint8(64))
+
+	hopByHop := NewIPv6HopByHop()
+	hopByHop.Set("nh", uint8(IPv6NextHdrTCP))
+	hopByHop.Set("len", uint8(0))
+	hopByHop.Set("options", string(make([]byte, 6))) // pad to 8 bytes: nh(1)+len(1)+options(6)
+
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+
+	pkt := packet.NewFrom(ipv6, hopByHop, tcp)
+
+	got, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv6 (40) + Hop-by-Hop (8) + TCP (20) = 68 bytes
+	if len(got) != 68 {
+		t.Fatalf("len = %d, want 68", len(got))
+	}
+
+	// Verify IPv6 NH = Hop-by-Hop (0)
+	if got[6] != 0 {
+		t.Errorf("IPv6 NH = %d, want 0 (Hop-by-Hop)", got[6])
+	}
+
+	// Verify Hop-by-Hop NH = TCP (6)
+	if got[40] != 6 {
+		t.Errorf("Hop-by-Hop NH = %d, want 6 (TCP)", got[40])
+	}
+
+	// Verify TCP checksum using IPv6 pseudo-header
+	// TCP starts after IPv6 (40) + Hop-by-Hop (8) = offset 48
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	tcpAndPayload := got[48:]
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrTCP, tcpAndPayload); csum != 0 {
+		t.Errorf("TCP over IPv6+HopByHop checksum invalid: %#x", csum)
+	}
+}
+
+func TestBuildEthernetIPv6HopByHopTCP(t *testing.T) {
+	// Full stack: Ethernet + IPv6 + Hop-by-Hop + TCP
+	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
+	ipv6.Set("hl", uint8(64))
+
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+
+	pkt := eth.Over(ipv6)
+	pkt.Push(tcp)
+
+	// Insert Hop-by-Hop between IPv6 and TCP using InsertAfter.
+	hopByHop := NewIPv6HopByHop()
+	hopByHop.Set("nh", uint8(IPv6NextHdrTCP))
+	hopByHop.Set("len", uint8(0))
+	hopByHop.Set("options", string(make([]byte, 6))) // pad to 8 bytes
+	pkt.InsertAfter("IPv6", hopByHop)
+
+	got, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ethernet (14) + IPv6 (40) + Hop-by-Hop (8) + TCP (20) = 82 bytes
+	if len(got) != 82 {
+		t.Fatalf("len = %d, want 82", len(got))
+	}
+
+	// Verify layer order: layers should be [Ethernet, IPv6, IPv6 Hop-by-Hop, TCP]
+	layers := pkt.Layers()
+	if len(layers) != 4 {
+		t.Fatalf("expected 4 layers, got %d", len(layers))
+	}
+	if layers[0].Proto() != "Ethernet" {
+		t.Errorf("layer 0 = %s, want Ethernet", layers[0].Proto())
+	}
+	if layers[1].Proto() != "IPv6" {
+		t.Errorf("layer 1 = %s, want IPv6", layers[1].Proto())
+	}
+	if layers[2].Proto() != "IPv6 Hop-by-Hop" {
+		t.Errorf("layer 2 = %s, want IPv6 Hop-by-Hop", layers[2].Proto())
+	}
+	if layers[3].Proto() != "TCP" {
+		t.Errorf("layer 3 = %s, want TCP", layers[3].Proto())
+	}
+
+	// Verify TCP checksum using IPv6 pseudo-header
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	tcpAndPayload := got[62:] // Eth(14) + IPv6(40) + HopByHop(8)
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrTCP, tcpAndPayload); csum != 0 {
+		t.Errorf("TCP checksum invalid: %#x", csum)
+	}
+}
+
+func TestBuildIPv6DestOptsUDP(t *testing.T) {
+	// IPv6 + Destination Options extension header + UDP
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("fe80::1"))
+	ipv6.Set("dst", net.ParseIP("fe80::2"))
+	ipv6.Set("nh", uint8(IPv6ExtHdrDestOpts))
+	ipv6.Set("hl", uint8(64))
+
+	destOpts := NewIPv6DestOpts()
+	destOpts.Set("nh", uint8(IPv6NextHdrUDP))
+	destOpts.Set("len", uint8(0))
+	destOpts.Set("options", string(make([]byte, 6))) // pad to 8 bytes
+
+	udp := NewUDPWith(54321, 53)
+	raw := NewRawWith([]byte("hello"))
+
+	pkt := packet.NewFrom(ipv6, destOpts, udp, raw)
+
+	got, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv6 (40) + DestOpts (8) + UDP (8) + "hello" (5) = 61 bytes
+	if len(got) != 61 {
+		t.Fatalf("len = %d, want 61", len(got))
+	}
+
+	// Verify UDP checksum using IPv6 pseudo-header
+	srcIP := net.ParseIP("fe80::1").To16()
+	dstIP := net.ParseIP("fe80::2").To16()
+	udpAndPayload := got[48:] // IPv6(40) + DestOpts(8)
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrUDP, udpAndPayload); csum != 0 {
+		t.Errorf("UDP over IPv6+DestOpts checksum invalid: %#x", csum)
+	}
+}

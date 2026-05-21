@@ -25,7 +25,7 @@ func NewUDPWith(sport, dport uint16) *packet.Layer {
 }
 
 // udpBuildHook is called during Packet.Build() for UDP layers.
-// It auto-computes the UDP length and checksum using the IPv4 pseudo-header.
+// It auto-computes the UDP length and checksum using the IPv4 or IPv6 pseudo-header.
 func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
 	layer := pkt.Layers()[layerIdx]
 
@@ -45,13 +45,18 @@ func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, 
 	fullDg = append(fullDg, hdrBytes...)
 	fullDg = append(fullDg, upperBytes...)
 
-	// Find IP layer below for src/dst addresses.
-	srcIP, dstIP, err := findIPAddresses(pkt, layerIdx)
+	// Find IP layer below for src/dst addresses (supports both IPv4 and IPv6).
+	addr, err := findIPAddressesAny(pkt, layerIdx)
 	if err != nil {
 		return nil, err
 	}
 
-	csum := UDPChecksum(srcIP, dstIP, fullDg)
+	var csum uint16
+	if addr.isV6 {
+		csum = IPv6PseudoHeaderChecksum(addr.src, addr.dst, IPv6NextHdrUDP, fullDg)
+	} else {
+		csum = UDPChecksum(addr.src, addr.dst, fullDg)
+	}
 	if csum == 0 {
 		csum = 0xFFFF // RFC 768: 0 means "no checksum", use 0xFFFF instead
 	}

@@ -115,8 +115,8 @@ func main() {
 			DstPort(80).
 			Flags(layers.TCPSyn))
 
-	// 注意: 扩展头需要直接操作 Layer，暂时通过 Packet 手动插入
-	extPkt.Packet().Insert(hopByHop)
+	// 将 Hop-by-Hop 扩展头插入到 IPv6 和 TCP 之间
+	extPkt.Packet().InsertAfter("IPv6", hopByHop)
 
 	extBytes, err := extPkt.Build()
 	if err != nil {

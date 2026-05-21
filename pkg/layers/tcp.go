@@ -50,7 +50,7 @@ func TCPDataOffset(dataofs uint8) int {
 }
 
 // tcpBuildHook is called during Packet.Build() for TCP layers.
-// It auto-computes the TCP checksum using the IPv4 pseudo-header.
+// It auto-computes the TCP checksum using the IPv4 or IPv6 pseudo-header.
 func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
 	layer := pkt.Layers()[layerIdx]
 
@@ -66,13 +66,18 @@ func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, 
 	fullSeg = append(fullSeg, hdrBytes...)
 	fullSeg = append(fullSeg, upperBytes...)
 
-	// Find IP layer below for src/dst addresses.
-	srcIP, dstIP, err := findIPAddresses(pkt, layerIdx)
+	// Find IP layer below for src/dst addresses (supports both IPv4 and IPv6).
+	addr, err := findIPAddressesAny(pkt, layerIdx)
 	if err != nil {
 		return nil, err
 	}
 
-	csum := TCPChecksum(srcIP, dstIP, fullSeg)
+	var csum uint16
+	if addr.isV6 {
+		csum = IPv6PseudoHeaderChecksum(addr.src, addr.dst, IPv6NextHdrTCP, fullSeg)
+	} else {
+		csum = TCPChecksum(addr.src, addr.dst, fullSeg)
+	}
 	layer.Set("chksum", csum)
 
 	return layer.SerializeFields()

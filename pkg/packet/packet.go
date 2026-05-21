@@ -39,6 +39,25 @@ func (p *Packet) Insert(layer *Layer) *Packet {
 	return p
 }
 
+// InsertAfter inserts a layer immediately after the first layer matching the
+// given protocol name. If no matching layer is found, the layer is pushed on top.
+// Returns the packet for chaining.
+//
+// Example: packet [Ethernet, IPv6, TCP] → InsertAfter("IPv6", hopByHop)
+//
+//	→ [Ethernet, IPv6, hopByHop, TCP]
+func (p *Packet) InsertAfter(proto string, layer *Layer) *Packet {
+	for i, l := range p.layers {
+		if l.Proto() == proto {
+			p.layers = append(p.layers[:i+1], append([]*Layer{layer}, p.layers[i+1:]...)...)
+			return p
+		}
+	}
+	// Not found, push on top.
+	p.layers = append(p.layers, layer)
+	return p
+}
+
 // GetLayer returns the first layer matching the protocol name, or nil.
 func (p *Packet) GetLayer(proto string) *Layer {
 	for _, l := range p.layers {

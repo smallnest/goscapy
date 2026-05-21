@@ -288,3 +288,65 @@ func TestPacketCopy(t *testing.T) {
 		t.Error("copy shares layer slice")
 	}
 }
+
+func TestInsertAfter(t *testing.T) {
+	// [Ethernet, IPv6, TCP] → InsertAfter("IPv6", hopByHop) → [Ethernet, IPv6, hopByHop, TCP]
+	p := New()
+	p.Push(NewLayer("Ethernet", nil))
+	p.Push(NewLayer("IPv6", nil))
+	p.Push(NewLayer("TCP", nil))
+
+	hopByHop := NewLayer("IPv6 Hop-by-Hop", nil)
+	p.InsertAfter("IPv6", hopByHop)
+
+	if p.Len() != 4 {
+		t.Fatalf("len = %d, want 4", p.Len())
+	}
+	protos := make([]string, p.Len())
+	for i, l := range p.Layers() {
+		protos[i] = l.Proto()
+	}
+	want := []string{"Ethernet", "IPv6", "IPv6 Hop-by-Hop", "TCP"}
+	for i, w := range want {
+		if protos[i] != w {
+			t.Errorf("layer[%d] = %q, want %q", i, protos[i], w)
+		}
+	}
+}
+
+func TestInsertAfterNotFound(t *testing.T) {
+	// If proto not found, layer is pushed on top.
+	p := New()
+	p.Push(NewLayer("Ethernet", nil))
+	p.Push(NewLayer("IP", nil))
+
+	hopByHop := NewLayer("IPv6 Hop-by-Hop", nil)
+	p.InsertAfter("IPv6", hopByHop)
+
+	if p.Len() != 3 {
+		t.Fatalf("len = %d, want 3", p.Len())
+	}
+	if p.Last().Proto() != "IPv6 Hop-by-Hop" {
+		t.Errorf("last = %s, want IPv6 Hop-by-Hop (pushed on top)", p.Last().Proto())
+	}
+}
+
+func TestInsertAfterFirstLayer(t *testing.T) {
+	// [IP, TCP] → InsertAfter("IP", extHdr) → [IP, extHdr, TCP]
+	p := New()
+	p.Push(NewLayer("IP", nil))
+	p.Push(NewLayer("TCP", nil))
+
+	extHdr := NewLayer("Extension", nil)
+	p.InsertAfter("IP", extHdr)
+
+	if p.Len() != 3 {
+		t.Fatalf("len = %d, want 3", p.Len())
+	}
+	want := []string{"IP", "Extension", "TCP"}
+	for i, l := range p.Layers() {
+		if l.Proto() != want[i] {
+			t.Errorf("layer[%d] = %q, want %q", i, l.Proto(), want[i])
+		}
+	}
+}
