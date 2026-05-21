@@ -1,3 +1,19 @@
+// 示例 25: NTP 客户端
+//
+// 本示例演示如何使用 goscapy 构造 NTP 请求并通过标准 UDP socket
+// 发送到 NTP 服务器，然后解析 NTP 响应获取时间信息。
+// 你将学到:
+//   - NTP 协议包格式
+//   - 使用 goscapy 构建 UDP/NTP 包
+//   - 通过标准 UDP socket 发送和接收
+//   - NTP 时间戳解析和时钟偏移计算
+//
+// 运行方式: go run main.go [选项]
+// 示例:     go run main.go
+//           go run main.go -server time.google.com
+//
+// 无需 root 权限。
+
 package main
 
 import (
@@ -8,76 +24,41 @@ import (
 	"net"
 	"os"
 	"time"
-
-	"github.com/smallnest/goscapy/pkg/goscapy"
-	"github.com/smallnest/goscapy/pkg/layers"
-	"github.com/smallnest/goscapy/pkg/packet"
-	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
 const ntpEpochOffset = 2208988800
 
 func main() {
-	server := flag.String("server", "pool.ntp.org", "NTP server address")
-	iface := flag.String("I", "", "Network interface (auto-detect if empty)")
+	server := flag.String("server", "time.google.com", "NTP server address")
 	flag.Parse()
 
-	ifaceVal := *iface
-	if ifaceVal == "" {
-		ifaceVal = defaultIface()
-	}
-
-	serverIP, err := resolveHost(*server)
+	serverAddr, err := resolveHost(*server)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to resolve %s: %v\n", *server, err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("NTP query: %s (%s)\n\n", *server, serverIP)
+	fmt.Printf("NTP query: %s (%s)\n\n", *server, serverAddr)
 
-	ntpData := buildNTPRequest()
+	// Build NTP request packet (48 bytes).
+	ntpReq := buildNTPRequest()
 	start := time.Now()
 
-	pkt := goscapy.NewEthernet().
-		Over(goscapy.NewIP().
-			SrcIP("0.0.0.0").
-			DstIP(serverIP).
-			TTL(64).
-			Proto(layers.IPProtoUDP)).
-		Over(goscapy.NewUDP().
-			SrcPort(12345).
-			DstPort(123)).
-		Over(&rawBuilder{layers.NewRawWith(ntpData)}).
-		Packet()
-
-	_, reply, err := sendrecv.SendRecv1(pkt, ifaceVal, 3*time.Second)
+	// Send via standard UDP socket and receive response.
+	respData, err := sendNTPQuery(serverAddr, ntpReq, 3*time.Second)
 	rtt := time.Since(start)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Query failed: %v\n", err)
 		os.Exit(1)
 	}
-	if reply == nil {
-		fmt.Println("Query timeout: no response")
-		os.Exit(1)
-	}
 
-	rawLayer := reply.GetLayer("Raw")
-	if rawLayer == nil {
-		fmt.Println("No Raw layer in response")
-		return
-	}
-	load, err := rawLayer.Get("load")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read payload: %v\n", err)
-		os.Exit(1)
-	}
-	respData := load.([]byte)
 	if len(respData) < 48 {
 		fmt.Fprintf(os.Stderr, "NTP response too short: %d bytes\n", len(respData))
 		os.Exit(1)
 	}
 
+	// Parse NTP response fields.
 	li := (respData[0] >> 6) & 0x03
 	vn := (respData[0] >> 3) & 0x07
 	stratum := respData[1]
@@ -100,11 +81,42 @@ func main() {
 	fmt.Printf("      (local clock is %s)\n", offsetStr(offset))
 }
 
+// buildNTPRequest constructs a 48-byte NTP client request.
 func buildNTPRequest() []byte {
 	buf := make([]byte, 48)
 	buf[0] = (4 << 3) | 3 // VN=4, Mode=3 (client)
 	putNTPTimestamp(buf[40:48], time.Now())
 	return buf
+}
+
+// sendNTPQuery sends the NTP request via standard UDP and returns the response.
+func sendNTPQuery(server string, req []byte, timeout time.Duration) ([]byte, error) {
+	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(server, "123"))
+	if err != nil {
+		return nil, fmt.Errorf("resolve NTP server: %w", err)
+	}
+
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("dial NTP server: %w", err)
+	}
+	defer conn.Close()
+
+	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
+		return nil, fmt.Errorf("set deadline: %w", err)
+	}
+
+	if _, err := conn.Write(req); err != nil {
+		return nil, fmt.Errorf("send NTP request: %w", err)
+	}
+
+	resp := make([]byte, 1024)
+	n, err := conn.Read(resp)
+	if err != nil {
+		return nil, fmt.Errorf("read NTP response: %w", err)
+	}
+
+	return resp[:n], nil
 }
 
 func putNTPTimestamp(b []byte, t time.Time) {
@@ -132,29 +144,6 @@ func offsetStr(offset float64) string {
 		return fmt.Sprintf("%.1f ms fast", offset*1000)
 	}
 	return fmt.Sprintf("%.1f ms slow", -offset*1000)
-}
-
-type rawBuilder struct {
-	layer *packet.Layer
-}
-
-func (rb *rawBuilder) Layer() *packet.Layer { return rb.layer }
-
-func defaultIface() string {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "en0"
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		if len(addrs) > 0 {
-			return iface.Name
-		}
-	}
-	return "en0"
 }
 
 func resolveHost(host string) (string, error) {

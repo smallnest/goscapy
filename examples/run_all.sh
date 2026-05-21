@@ -325,7 +325,7 @@ echo -e "${BOLD}${GREEN}📡 第六部分: 客户端工具${NC}"
 echo -e "${GREEN}─────────────────────────────────────────────────────────────────────${NC}"
 
 run_example "24" "24-dns-client"         "DNS 客户端"                      "false" "-type A example.com"
-run_example "25" "25-ntp-client"         "NTP 客户端"                      "true"  ""
+run_example "25" "25-ntp-client"         "NTP 客户端"                      "false" ""
 run_example "26" "26-dhcp-client"        "DHCP 客户端"                     "true"  ""
 
 # ──────────────────────────────────────────────────────────────────────────────
