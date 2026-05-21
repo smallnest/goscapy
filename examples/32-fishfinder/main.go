@@ -20,6 +20,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -42,6 +43,7 @@ func main() {
 	port := flag.Int("port", 80, "TCP 模式下的目标端口")
 	timeout := flag.Duration("timeout", 2*time.Second, "响应超时时间")
 	iface := flag.String("I", "", "网络接口 (默认自动选择)")
+	pps := flag.Int("pps", 0, "发送速率限制 (packets/sec, 0=不限速)")
 	flag.Parse()
 
 	if *cidr == "" {
@@ -80,6 +82,9 @@ func main() {
 	fmt.Printf("目标数: %d, 发送并发: %d, 超时: %v\n", len(ips), *workers, *timeout)
 	if modeVal == "tcp" {
 		fmt.Printf("TCP 探测目标端口: %d\n", *port)
+	}
+	if *pps > 0 {
+		fmt.Printf("速率限制: %d pps\n", *pps)
 	}
 	fmt.Println()
 
@@ -187,6 +192,13 @@ func main() {
 	sem := make(chan struct{}, *workers)
 	var sendWG sync.WaitGroup
 
+	// 设置速率限制器 (pps=0 表示不限速)
+	var limiter sendrecv.RateLimiter
+	if *pps > 0 {
+		limiter = sendrecv.NewTokenBucketLimiter(*pps, 0)
+	}
+	ctx := context.Background()
+
 	for _, ip := range ips {
 		sendWG.Add(1)
 		go func(targetIP string) {
@@ -221,7 +233,13 @@ func main() {
 			}
 
 			// 使用 sendrecv.Send 发送 L3 报文 (自动处理 IP_HDRINCL 和平台差异)
-			if err := sendrecv.Send(pkt, ifaceVal); err != nil {
+			var sendErr error
+			if limiter != nil {
+				sendErr = sendrecv.SendWithLimiter(ctx, pkt, ifaceVal, limiter)
+			} else {
+				sendErr = sendrecv.Send(pkt, ifaceVal)
+			}
+			if sendErr != nil {
 				sentTrack.Delete(targetIP)
 				atomic.AddInt32(&sendErrCount, 1)
 			}
