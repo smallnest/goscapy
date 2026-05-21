@@ -113,31 +113,34 @@ func openReceiver(iface string) (Receiver, error) {
 }
 
 func (r *afPacketReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
-	// Set read timeout via SO_RCVTIMEO.
+	buf := make([]byte, 65536)
+	pkt, _, err := r.RecvInto(buf, timeout)
+	return pkt, err
+}
+
+func (r *afPacketReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
 	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
 	if err := syscall.SetsockoptTimeval(r.fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv); err != nil {
-		return nil, fmt.Errorf("sendrecv: SO_RCVTIMEO: %w", err)
+		return nil, 0, fmt.Errorf("sendrecv: SO_RCVTIMEO: %w", err)
 	}
 
-	buf := make([]byte, 65536)
 	n, _, err := syscall.Recvfrom(r.fd, buf, 0)
 	if err != nil {
 		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
-			return nil, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
 		}
-		return nil, fmt.Errorf("sendrecv: recvfrom: %w", err)
+		return nil, 0, fmt.Errorf("sendrecv: recvfrom: %w", err)
 	}
 	if n == 0 {
-		return nil, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
+		return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
 	}
 
-	raw := buf[:n]
-	pkt, err := packet.Dissect(raw, ethernetStartFn)
+	pkt, err := packet.Dissect(buf[:n], ethernetStartFn)
 	if err != nil {
-		return nil, fmt.Errorf("sendrecv: dissect: %w", err)
+		return nil, n, fmt.Errorf("sendrecv: dissect: %w", err)
 	}
 
-	return pkt, nil
+	return pkt, n, nil
 }
 
 func (r *afPacketReceiver) Close() error {

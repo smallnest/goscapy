@@ -28,6 +28,12 @@ type Receiver interface {
 	// Recv reads one raw packet, dissects it, and returns the parsed Packet.
 	// Returns ErrTimeout if the timeout is exceeded.
 	Recv(timeout time.Duration) (*packet.Packet, error)
+	// RecvInto reads one raw packet into the caller-provided buffer, dissects it,
+	// and returns the parsed Packet plus the number of bytes read.
+	// The returned Packet's internal fields may reference buf directly — the Packet
+	// is only valid until the next RecvInto call or until buf is reused.
+	// If buf is too small for the received packet, the packet is truncated.
+	RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error)
 	// Close releases the receiver's resources.
 	Close() error
 }

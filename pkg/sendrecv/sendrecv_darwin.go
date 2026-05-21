@@ -274,6 +274,109 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 	return pkt, nil
 }
 
+func (r *bpfReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
+	// Return a queued packet from a previous batch read if available.
+	if len(r.queue) > 0 {
+		pkt := r.queue[0]
+		r.queue = r.queue[1:]
+		return pkt, 0, nil
+	}
+
+	// Use select to implement timeout.
+	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
+	var readFds syscall.FdSet
+	readFds.Bits[r.fd/32] |= 1 << (uint(r.fd) % 32)
+
+	err := syscall.Select(r.fd+1, &readFds, nil, nil, &tv)
+	if err != nil {
+		return nil, 0, fmt.Errorf("sendrecv: select: %w", err)
+	}
+	if readFds.Bits[r.fd/32]&(1<<uint(r.fd%32)) == 0 {
+		return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+	}
+
+	// Read into the caller-provided buffer.
+	readBuf := buf
+	if len(readBuf) < int(unsafe.Sizeof(bpfHdr{}))+64 {
+		readBuf = r.buf
+	}
+	nRead, err := syscall.Read(r.fd, readBuf)
+	if err != nil {
+		return nil, 0, fmt.Errorf("sendrecv: BPF read: %w", err)
+	}
+	if nRead == 0 {
+		return nil, 0, fmt.Errorf("sendrecv: BPF read returned 0 bytes")
+	}
+
+	data := readBuf[:nRead]
+	hdrSize := int(unsafe.Sizeof(bpfHdr{}))
+	firstN := 0
+	isFirst := true
+
+	for len(data) >= hdrSize {
+		hdr := *(*bpfHdr)(unsafe.Pointer(&data[0]))
+		pktStart := int(hdr.hdrlen)
+		pktLen := int(hdr.caplen)
+		totalLen := pktStart + pktLen
+
+		if totalLen > len(data) {
+			break
+		}
+
+		alignedLen := (totalLen + 3) &^ 3
+		if alignedLen > len(data) {
+			alignedLen = len(data)
+		}
+
+		// The first packet can reference buf directly (caller will process it
+		// before the next call). Subsequent packets in the batch must be copied
+		// because they'll be returned on later calls when buf may be reused.
+		var raw []byte
+		if isFirst {
+			raw = data[pktStart : pktStart+pktLen]
+			firstN = pktLen
+		} else {
+			raw = make([]byte, pktLen)
+			copy(raw, data[pktStart:pktStart+pktLen])
+		}
+
+		var pkt *packet.Packet
+		if r.dlt == 0 { // DLT_NULL (loopback)
+			if len(raw) >= 4 {
+				family := *(*uint32)(unsafe.Pointer(&raw[0]))
+				if family == 2 {
+					pkt, err = packet.Dissect(raw[4:], ipStartFn)
+				} else if family == 30 {
+					pkt, err = packet.Dissect(raw[4:], ip6StartFn)
+				} else {
+					data = data[alignedLen:]
+					continue
+				}
+			} else {
+				data = data[alignedLen:]
+				continue
+			}
+		} else {
+			pkt, err = packet.Dissect(raw, ethernetStartFn)
+		}
+
+		if err != nil {
+			data = data[alignedLen:]
+			continue
+		}
+		r.queue = append(r.queue, pkt)
+		isFirst = false
+		data = data[alignedLen:]
+	}
+
+	if len(r.queue) == 0 {
+		return nil, 0, fmt.Errorf("sendrecv: BPF read produced no valid packets")
+	}
+	pkt := r.queue[0]
+	r.queue = r.queue[1:]
+	return pkt, firstN, nil
+}
+
 func (r *bpfReceiver) Close() error {
 	return syscall.Close(r.fd)
 }
