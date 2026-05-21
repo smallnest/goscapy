@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/smallnest/goscapy/pkg/packet"
+	"golang.org/x/sys/unix"
 )
 
 // ETH_P_ALL captures all Ethernet protocols.
@@ -119,28 +120,40 @@ func (r *afPacketReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 }
 
 func (r *afPacketReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
-	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
-	if err := syscall.SetsockoptTimeval(r.fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv); err != nil {
-		return nil, 0, fmt.Errorf("sendrecv: SO_RCVTIMEO: %w", err)
+	timeoutMs := int(timeout.Milliseconds())
+	if timeoutMs <= 0 {
+		timeoutMs = -1
 	}
 
-	n, _, err := syscall.Recvfrom(r.fd, buf, 0)
+	fds := []unix.PollFd{{Fd: int32(r.fd), Events: unix.POLLIN}}
+	n, err := unix.Poll(fds, timeoutMs)
+	if err != nil {
+		if err == unix.EINTR {
+			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+		}
+		return nil, 0, fmt.Errorf("sendrecv: poll: %w", err)
+	}
+	if n == 0 {
+		return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+	}
+
+	nRead, _, err := syscall.Recvfrom(r.fd, buf, syscall.MSG_DONTWAIT)
 	if err != nil {
 		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
 			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
 		}
 		return nil, 0, fmt.Errorf("sendrecv: recvfrom: %w", err)
 	}
-	if n == 0 {
+	if nRead == 0 {
 		return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
 	}
 
-	pkt, err := packet.Dissect(buf[:n], ethernetStartFn)
+	pkt, err := packet.Dissect(buf[:nRead], ethernetStartFn)
 	if err != nil {
-		return nil, n, fmt.Errorf("sendrecv: dissect: %w", err)
+		return nil, nRead, fmt.Errorf("sendrecv: dissect: %w", err)
 	}
 
-	return pkt, n, nil
+	return pkt, nRead, nil
 }
 
 func (r *afPacketReceiver) Close() error {

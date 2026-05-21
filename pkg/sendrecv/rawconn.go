@@ -7,6 +7,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // RawConn represents a raw socket connection.
@@ -67,18 +69,24 @@ func (c *RawConn) Recv(timeout time.Duration) ([]byte, string, error) {
 // The returned data is buf[:n] — valid until the next call or until buf is reused.
 func (c *RawConn) RecvInto(buf []byte, timeout time.Duration) (int, string, error) {
 	if timeout > 0 {
-		tv := syscall.NsecToTimeval(timeout.Nanoseconds())
-		if err := syscall.SetsockoptTimeval(c.fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv); err != nil {
-			return 0, "", fmt.Errorf("rawconn: setsockopt SO_RCVTIMEO: %w", err)
+		timeoutMs := int(timeout.Milliseconds())
+		if timeoutMs <= 0 {
+			timeoutMs = 1
 		}
-	} else {
-		tv := syscall.Timeval{Sec: 0, Usec: 0}
-		if err := syscall.SetsockoptTimeval(c.fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv); err != nil {
-			return 0, "", fmt.Errorf("rawconn: setsockopt SO_RCVTIMEO: %w", err)
+		fds := []unix.PollFd{{Fd: int32(c.fd), Events: unix.POLLIN}}
+		n, err := unix.Poll(fds, timeoutMs)
+		if err != nil {
+			if err == unix.EINTR {
+				return 0, "", fmt.Errorf("%w after %v", ErrTimeout, timeout)
+			}
+			return 0, "", fmt.Errorf("rawconn: poll: %w", err)
+		}
+		if n == 0 {
+			return 0, "", fmt.Errorf("%w after %v", ErrTimeout, timeout)
 		}
 	}
 
-	n, from, err := syscall.Recvfrom(c.fd, buf, 0)
+	n, from, err := syscall.Recvfrom(c.fd, buf, syscall.MSG_DONTWAIT)
 	if err != nil {
 		if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) {
 			return 0, "", fmt.Errorf("%w after %v", ErrTimeout, timeout)
