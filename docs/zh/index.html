@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>goscapy — Go 网络数据包构建库</title>
+        <title>goscapy — Go 网络数据包构造、解析、发送、接收和嗅探库</title>
         <meta
             name="description"
             content="纯 Go 语言实现的网络数据包构建、解析、发送、接收和嗅探库，提供类型安全的 Builder API 和一行式快捷函数。"
@@ -274,11 +274,14 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                         <h3>与其他库的对比</h3>
                     </div>
                     <p>
-                        goscapy 与 Go 生态中其他常用的网络库相比有哪些异同？以下是它们的核心能力对比和场景推荐，帮助你快速做出选择。
+                        goscapy 与 Go
+                        生态中其他常用的网络库相比有哪些异同？以下是它们的核心能力对比和场景推荐，帮助你快速做出选择。
                     </p>
 
                     <!-- 核心能力矩阵 -->
-                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">核心能力矩阵</h3>
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem">
+                        核心能力矩阵
+                    </h3>
                     <div class="table-wrapper">
                         <table>
                             <thead>
@@ -291,28 +294,39 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><strong>包构建 (Builder API)</strong></td>
+                                    <td>
+                                        <strong>包构建 (Builder API)</strong>
+                                    </td>
                                     <td>链式 Builder + 快捷函数</td>
                                     <td>需手写 <code>SerializeTo()</code></td>
                                     <td>需手写 struct marshal</td>
                                 </tr>
                                 <tr>
                                     <td><strong>包解析 (Dissector)</strong></td>
-                                    <td><code>packet.Dissect()</code> 自动分层</td>
+                                    <td>
+                                        <code>packet.Dissect()</code> 自动分层
+                                    </td>
                                     <td>强大的 DecodingLayerParser</td>
                                     <td>仅 icmp/ipv4 提供 Message 解析</td>
                                 </tr>
                                 <tr>
-                                    <td><strong>L2 收发 (Raw Socket)</strong></td>
+                                    <td>
+                                        <strong>L2 收发 (Raw Socket)</strong>
+                                    </td>
                                     <td>✅ Ethernet 层</td>
                                     <td>❌ 依赖 libpcap</td>
                                     <td>❌</td>
                                 </tr>
                                 <tr>
-                                    <td><strong>L3 收发 (Raw Socket)</strong></td>
+                                    <td>
+                                        <strong>L3 收发 (Raw Socket)</strong>
+                                    </td>
                                     <td>✅ IP 层 (ip4:tcp/udp/icmp)</td>
                                     <td>❌</td>
-                                    <td>✅ <code>icmp.ListenPacket</code> / <code>ipv4.RawConn</code></td>
+                                    <td>
+                                        ✅ <code>icmp.ListenPacket</code> /
+                                        <code>ipv4.RawConn</code>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Sniffing 嗅探</strong></td>
@@ -335,11 +349,16 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <tr>
                                     <td><strong>自动校验和</strong></td>
                                     <td>✅ IP/TCP/UDP/ICMP</td>
-                                    <td>✅<sup>*</sup> IP/TCP/UDP (需手动关联网络层)</td>
+                                    <td>
+                                        ✅<sup>*</sup> IP/TCP/UDP
+                                        (需手动关联网络层)
+                                    </td>
                                     <td>❌ 手动计算</td>
                                 </tr>
                                 <tr>
-                                    <td><strong>层绑定 (Auto Infer)</strong></td>
+                                    <td>
+                                        <strong>层绑定 (Auto Infer)</strong>
+                                    </td>
                                     <td>✅ 邻层字段自动推断</td>
                                     <td>❌</td>
                                     <td>❌</td>
@@ -371,12 +390,24 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                             </tbody>
                         </table>
                     </div>
-                    <p style="font-size: 0.7rem; color: #8b8680; margin-top: 0.375rem; margin-bottom: 1rem; line-height: 1.4;">
-                        * 注：gopacket 支持自动计算校验和，但需要显式启用相关序列化选项，并手动关联网络层与传输层（例如调用 <code>SetNetworkLayerForChecksum</code>）。
+                    <p
+                        style="
+                            font-size: 0.7rem;
+                            color: #8b8680;
+                            margin-top: 0.375rem;
+                            margin-bottom: 1rem;
+                            line-height: 1.4;
+                        "
+                    >
+                        * 注：gopacket
+                        支持自动计算校验和，但需要显式启用相关序列化选项，并手动关联网络层与传输层（例如调用
+                        <code>SetNetworkLayerForChecksum</code>）。
                     </p>
 
                     <!-- 场景推荐 -->
-                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">场景推荐</h3>
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem">
+                        场景推荐
+                    </h3>
                     <div class="cards">
                         <div class="card">
                             <div class="card-header">
@@ -384,7 +415,10 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>🚀 快速构建与发送自定义包</h4>
                             </div>
                             <p><strong>推荐库：goscapy</strong></p>
-                            <p>Builder API + SendRecv 一行搞定，免去繁琐的样板代码。</p>
+                            <p>
+                                Builder API + SendRecv
+                                一行搞定，免去繁琐的样板代码。
+                            </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
@@ -392,7 +426,10 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>📊 PCAP 分析与离线包解析</h4>
                             </div>
                             <p><strong>推荐库：gopacket</strong></p>
-                            <p>具备最完整的 PCAP 读写与 TCP 流重组（tcpassembly）支持。</p>
+                            <p>
+                                具备最完整的 PCAP 读写与 TCP
+                                流重组（tcpassembly）支持。
+                            </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
@@ -400,7 +437,10 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>⚡ 轻量级诊断与扫描</h4>
                             </div>
                             <p><strong>推荐库：goscapy</strong></p>
-                            <p>极度适合编写 ping、traceroute 等自定义诊断工具，内置自动计算校验和能力。</p>
+                            <p>
+                                极度适合编写 ping、traceroute
+                                等自定义诊断工具，内置自动计算校验和能力。
+                            </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
@@ -408,7 +448,10 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>⚡ 高性能实时嗅探</h4>
                             </div>
                             <p><strong>推荐库：gopacket</strong></p>
-                            <p>支持 afpacket/pfring 等零拷贝技术，适合高吞吐量的包捕获环境。</p>
+                            <p>
+                                支持 afpacket/pfring
+                                等零拷贝技术，适合高吞吐量的包捕获环境。
+                            </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
@@ -416,7 +459,10 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>🔵 仅需标准 ICMP 通信</h4>
                             </div>
                             <p><strong>推荐库：x/net/icmp</strong></p>
-                            <p>如果不需要其他复杂协议或分层，官方的 <code>x/net</code> 是最轻量且无额外依赖的方案。</p>
+                            <p>
+                                如果不需要其他复杂协议或分层，官方的
+                                <code>x/net</code> 是最轻量且无额外依赖的方案。
+                            </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
@@ -424,7 +470,10 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>🔬 协议逆向与研究分析</h4>
                             </div>
                             <p><strong>推荐库：gopacket</strong></p>
-                            <p>支持 200+ 协议解码，最适合作为深度的协议逆向分析框架。</p>
+                            <p>
+                                支持 200+
+                                协议解码，最适合作为深度的协议逆向分析框架。
+                            </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
@@ -432,7 +481,11 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <h4>📦 零 CGO 依赖</h4>
                             </div>
                             <p><strong>推荐库：goscapy 或 x/net</strong></p>
-                            <p>goscapy 是纯 Go 实现，无 CGO 或 libpcap 运行时依赖；而 gopacket 在许多平台上依赖 libpcap C 库。</p>
+                            <p>
+                                goscapy 是纯 Go 实现，无 CGO 或 libpcap
+                                运行时依赖；而 gopacket 在许多平台上依赖 libpcap
+                                C 库。
+                            </p>
                         </div>
                     </div>
                 </div>
