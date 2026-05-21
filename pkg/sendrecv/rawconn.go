@@ -22,19 +22,43 @@ type RawConn struct {
 }
 
 // Send transmits raw payload bytes to the target destination IP.
+// Supports both IPv4 and IPv6 destinations.
 func (c *RawConn) Send(data []byte, dst string) error {
 	ip := net.ParseIP(dst)
 	if ip == nil {
 		return fmt.Errorf("rawconn: invalid destination IP: %s", dst)
 	}
-	ip4 := ip.To4()
-	if ip4 == nil {
-		return fmt.Errorf("rawconn: only IPv4 is supported")
+
+	if ip4 := ip.To4(); ip4 != nil {
+		var dstIP [4]byte
+		copy(dstIP[:], ip4)
+		addr := syscall.SockaddrInet4{
+			Port: 0,
+			Addr: dstIP,
+		}
+
+		flags := 0
+		if c.zeroCopy {
+			flags = msgZeroCopy
+			c.zeroCopyMu.Lock()
+			c.nextSendSeq++
+			c.zeroCopyMu.Unlock()
+		}
+
+		if err := syscall.Sendto(c.fd, data, flags, &addr); err != nil {
+			return fmt.Errorf("rawconn: sendto: %w", err)
+		}
+		return nil
 	}
 
-	var dstIP [4]byte
-	copy(dstIP[:], ip4)
-	addr := syscall.SockaddrInet4{
+	// IPv6 path.
+	ip6 := ip.To16()
+	if ip6 == nil {
+		return fmt.Errorf("rawconn: invalid destination IP: %s", dst)
+	}
+	var dstIP [16]byte
+	copy(dstIP[:], ip6)
+	addr := syscall.SockaddrInet6{
 		Port: 0,
 		Addr: dstIP,
 	}
@@ -48,7 +72,7 @@ func (c *RawConn) Send(data []byte, dst string) error {
 	}
 
 	if err := syscall.Sendto(c.fd, data, flags, &addr); err != nil {
-		return fmt.Errorf("rawconn: sendto: %w", err)
+		return fmt.Errorf("rawconn: sendto IPv6: %w", err)
 	}
 	return nil
 }

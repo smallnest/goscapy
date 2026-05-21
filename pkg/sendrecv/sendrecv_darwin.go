@@ -55,9 +55,16 @@ func init() {
 
 func loopbackName() string { return "lo0" }
 
-// --- L3 Send (AF_INET raw socket) ---
+// --- L3 Send (AF_INET / AF_INET6 raw socket) ---
 
 func sendL3(pkt *packet.Packet, iface string) error {
+	if hasIPv6Layer(pkt) {
+		return sendL3v6(pkt, iface)
+	}
+	return sendL3v4(pkt, iface)
+}
+
+func sendL3v4(pkt *packet.Packet, iface string) error {
 	rawBytes, err := buildL3(pkt)
 	if err != nil {
 		return fmt.Errorf("sendrecv: L3 build: %w", err)
@@ -94,6 +101,48 @@ func sendL3(pkt *packet.Packet, iface string) error {
 	}
 
 	runtime.KeepAlive(rawBytes)
+	return nil
+}
+
+// sendL3v6 sends an IPv6 packet on Darwin.
+// macOS does not support IPV6_HDRINCL, so the kernel fills the IPv6 header.
+// We send only the payload (bytes after the 40-byte IPv6 base header) and
+// configure hop limit via IPV6_UNICAST_HOPS.
+func sendL3v6(pkt *packet.Packet, iface string) error {
+	rawBytes, err := buildL3v6Payload(pkt)
+	if err != nil {
+		return fmt.Errorf("sendrecv: L3v6 build: %w", err)
+	}
+
+	dstIP, nextHdr, hopLimit, err := extractIPv6Info(pkt)
+	if err != nil {
+		return err
+	}
+
+	// On macOS, strip the 40-byte IPv6 base header — the kernel provides it.
+	const ipv6HeaderLen = 40
+	if len(rawBytes) < ipv6HeaderLen {
+		return fmt.Errorf("sendrecv: IPv6 packet too short (%d bytes)", len(rawBytes))
+	}
+	payload := rawBytes[ipv6HeaderLen:]
+
+	fd, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_RAW, int(nextHdr))
+	if err != nil {
+		return fmt.Errorf("sendrecv: AF_INET6 socket: %w", err)
+	}
+	defer syscall.Close(fd)
+
+	// Set hop limit.
+	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, int(hopLimit)); err != nil {
+		return fmt.Errorf("sendrecv: setsockopt IPV6_UNICAST_HOPS: %w", err)
+	}
+
+	addr := syscall.SockaddrInet6{Addr: dstIP}
+	if err := syscall.Sendto(fd, payload, 0, &addr); err != nil {
+		return fmt.Errorf("sendrecv: sendto IPv6: %w", err)
+	}
+
+	runtime.KeepAlive(payload)
 	return nil
 }
 
