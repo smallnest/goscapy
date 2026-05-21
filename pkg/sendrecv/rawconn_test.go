@@ -268,3 +268,67 @@ func TestRawConnRecvInto(t *testing.T) {
 	t.Fatal("failed to capture matching ICMP echo reply using RecvInto")
 }
 
+func TestDialRaw6Permission(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("skipping TestDialRaw6Permission: running as root")
+	}
+
+	conn, err := DialRaw6(58) // ICMPv6
+	if err == nil {
+		conn.Close()
+		t.Fatal("expected DialRaw6 to fail for non-root user")
+	}
+
+	if !errors.Is(err, syscall.EPERM) && !errors.Is(err, syscall.EACCES) {
+		t.Logf("dial6 failed as expected with error: %v", err)
+	}
+}
+
+func TestDialRaw6Root(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("skipping TestDialRaw6Root: requires root privileges")
+	}
+
+	conn, err := DialRaw6(58) // ICMPv6
+	if err != nil {
+		t.Fatalf("DialRaw6 failed: %v", err)
+	}
+	defer conn.Close()
+}
+
+func TestSendL3v6Build(t *testing.T) {
+	// Test that hasIPv6Layer and extractIPv6Info work correctly
+	// without requiring root (just test the build/extract path).
+	ipv6 := layers.NewIPv6()
+	ipv6.Set("src", "::1")
+	ipv6.Set("dst", "::1")
+	ipv6.Set("nh", layers.IPv6NextHdrICMP)
+	ipv6.Set("hlim", uint8(64))
+
+	icmpv6 := layers.NewICMPv6()
+	icmpv6Echo := layers.NewICMPv6Echo(0x1234, 1)
+
+	pkt := packet.NewFrom(ipv6, icmpv6, icmpv6Echo)
+
+	if !hasIPv6Layer(pkt) {
+		t.Fatal("expected hasIPv6Layer to return true")
+	}
+
+	dst, nh, hlim, err := extractIPv6Info(pkt)
+	if err != nil {
+		t.Fatalf("extractIPv6Info: %v", err)
+	}
+
+	// ::1 in 16 bytes
+	expected := [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	if dst != expected {
+		t.Errorf("dst: expected %v, got %v", expected, dst)
+	}
+	if nh != layers.IPv6NextHdrICMP {
+		t.Errorf("nh: expected %d, got %d", layers.IPv6NextHdrICMP, nh)
+	}
+	if hlim != 64 {
+		t.Errorf("hlim: expected 64, got %d", hlim)
+	}
+}
+

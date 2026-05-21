@@ -17,9 +17,16 @@ const _ETH_P_ALL = 0x0003
 
 func loopbackName() string { return "lo" }
 
-// --- L3 Send (AF_INET raw socket) ---
+// --- L3 Send (AF_INET / AF_INET6 raw socket) ---
 
 func sendL3(pkt *packet.Packet, iface string) error {
+	if hasIPv6Layer(pkt) {
+		return sendL3v6(pkt, iface)
+	}
+	return sendL3v4(pkt, iface)
+}
+
+func sendL3v4(pkt *packet.Packet, iface string) error {
 	rawBytes, err := buildL3(pkt)
 	if err != nil {
 		return fmt.Errorf("sendrecv: L3 build: %w", err)
@@ -43,6 +50,36 @@ func sendL3(pkt *packet.Packet, iface string) error {
 	addr := syscall.SockaddrInet4{Addr: dstIP}
 	if err := syscall.Sendto(fd, rawBytes, 0, &addr); err != nil {
 		return fmt.Errorf("sendrecv: sendto: %w", err)
+	}
+
+	runtime.KeepAlive(rawBytes)
+	return nil
+}
+
+func sendL3v6(pkt *packet.Packet, iface string) error {
+	rawBytes, err := buildL3v6Payload(pkt)
+	if err != nil {
+		return fmt.Errorf("sendrecv: L3v6 build: %w", err)
+	}
+
+	dstIP, nextHdr, _, err := extractIPv6Info(pkt)
+	if err != nil {
+		return err
+	}
+
+	fd, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_RAW, int(nextHdr))
+	if err != nil {
+		return fmt.Errorf("sendrecv: AF_INET6 socket: %w", err)
+	}
+	defer syscall.Close(fd)
+
+	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IPV6, unix.IPV6_HDRINCL, 1); err != nil {
+		return fmt.Errorf("sendrecv: setsockopt IPV6_HDRINCL: %w", err)
+	}
+
+	addr := syscall.SockaddrInet6{Addr: dstIP}
+	if err := syscall.Sendto(fd, rawBytes, 0, &addr); err != nil {
+		return fmt.Errorf("sendrecv: sendto IPv6: %w", err)
 	}
 
 	runtime.KeepAlive(rawBytes)
