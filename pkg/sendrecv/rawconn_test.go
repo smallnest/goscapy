@@ -204,4 +204,67 @@ func TestRawConnAttachBPF(t *testing.T) {
 	}
 }
 
+func TestRawConnRecvInto(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("skipping TestRawConnRecvInto: requires root privileges")
+	}
+
+	conn, err := DialRaw(1) // ICMP
+	if err != nil {
+		t.Fatalf("failed to dial raw socket: %v", err)
+	}
+	defer conn.Close()
+
+	icmp := layers.NewICMPEcho(0x7777, 1)
+	pkt := packet.NewFrom(icmp)
+	payload, err := pkt.Build()
+	if err != nil {
+		t.Fatalf("failed to build ICMP payload: %v", err)
+	}
+
+	err = conn.Send(payload, "127.0.0.1")
+	if err != nil {
+		t.Fatalf("failed to send packet: %v", err)
+	}
+
+	// Use a caller-provided buffer for recv.
+	buf := make([]byte, 65536)
+	deadline := time.Now().Add(2 * time.Second)
+
+	for time.Now().Before(deadline) {
+		remaining := time.Until(deadline)
+		n, srcIP, err := conn.RecvInto(buf, remaining)
+		if err != nil {
+			if errors.Is(err, ErrTimeout) {
+				t.Fatalf("timeout waiting for response")
+			}
+			t.Fatalf("RecvInto error: %v", err)
+		}
+
+		if n == 0 {
+			continue
+		}
+
+		data := buf[:n]
+		if len(data) >= 20 {
+			pktReply, err := packet.Dissect(data, testIPStartFn)
+			if err != nil {
+				continue
+			}
+			icmpLayer := pktReply.GetLayer("ICMP")
+			if icmpLayer != nil {
+				icmpType, _ := icmpLayer.Get("type")
+				icmpID, _ := icmpLayer.Get("id")
+				if icmpType == uint8(0) && icmpID == uint16(0x7777) {
+					if srcIP != "127.0.0.1" {
+						t.Errorf("expected source IP 127.0.0.1, got %s", srcIP)
+					}
+					return
+				}
+			}
+		}
+	}
+
+	t.Fatal("failed to capture matching ICMP echo reply using RecvInto")
+}
 
