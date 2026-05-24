@@ -32,6 +32,7 @@ import (
 	"github.com/smallnest/goscapy/pkg/layers/ntp"
 	"github.com/smallnest/goscapy/pkg/layers/ospf"
 	"github.com/smallnest/goscapy/pkg/layers/quic"
+	layerstls "github.com/smallnest/goscapy/pkg/layers/tls"
 	"github.com/smallnest/goscapy/pkg/layers/vxlan"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
@@ -1107,6 +1108,64 @@ func (b *RadioTapBuilder) Data(data []byte) *RadioTapBuilder {
 
 // Over stacks an upper layer on top of this RadioTap layer.
 func (b *RadioTapBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- TLSBuilder ----
+
+// TLSBuilder builds TLS record layers.
+type TLSBuilder struct {
+	layer *packet.Layer
+}
+
+// NewTLS creates a TLS record builder.
+func NewTLS() *TLSBuilder {
+	return &TLSBuilder{layer: layerstls.NewTLS()}
+}
+
+func (b *TLSBuilder) Layer() *packet.Layer { return b.layer }
+
+// ContentType sets the content type (20=CCS, 21=Alert, 22=Handshake, 23=App).
+func (b *TLSBuilder) ContentType(ct uint8) *TLSBuilder {
+	b.layer.Set("content_type", ct)
+	return b
+}
+
+// Version sets the TLS version.
+func (b *TLSBuilder) Version(v uint16) *TLSBuilder {
+	b.layer.Set("version", v)
+	return b
+}
+
+// Fragment sets the raw fragment data.
+func (b *TLSBuilder) Fragment(data []byte) *TLSBuilder {
+	b.layer.Set("fragment", data)
+	return b
+}
+
+// Handshake sets the fragment to a handshake message with proper framing.
+func (b *TLSBuilder) Handshake(hsType uint8, body []byte) *TLSBuilder {
+	b.layer.Set("content_type", uint8(layerstls.ContentTypeHandshake))
+	frag := make([]byte, 4+len(body))
+	frag[0] = hsType
+	frag[1] = byte(len(body) >> 16)
+	frag[2] = byte(len(body) >> 8)
+	frag[3] = byte(len(body))
+	copy(frag[4:], body)
+	b.layer.Set("fragment", frag)
+	return b
+}
+
+// Alert sets the fragment to a TLS alert message.
+func (b *TLSBuilder) Alert(level, desc uint8) *TLSBuilder {
+	b.layer.Set("content_type", uint8(layerstls.ContentTypeAlert))
+	b.layer.Set("fragment", []byte{level, desc})
+	return b
+}
+
+// Over stacks an upper layer on top of this TLS layer.
+func (b *TLSBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }

@@ -31,6 +31,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/ntp"
 	// Register Dot11 layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/dot11"
+	// Register TLS layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/tls"
 )
 
 func init() {
@@ -202,6 +204,10 @@ func init() {
 	// NTP: UDP port 123.
 	packet.RegisterHeuristic("UDP", "dport", uint16(123), "NTP")
 	packet.RegisterHeuristic("UDP", "sport", uint16(123), "NTP")
+
+	// TLS: TCP port 443.
+	packet.RegisterHeuristic("TCP", "dport", uint16(443), "TLS")
+	packet.RegisterHeuristic("TCP", "sport", uint16(443), "TLS")
 
 	// ---- Tunnel payload registrations ----
 
