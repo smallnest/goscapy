@@ -22,6 +22,7 @@ import (
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/layers/bgp"
 	"github.com/smallnest/goscapy/pkg/layers/dhcp"
+	"github.com/smallnest/goscapy/pkg/layers/dot11"
 	"github.com/smallnest/goscapy/pkg/layers/dns"
 	"github.com/smallnest/goscapy/pkg/layers/dot1q"
 	"github.com/smallnest/goscapy/pkg/layers/erspan"
@@ -1009,6 +1010,103 @@ func (b *NTPBuilder) XmitTimestamp(ts uint64) *NTPBuilder {
 
 // Over stacks an upper layer on top of this NTP layer and returns a PacketBuilder.
 func (b *NTPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- Dot11Builder ----
+
+// Dot11Builder builds IEEE 802.11 WiFi frame layers.
+type Dot11Builder struct {
+	layer *packet.Layer
+}
+
+// NewDot11 creates an 802.11 frame builder.
+func NewDot11() *Dot11Builder {
+	return &Dot11Builder{layer: dot11.NewDot11()}
+}
+
+func (b *Dot11Builder) Layer() *packet.Layer { return b.layer }
+
+// FC sets the Frame Control bytes directly.
+func (b *Dot11Builder) FC(fc0, fc1 uint8) *Dot11Builder {
+	b.layer.Set("fc0", fc0)
+	b.layer.Set("fc1", fc1)
+	return b
+}
+
+// TypeSubtype sets frame type and subtype via helper.
+func (b *Dot11Builder) TypeSubtype(ftype, subtype, flags uint8) *Dot11Builder {
+	fc := dot11.SetFC(ftype, subtype, flags)
+	b.layer.Set("fc0", fc[0])
+	b.layer.Set("fc1", fc[1])
+	return b
+}
+
+// Addr1 sets the receiver address (addr1).
+func (b *Dot11Builder) Addr1(mac string) *Dot11Builder {
+	b.layer.Set("addr1", mac)
+	return b
+}
+
+// Addr2 sets the transmitter address (addr2).
+func (b *Dot11Builder) Addr2(mac string) *Dot11Builder {
+	b.layer.Set("addr2", mac)
+	return b
+}
+
+// Addr3 sets the BSSID/filter address (addr3).
+func (b *Dot11Builder) Addr3(mac string) *Dot11Builder {
+	b.layer.Set("addr3", mac)
+	return b
+}
+
+// SC sets the sequence control field.
+func (b *Dot11Builder) SC(sc uint16) *Dot11Builder {
+	b.layer.Set("sc", sc)
+	return b
+}
+
+// Duration sets the duration/ID field.
+func (b *Dot11Builder) Duration(d uint16) *Dot11Builder {
+	b.layer.Set("duration", d)
+	return b
+}
+
+// Over stacks an upper layer on top of this Dot11 layer.
+func (b *Dot11Builder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- RadioTapBuilder ----
+
+// RadioTapBuilder builds RadioTap header layers.
+type RadioTapBuilder struct {
+	layer *packet.Layer
+}
+
+// NewRadioTap creates a RadioTap header builder.
+func NewRadioTap() *RadioTapBuilder {
+	return &RadioTapBuilder{layer: dot11.NewRadioTap()}
+}
+
+func (b *RadioTapBuilder) Layer() *packet.Layer { return b.layer }
+
+// Present sets the presence bitmap.
+func (b *RadioTapBuilder) Present(flags uint32) *RadioTapBuilder {
+	b.layer.Set("present", flags)
+	return b
+}
+
+// Data sets the variable-length field data.
+func (b *RadioTapBuilder) Data(data []byte) *RadioTapBuilder {
+	b.layer.Set("data", data)
+	return b
+}
+
+// Over stacks an upper layer on top of this RadioTap layer.
+func (b *RadioTapBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }

@@ -29,6 +29,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/http"
 	// Register NTP layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/ntp"
+	// Register Dot11 layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/dot11"
 )
 
 func init() {
