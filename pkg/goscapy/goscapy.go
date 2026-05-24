@@ -28,6 +28,7 @@ import (
 	"github.com/smallnest/goscapy/pkg/layers/gre"
 	layershttp "github.com/smallnest/goscapy/pkg/layers/http"
 	"github.com/smallnest/goscapy/pkg/layers/lldp"
+	"github.com/smallnest/goscapy/pkg/layers/ntp"
 	"github.com/smallnest/goscapy/pkg/layers/ospf"
 	"github.com/smallnest/goscapy/pkg/layers/quic"
 	"github.com/smallnest/goscapy/pkg/layers/vxlan"
@@ -916,6 +917,98 @@ func (b *HTTPBuilder) Raw(data []byte) *HTTPBuilder {
 
 // Over stacks an upper layer on top of this HTTP layer and returns a PacketBuilder.
 func (b *HTTPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- NTPBuilder ----
+
+// NTPBuilder builds NTP protocol layers.
+type NTPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewNTP creates an NTP layer builder.
+func NewNTP() *NTPBuilder {
+	return &NTPBuilder{layer: ntp.NewNTP()}
+}
+
+func (b *NTPBuilder) Layer() *packet.Layer { return b.layer }
+
+// LVM sets the LI/VN/Mode byte directly.
+func (b *NTPBuilder) LVM(val uint8) *NTPBuilder {
+	b.layer.Set("lvm", val)
+	return b
+}
+
+// Mode sets the NTP mode using LI, VN, and mode values.
+func (b *NTPBuilder) Mode(li, vn, mode uint8) *NTPBuilder {
+	b.layer.Set("lvm", ntp.SetLVM(li, vn, mode))
+	return b
+}
+
+// Stratum sets the stratum field.
+func (b *NTPBuilder) Stratum(s uint8) *NTPBuilder {
+	b.layer.Set("stratum", s)
+	return b
+}
+
+// Poll sets the poll interval (log2 seconds).
+func (b *NTPBuilder) Poll(p uint8) *NTPBuilder {
+	b.layer.Set("poll", p)
+	return b
+}
+
+// Precision sets the precision field (log2 seconds, stored as uint8).
+func (b *NTPBuilder) Precision(p uint8) *NTPBuilder {
+	b.layer.Set("precision", p)
+	return b
+}
+
+// RootDelay sets the root delay (16.16 fixed-point).
+func (b *NTPBuilder) RootDelay(d uint32) *NTPBuilder {
+	b.layer.Set("rootdelay", d)
+	return b
+}
+
+// RootDispersion sets the root dispersion (16.16 fixed-point).
+func (b *NTPBuilder) RootDispersion(d uint32) *NTPBuilder {
+	b.layer.Set("rootdispersion", d)
+	return b
+}
+
+// RefID sets the reference identifier.
+func (b *NTPBuilder) RefID(id uint32) *NTPBuilder {
+	b.layer.Set("refid", id)
+	return b
+}
+
+// RefTimestamp sets the reference timestamp.
+func (b *NTPBuilder) RefTimestamp(ts uint64) *NTPBuilder {
+	b.layer.Set("reftimestamp", ts)
+	return b
+}
+
+// OrigTimestamp sets the originate timestamp.
+func (b *NTPBuilder) OrigTimestamp(ts uint64) *NTPBuilder {
+	b.layer.Set("origtimestamp", ts)
+	return b
+}
+
+// RecvTimestamp sets the receive timestamp.
+func (b *NTPBuilder) RecvTimestamp(ts uint64) *NTPBuilder {
+	b.layer.Set("recvtimestamp", ts)
+	return b
+}
+
+// XmitTimestamp sets the transmit timestamp.
+func (b *NTPBuilder) XmitTimestamp(ts uint64) *NTPBuilder {
+	b.layer.Set("xtimestamp", ts)
+	return b
+}
+
+// Over stacks an upper layer on top of this NTP layer and returns a PacketBuilder.
+func (b *NTPBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }

@@ -27,6 +27,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/bgp"
 	// Register HTTP layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/http"
+	// Register NTP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/ntp"
 )
 
 func init() {
@@ -194,6 +196,10 @@ func init() {
 	// Also match port 8080 (common HTTP proxy/alt port).
 	packet.RegisterHeuristic("TCP", "dport", uint16(8080), "HTTP")
 	packet.RegisterHeuristic("TCP", "sport", uint16(8080), "HTTP")
+
+	// NTP: UDP port 123.
+	packet.RegisterHeuristic("UDP", "dport", uint16(123), "NTP")
+	packet.RegisterHeuristic("UDP", "sport", uint16(123), "NTP")
 
 	// ---- Tunnel payload registrations ----
 
