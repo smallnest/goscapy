@@ -33,6 +33,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/dot11"
 	// Register TLS layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/tls"
+	// Register Bluetooth/BLE layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/bt"
 )
 
 func init() {

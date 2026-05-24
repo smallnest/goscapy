@@ -21,6 +21,7 @@ import (
 	"github.com/smallnest/goscapy/pkg/fields"
 	"github.com/smallnest/goscapy/pkg/layers"
 	"github.com/smallnest/goscapy/pkg/layers/bgp"
+	"github.com/smallnest/goscapy/pkg/layers/bt"
 	"github.com/smallnest/goscapy/pkg/layers/dhcp"
 	"github.com/smallnest/goscapy/pkg/layers/dot11"
 	"github.com/smallnest/goscapy/pkg/layers/dns"
@@ -1166,6 +1167,110 @@ func (b *TLSBuilder) Alert(level, desc uint8) *TLSBuilder {
 
 // Over stacks an upper layer on top of this TLS layer.
 func (b *TLSBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- HCIBuilder ----
+
+// HCIBuilder builds Bluetooth HCI layers.
+type HCIBuilder struct {
+	layer *packet.Layer
+}
+
+// NewHCI creates an HCI layer builder.
+func NewHCI() *HCIBuilder {
+	return &HCIBuilder{layer: bt.NewHCI()}
+}
+
+func (b *HCIBuilder) Layer() *packet.Layer { return b.layer }
+
+// Type sets the HCI packet type.
+func (b *HCIBuilder) Type(t uint8) *HCIBuilder {
+	b.layer.Set("type", t)
+	return b
+}
+
+// Opcode sets the HCI command opcode or event code.
+func (b *HCIBuilder) Opcode(op uint16) *HCIBuilder {
+	b.layer.Set("opcode", op)
+	return b
+}
+
+// Params sets the HCI parameters.
+func (b *HCIBuilder) Params(data []byte) *HCIBuilder {
+	b.layer.Set("params", data)
+	b.layer.Set("param_len", uint8(len(data)))
+	return b
+}
+
+// Over stacks an upper layer on top of this HCI layer.
+func (b *HCIBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- L2CAPBuilder ----
+
+// L2CAPBuilder builds Bluetooth L2CAP layers.
+type L2CAPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewL2CAP creates an L2CAP layer builder.
+func NewL2CAP() *L2CAPBuilder {
+	return &L2CAPBuilder{layer: bt.NewL2CAP()}
+}
+
+func (b *L2CAPBuilder) Layer() *packet.Layer { return b.layer }
+
+// CID sets the L2CAP channel ID.
+func (b *L2CAPBuilder) CID(cid uint16) *L2CAPBuilder {
+	b.layer.Set("cid", cid)
+	return b
+}
+
+// Data sets the L2CAP payload.
+func (b *L2CAPBuilder) Data(data []byte) *L2CAPBuilder {
+	b.layer.Set("data", data)
+	b.layer.Set("length", uint16(len(data)))
+	return b
+}
+
+// Over stacks an upper layer on top of this L2CAP layer.
+func (b *L2CAPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- ATTBuilder ----
+
+// ATTBuilder builds BLE ATT layers.
+type ATTBuilder struct {
+	layer *packet.Layer
+}
+
+// NewATT creates a BLE ATT layer builder.
+func NewATT() *ATTBuilder {
+	return &ATTBuilder{layer: bt.NewATT()}
+}
+
+func (b *ATTBuilder) Layer() *packet.Layer { return b.layer }
+
+// Opcode sets the ATT opcode.
+func (b *ATTBuilder) Opcode(op uint8) *ATTBuilder {
+	b.layer.Set("opcode", op)
+	return b
+}
+
+// Params sets the ATT parameters.
+func (b *ATTBuilder) Params(data []byte) *ATTBuilder {
+	b.layer.Set("params", data)
+	return b
+}
+
+// Over stacks an upper layer on top of this ATT layer.
+func (b *ATTBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }
