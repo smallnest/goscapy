@@ -26,6 +26,7 @@ import (
 	"github.com/smallnest/goscapy/pkg/layers/dot1q"
 	"github.com/smallnest/goscapy/pkg/layers/erspan"
 	"github.com/smallnest/goscapy/pkg/layers/gre"
+	layershttp "github.com/smallnest/goscapy/pkg/layers/http"
 	"github.com/smallnest/goscapy/pkg/layers/lldp"
 	"github.com/smallnest/goscapy/pkg/layers/ospf"
 	"github.com/smallnest/goscapy/pkg/layers/quic"
@@ -864,6 +865,57 @@ func (b *QUICBuilder) SCID(cid []byte) *QUICBuilder {
 
 // Over stacks an upper layer on top of this QUIC layer and returns a PacketBuilder.
 func (b *QUICBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- HTTPBuilder ----
+
+// HTTPBuilder builds HTTP message layers.
+type HTTPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewHTTP creates an HTTP message builder.
+func NewHTTP() *HTTPBuilder {
+	return &HTTPBuilder{layer: layershttp.NewHTTP()}
+}
+
+func (b *HTTPBuilder) Layer() *packet.Layer { return b.layer }
+
+// Request builds a raw HTTP request and sets it as the layer data.
+func (b *HTTPBuilder) Request(method, path string, headers map[string]string, body []byte) *HTTPBuilder {
+	raw := layershttp.BuildHTTPRequest(layershttp.HTTPRequest{
+		Method:  method,
+		Path:    path,
+		Version: "HTTP/1.1",
+		Headers: headers,
+		Body:    body,
+	})
+	b.layer.Set("raw", raw)
+	return b
+}
+
+// Response builds a raw HTTP response and sets it as the layer data.
+func (b *HTTPBuilder) Response(statusCode int, headers map[string]string, body []byte) *HTTPBuilder {
+	raw := layershttp.BuildHTTPResponse(layershttp.HTTPResponse{
+		Version:    "HTTP/1.1",
+		StatusCode: statusCode,
+		Headers:    headers,
+		Body:       body,
+	})
+	b.layer.Set("raw", raw)
+	return b
+}
+
+// Raw sets the raw HTTP bytes directly.
+func (b *HTTPBuilder) Raw(data []byte) *HTTPBuilder {
+	b.layer.Set("raw", data)
+	return b
+}
+
+// Over stacks an upper layer on top of this HTTP layer and returns a PacketBuilder.
+func (b *HTTPBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }

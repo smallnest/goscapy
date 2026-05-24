@@ -25,6 +25,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/ospf"
 	// Register BGP layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/bgp"
+	// Register HTTP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/http"
 )
 
 func init() {
@@ -185,6 +187,13 @@ func init() {
 	// QUIC: UDP port 443.
 	packet.RegisterHeuristic("UDP", "dport", uint16(443), "QUIC")
 	packet.RegisterHeuristic("UDP", "sport", uint16(443), "QUIC")
+
+	// HTTP: TCP port 80.
+	packet.RegisterHeuristic("TCP", "dport", uint16(80), "HTTP")
+	packet.RegisterHeuristic("TCP", "sport", uint16(80), "HTTP")
+	// Also match port 8080 (common HTTP proxy/alt port).
+	packet.RegisterHeuristic("TCP", "dport", uint16(8080), "HTTP")
+	packet.RegisterHeuristic("TCP", "sport", uint16(8080), "HTTP")
 
 	// ---- Tunnel payload registrations ----
 
