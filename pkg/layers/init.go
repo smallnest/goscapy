@@ -35,6 +35,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/tls"
 	// Register Bluetooth/BLE layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/bt"
+	// Register SNMP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/snmp"
 )
 
 func init() {
@@ -210,6 +212,12 @@ func init() {
 	// TLS: TCP port 443.
 	packet.RegisterHeuristic("TCP", "dport", uint16(443), "TLS")
 	packet.RegisterHeuristic("TCP", "sport", uint16(443), "TLS")
+
+	// SNMP: UDP port 161 (agent) and 162 (trap).
+	packet.RegisterHeuristic("UDP", "dport", uint16(161), "SNMP")
+	packet.RegisterHeuristic("UDP", "sport", uint16(161), "SNMP")
+	packet.RegisterHeuristic("UDP", "dport", uint16(162), "SNMP")
+	packet.RegisterHeuristic("UDP", "sport", uint16(162), "SNMP")
 
 	// ---- Tunnel payload registrations ----
 
