@@ -24,6 +24,7 @@ func Checksum(b []byte) uint16 {
 
 // checksumSum computes the one's complement sum over data, returning
 // the unfolded 32-bit accumulator. Used to chain multiple regions without concatenation.
+// Precondition: all non-final regions passed to multi-region checksums must be even-length.
 func checksumSum(b []byte) uint32 {
 	sum := uint32(0)
 	for i := 0; i < len(b)-1; i += 2 {

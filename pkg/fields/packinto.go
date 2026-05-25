@@ -230,8 +230,7 @@ func (f *StrFixedField) PackInto(buf []byte, val any) (int, error) {
 	if len(raw) > f.size {
 		return 0, fmt.Errorf("fields: %s value %d bytes exceeds fixed size %d", f.name, len(raw), f.size)
 	}
-	// Zero-pad to fixed size.
-	for i := range buf {
+	for i := len(raw); i < f.size; i++ {
 		buf[i] = 0
 	}
 	copy(buf, raw)
@@ -248,5 +247,13 @@ func (f *PacketField) PackInto(buf []byte, val any) (int, error) {
 }
 
 func (f *ConditionalField) PackInto(buf []byte, val any) (int, error) {
-	return f.Field.(interface{ PackInto([]byte, any) (int, error) }).PackInto(buf, val)
+	if pi, ok := f.Field.(interface{ PackInto([]byte, any) (int, error) }); ok {
+		return pi.PackInto(buf, val)
+	}
+	b, err := f.Field.Pack(val)
+	if err != nil {
+		return 0, err
+	}
+	copy(buf, b)
+	return len(b), nil
 }
