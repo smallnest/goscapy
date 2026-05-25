@@ -37,6 +37,8 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/bt"
 	// Register SNMP layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/snmp"
+	// Register Netflow/IPFIX layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/netflow"
 )
 
 func init() {
