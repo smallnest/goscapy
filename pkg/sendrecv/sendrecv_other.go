@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package sendrecv
 
@@ -49,8 +49,16 @@ func (c *RawConn) Close() error {
 	return nil
 }
 
+func (c *RawConn) AttachBPF(instructions []BPFInstruction) error {
+	return fmt.Errorf("rawconn: AttachBPF not implemented on this platform")
+}
+
 func DialRaw(proto int) (*RawConn, error) {
 	return nil, fmt.Errorf("rawconn: DialRaw not implemented on this platform")
+}
+
+func DialRaw6(proto int) (*RawConn, error) {
+	return nil, fmt.Errorf("rawconn: DialRaw6 not implemented on this platform")
 }
 
 func SendRaw(proto int, data []byte, dst string) error {
