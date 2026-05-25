@@ -68,6 +68,38 @@ func (p *Packet) GetLayer(proto string) *Layer {
 	return nil
 }
 
+// GetLayers returns all layers matching the protocol name, in stack order.
+// This is useful for tunneled packets (e.g. VXLAN) where the same protocol
+// may appear both in the outer encapsulation and inner payload.
+//
+// Example: a VXLAN packet has [Ethernet, IP, UDP, VXLAN, Ethernet, IP, UDP, Payload].
+// GetLayers("IP") returns [outer IP, inner IP].
+// GetLayers("UDP") returns [outer UDP, inner UDP].
+func (p *Packet) GetLayers(proto string) []*Layer {
+	var result []*Layer
+	for _, l := range p.layers {
+		if l.Proto() == proto {
+			result = append(result, l)
+		}
+	}
+	return result
+}
+
+// GetNthLayer returns the n-th (0-indexed) layer matching the protocol name, or nil.
+// GetNthLayer("IP", 0) is equivalent to GetLayer("IP").
+func (p *Packet) GetNthLayer(proto string, n int) *Layer {
+	count := 0
+	for _, l := range p.layers {
+		if l.Proto() == proto {
+			if count == n {
+				return l
+			}
+			count++
+		}
+	}
+	return nil
+}
+
 // HasLayer reports whether the packet contains a layer with the given protocol name.
 func (p *Packet) HasLayer(proto string) bool {
 	return p.GetLayer(proto) != nil

@@ -252,6 +252,134 @@ func TestGetLayerHasLayer(t *testing.T) {
 	}
 }
 
+func TestGetLayers(t *testing.T) {
+	// Simulate a VXLAN-tunneled packet:
+	// [Ethernet, IP, UDP, VXLAN, Ethernet, IP, UDP, Payload]
+	p := New()
+	p.Push(NewLayer("Ethernet", nil)) // outer
+	p.Push(NewLayer("IP", nil))       // outer
+	p.Push(NewLayer("UDP", nil))      // outer (VXLAN encapsulation)
+	p.Push(NewLayer("VXLAN", nil))
+	p.Push(NewLayer("Ethernet", nil)) // inner
+	p.Push(NewLayer("IP", nil))       // inner
+	p.Push(NewLayer("UDP", nil))      // inner (actual payload)
+	p.Push(NewLayer("Raw", nil))
+
+	// GetLayers for UDP — should return 2 layers.
+	udpLayers := p.GetLayers("UDP")
+	if len(udpLayers) != 2 {
+		t.Fatalf("GetLayers(UDP) = %d layers, want 2", len(udpLayers))
+	}
+
+	// GetLayers for IP — should return 2 layers.
+	ipLayers := p.GetLayers("IP")
+	if len(ipLayers) != 2 {
+		t.Fatalf("GetLayers(IP) = %d layers, want 2", len(ipLayers))
+	}
+
+	// GetLayers for Ethernet — should return 2 layers.
+	ethLayers := p.GetLayers("Ethernet")
+	if len(ethLayers) != 2 {
+		t.Fatalf("GetLayers(Ethernet) = %d layers, want 2", len(ethLayers))
+	}
+
+	// GetLayers for VXLAN — should return 1 layer.
+	vxlanLayers := p.GetLayers("VXLAN")
+	if len(vxlanLayers) != 1 {
+		t.Fatalf("GetLayers(VXLAN) = %d layers, want 1", len(vxlanLayers))
+	}
+
+	// GetLayers for non-existent protocol.
+	arpLayers := p.GetLayers("ARP")
+	if len(arpLayers) != 0 {
+		t.Fatalf("GetLayers(ARP) = %d layers, want 0", len(arpLayers))
+	}
+
+	// Verify order: first UDP is outer, second is inner.
+	// Outer UDP is at index 2, inner UDP is at index 6.
+	if udpLayers[0] != p.Layers()[2] {
+		t.Error("GetLayers(UDP)[0] should be outer UDP (index 2)")
+	}
+	if udpLayers[1] != p.Layers()[6] {
+		t.Error("GetLayers(UDP)[1] should be inner UDP (index 6)")
+	}
+
+	// GetLayers for single-occurrence protocol.
+	rawLayers := p.GetLayers("Raw")
+	if len(rawLayers) != 1 {
+		t.Fatalf("GetLayers(Raw) = %d layers, want 1", len(rawLayers))
+	}
+	if rawLayers[0].Proto() != "Raw" {
+		t.Errorf("GetLayers(Raw)[0].Proto() = %s, want Raw", rawLayers[0].Proto())
+	}
+}
+
+func TestGetNthLayer(t *testing.T) {
+	// Same VXLAN-tunneled packet structure.
+	p := New()
+	p.Push(NewLayer("Ethernet", nil)) // outer
+	p.Push(NewLayer("IP", nil))       // outer
+	p.Push(NewLayer("UDP", nil))      // outer
+	p.Push(NewLayer("VXLAN", nil))
+	p.Push(NewLayer("Ethernet", nil)) // inner
+	p.Push(NewLayer("IP", nil))       // inner
+	p.Push(NewLayer("UDP", nil))      // inner
+	p.Push(NewLayer("Raw", nil))
+
+	// GetNthLayer("UDP", 0) == outer UDP
+	outerUDP := p.GetNthLayer("UDP", 0)
+	if outerUDP == nil {
+		t.Fatal("GetNthLayer(UDP, 0) = nil, want non-nil")
+	}
+	if outerUDP != p.Layers()[2] {
+		t.Error("GetNthLayer(UDP, 0) should equal Layers()[2] (outer UDP)")
+	}
+
+	// GetNthLayer("UDP", 1) == inner UDP
+	innerUDP := p.GetNthLayer("UDP", 1)
+	if innerUDP == nil {
+		t.Fatal("GetNthLayer(UDP, 1) = nil, want non-nil")
+	}
+	if innerUDP != p.Layers()[6] {
+		t.Error("GetNthLayer(UDP, 1) should equal Layers()[6] (inner UDP)")
+	}
+
+	// GetNthLayer("UDP", 2) should be nil (only 2 UDP layers)
+	if p.GetNthLayer("UDP", 2) != nil {
+		t.Error("GetNthLayer(UDP, 2) should be nil")
+	}
+
+	// GetNthLayer("UDP", 0) == GetLayer("UDP")
+	if p.GetNthLayer("UDP", 0) != p.GetLayer("UDP") {
+		t.Error("GetNthLayer(UDP, 0) should equal GetLayer(UDP)")
+	}
+
+	// GetNthLayer for non-existent protocol.
+	if p.GetNthLayer("ARP", 0) != nil {
+		t.Error("GetNthLayer(ARP, 0) should be nil")
+	}
+
+	// GetNthLayer for single-occurrence protocol.
+	vxlan := p.GetNthLayer("VXLAN", 0)
+	if vxlan == nil || vxlan.Proto() != "VXLAN" {
+		t.Error("GetNthLayer(VXLAN, 0) should return VXLAN layer")
+	}
+	if p.GetNthLayer("VXLAN", 1) != nil {
+		t.Error("GetNthLayer(VXLAN, 1) should be nil")
+	}
+}
+
+func TestGetLayersEmptyPacket(t *testing.T) {
+	p := New()
+	layers := p.GetLayers("IP")
+	if len(layers) != 0 {
+		t.Fatalf("GetLayers on empty packet = %d layers, want 0", len(layers))
+	}
+	if p.GetNthLayer("IP", 0) != nil {
+		t.Error("GetNthLayer on empty packet should be nil")
+	}
+}
+
 func TestNewFrom(t *testing.T) {
 	p := NewFrom(
 		NewLayer("A", nil),

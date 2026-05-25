@@ -163,10 +163,110 @@ func main() {
 	}
 
 	// -----------------------------------------------------------------------
-	// 第四部分: 检查协议层是否存在
+	// 第四部分: 解析 VXLAN 隧道包 — 外层 vs 内层 UDP
 	// -----------------------------------------------------------------------
 	fmt.Println()
-	fmt.Println("--- 第四部分: 检查协议层 ---")
+	fmt.Println("--- 第四部分: 解析 VXLAN 隧道包 ---")
+	fmt.Println()
+
+	// VXLAN 包结构:
+	//   外层: [Ethernet → IP → UDP(4789) → VXLAN]
+	//   内层: [Ethernet → IP → UDP → Payload]
+	//
+	// 解析后层栈:
+	//   [Ethernet, IP, UDP, VXLAN, Ethernet, IP, UDP, Raw]
+
+	// 先构建内层包 (Ethernet + IP + UDP)，并序列化为字节
+	innerPkt := goscapy.NewEthernet().
+		DstMAC("00:aa:bb:cc:dd:ee").
+		SrcMAC("00:11:22:33:44:55").
+		Over(goscapy.NewIP().
+			SrcIP("10.0.0.3").
+			DstIP("10.0.0.4").
+			Proto(layers.IPProtoUDP)).
+		Over(goscapy.NewUDP().
+			SrcPort(12345).
+			DstPort(80)).
+		Packet()
+
+	innerBytes, err := innerPkt.Build()
+	if err != nil {
+		log.Fatalf("构建内层包失败: %v", err)
+	}
+
+	// 将内层包封装在 VXLAN 隧道中
+	vxlanWireBytes, err := goscapy.EtherIPUDPVXLAN(
+		"00:11:22:33:44:55", // 外层源 MAC
+		"00:aa:bb:cc:dd:ee", // 外层目标 MAC
+		"10.0.0.1",          // 外层源 IP
+		"10.0.0.2",          // 外层目标 IP
+		10001,               // VNI
+		innerBytes,          // 内层 Ethernet 帧
+	)
+	if err != nil {
+		log.Fatalf("构建 VXLAN 包失败: %v", err)
+	}
+
+	// 解析 VXLAN 包
+	vxlanPkt, err := packet.DissectByProto(vxlanWireBytes, "Ethernet")
+	if err != nil {
+		log.Fatalf("解析 VXLAN 包失败: %v", err)
+	}
+
+	fmt.Println("VXLAN 包协议层栈:")
+	for i, l := range vxlanPkt.Layers() {
+		fmt.Printf("  Layer %d: %s\n", i, l.Proto())
+	}
+
+	fmt.Println()
+	fmt.Println("关键: 包中有两个 UDP 层!")
+	fmt.Println("  GetLayer(\"UDP\") 只能返回第一个匹配的层 = 外层 UDP")
+	fmt.Println()
+
+	// 方法一: 使用 GetLayers 获取所有同名层
+	udpLayers := vxlanPkt.GetLayers("UDP")
+	fmt.Printf("  UDP 层总数: %d\n", len(udpLayers))
+
+	outerUDP := udpLayers[0]
+	innerUDP := udpLayers[1]
+
+	outerSport, _ := outerUDP.Get("sport")
+	outerDport, _ := outerUDP.Get("dport")
+	fmt.Printf("  外层 UDP: sport=%v, dport=%v (VXLAN 封装)\n", outerSport, outerDport)
+
+	innerSport, _ := innerUDP.Get("sport")
+	innerDport, _ := innerUDP.Get("dport")
+	fmt.Printf("  内层 UDP: sport=%v, dport=%v (隧道内实际业务)\n", innerSport, innerDport)
+
+	// 同样可以得到外层和内层 IP
+	ipLayers := vxlanPkt.GetLayers("IP")
+	if len(ipLayers) == 2 {
+		outerSrcIP, _ := ipLayers[0].Get("src")
+		outerDstIP, _ := ipLayers[0].Get("dst")
+		innerSrcIP, _ := ipLayers[1].Get("src")
+		innerDstIP, _ := ipLayers[1].Get("dst")
+		fmt.Printf("  外层 IP: %v → %v\n", outerSrcIP, outerDstIP)
+		fmt.Printf("  内层 IP: %v → %v (VXLAN 隧道内)\n", innerSrcIP, innerDstIP)
+	}
+
+	fmt.Println()
+	fmt.Println("  方法二: 使用 GetNthLayer 按序号获取")
+	fmt.Println("    GetNthLayer(\"IP\", 0)  → 外层 IP")
+	fmt.Println("    GetNthLayer(\"IP\", 1)  → 内层 IP")
+	fmt.Println("    GetNthLayer(\"UDP\", 0) → 外层 UDP")
+	fmt.Println("    GetNthLayer(\"UDP\", 1) → 内层 UDP")
+
+	vniLayer := vxlanPkt.GetLayer("VXLAN")
+	if vniLayer != nil {
+		vni, _ := vniLayer.Get("vni")
+		fmt.Printf("\n  VNI (VXLAN 网络标识符): %v\n", vni)
+	}
+
+	// -----------------------------------------------------------------------
+	// 第五部分: 检查协议层是否存在
+	// -----------------------------------------------------------------------
+	fmt.Println()
+	fmt.Println("--- 第五部分: 检查协议层 ---")
 	fmt.Println()
 
 	fmt.Printf("  包含 Ethernet 层? %v\n", dissectedPkt.HasLayer("Ethernet"))
