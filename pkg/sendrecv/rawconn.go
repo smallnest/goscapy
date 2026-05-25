@@ -23,6 +23,11 @@ type RawConn struct {
 
 // Send transmits raw payload bytes to the target destination IP.
 // Supports both IPv4 and IPv6 destinations.
+//
+// When zero-copy mode is enabled (SetZeroCopy), Send must not be called
+// concurrently from multiple goroutines. The zerocopy completion tracking
+// relies on sequential kernel-side sequence numbers that cannot be
+// synchronized with userspace under concurrent Send calls.
 func (c *RawConn) Send(data []byte, dst string) error {
 	ip := net.ParseIP(dst)
 	if ip == nil {

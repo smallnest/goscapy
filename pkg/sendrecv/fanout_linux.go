@@ -23,6 +23,7 @@ const (
 // FanoutReceiver distributes packets across N AF_PACKET sockets in a single
 // fanout group for multi-core parallel capture.
 type FanoutReceiver struct {
+	mu      sync.Mutex
 	fds     []int
 	iface   string
 	groupID uint16
@@ -100,8 +101,13 @@ func OpenFanoutReceiver(iface string, n int, opts ...FanoutOption) (*FanoutRecei
 // fanout group and calling handler for each received packet. Blocks until
 // Close is called. The handler may be called concurrently from multiple goroutines.
 func (fr *FanoutReceiver) RecvParallel(handler func(*packet.Packet)) {
+	fr.mu.Lock()
+	fds := make([]int, len(fr.fds))
+	copy(fds, fr.fds)
+	fr.mu.Unlock()
+
 	var wg sync.WaitGroup
-	for _, fd := range fr.fds {
+	for _, fd := range fds {
 		wg.Add(1)
 		go func(sockFd int) {
 			defer wg.Done()
@@ -133,10 +139,15 @@ func (fr *FanoutReceiver) Close() error {
 
 // NumSockets returns the number of sockets in the fanout group.
 func (fr *FanoutReceiver) NumSockets() int {
+	fr.mu.Lock()
+	defer fr.mu.Unlock()
 	return len(fr.fds)
 }
 
 func (fr *FanoutReceiver) closeAll() error {
+	fr.mu.Lock()
+	defer fr.mu.Unlock()
+
 	var lastErr error
 	for _, fd := range fr.fds {
 		if err := syscall.Close(fd); err != nil {
