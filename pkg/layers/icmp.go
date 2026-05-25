@@ -39,20 +39,22 @@ func NewICMPEcho(id, seq uint16) *packet.Layer {
 func icmpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
 	layer := pkt.Layers()[layerIdx]
 
-	// Zero checksum, serialize header.
+	// Single-pass: serialize header with zero checksum.
 	layer.Set("chksum", uint16(0))
-	hdrBytes, err := layer.SerializeFields()
+	buf := make([]byte, 8) // ICMP base header is always 8 bytes (type+code+chksum+id+seq)
+	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return nil, err
 	}
 
-	// Full message = header + upper payload.
-	fullMsg := make([]byte, 0, len(hdrBytes)+len(upperBytes))
-	fullMsg = append(fullMsg, hdrBytes...)
-	fullMsg = append(fullMsg, upperBytes...)
+	// Compute checksum over header + upperBytes without concatenation.
+	// Use two regions in the running sum.
+	sum := checksumSum(buf[:n])
+	sum += checksumSum(upperBytes)
+	csum := foldChecksum(sum)
 
-	csum := ICMPChecksum(fullMsg)
 	layer.Set("chksum", csum)
-
-	return layer.SerializeFields()
+	buf[2] = byte(csum >> 8)
+	buf[3] = byte(csum)
+	return buf[:n], nil
 }

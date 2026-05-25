@@ -49,18 +49,24 @@ func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, e
 	// Compute total length: header size + upper layer bytes.
 	verihl, _ := layer.Get("verihl")
 	headerSize := int(verihl.(uint8)&0x0F) * 4
+	if headerSize < 20 {
+		headerSize = 20
+	}
 	totalLen := uint16(headerSize + len(upperBytes))
 	layer.Set("len", totalLen)
 
-	// Zero checksum, serialize header, compute checksum, re-serialize.
+	// Single-pass: serialize with zero checksum, compute, write back.
 	layer.Set("chksum", uint16(0))
-	hdrBytes, err := layer.SerializeFields()
+	buf := make([]byte, headerSize)
+	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return nil, err
 	}
 
-	csum := IPChecksum(hdrBytes)
+	csum := IPChecksum(buf[:n])
 	layer.Set("chksum", csum)
-
-	return layer.SerializeFields()
+	// Write checksum directly into buffer at offset 10 (IP checksum field).
+	buf[10] = byte(csum >> 8)
+	buf[11] = byte(csum)
+	return buf[:n], nil
 }

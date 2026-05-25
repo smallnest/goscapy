@@ -583,3 +583,48 @@ func TestBuildIPv6DestOptsUDP(t *testing.T) {
 		t.Errorf("UDP over IPv6+DestOpts checksum invalid: %#x", csum)
 	}
 }
+
+func BenchmarkBuildEthernetIPTCP(b *testing.B) {
+	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
+	ip := NewIP()
+	ip.Set("src", "192.168.1.1")
+	ip.Set("dst", "8.8.8.8")
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+	tcp.Set("seq", uint32(1000))
+	raw := NewRawWith([]byte("hello"))
+	pkt := eth.Over(ip)
+	pkt.Push(tcp)
+	pkt.Push(raw)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := pkt.Build()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkBuildIntoEthernetIPTCP(b *testing.B) {
+	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
+	ip := NewIP()
+	ip.Set("src", "192.168.1.1")
+	ip.Set("dst", "8.8.8.8")
+	tcp := NewTCPWith(12345, 80, TCPSyn)
+	tcp.Set("seq", uint32(1000))
+	raw := NewRawWith([]byte("hello"))
+	pkt := eth.Over(ip)
+	pkt.Push(tcp)
+	pkt.Push(raw)
+	buf := make([]byte, 256)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := pkt.BuildInto(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

@@ -189,3 +189,152 @@ func TestBuildFromSkipLayer(t *testing.T) {
 		t.Errorf("byte = %#x, want 0x22", got[0])
 	}
 }
+
+func TestSerializeInto(t *testing.T) {
+	l := NewLayer("Test", []fields.Field{
+		fields.NewByteField("a", 0),
+		fields.NewShortField("b", 0),
+		fields.NewIntField("c", 0),
+	})
+	l.Set("a", uint8(0x42))
+	l.Set("b", uint16(0x1234))
+	l.Set("c", uint32(0xAABBCCDD))
+
+	buf := make([]byte, 7)
+	n, err := l.SerializeInto(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 7 {
+		t.Fatalf("SerializeInto returned %d, want 7", n)
+	}
+
+	expected := []byte{0x42, 0x12, 0x34, 0xAA, 0xBB, 0xCC, 0xDD}
+	for i, b := range buf {
+		if b != expected[i] {
+			t.Errorf("byte %d = %#x, want %#x", i, b, expected[i])
+		}
+	}
+}
+
+func TestBuildInto(t *testing.T) {
+	l1 := NewLayer("L1", []fields.Field{
+		fields.NewByteField("a", 0x11),
+	})
+	l2 := NewLayer("L2", []fields.Field{
+		fields.NewShortField("b", 0x2233),
+	})
+
+	p := NewFrom(l1, l2)
+
+	buf := make([]byte, 128)
+	got, err := p.BuildInto(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+
+	expected := []byte{0x11, 0x22, 0x33}
+	for i, b := range got {
+		if b != expected[i] {
+			t.Errorf("byte %d = %#x, want %#x", i, b, expected[i])
+		}
+	}
+}
+
+func TestBuildFromInto(t *testing.T) {
+	l1 := NewLayer("L1", []fields.Field{
+		fields.NewByteField("a", 0x11),
+	})
+	l2 := NewLayer("L2", []fields.Field{
+		fields.NewShortField("b", 0x2233),
+	})
+
+	p := NewFrom(l1, l2)
+
+	buf := make([]byte, 128)
+	got, err := p.BuildFromInto(1, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[0] != 0x22 || got[1] != 0x33 {
+		t.Errorf("got %x, want 2233", got)
+	}
+}
+
+func TestBuildIntoMatchesBuild(t *testing.T) {
+	l1 := NewLayer("L1", []fields.Field{
+		fields.NewByteField("a", 0),
+		fields.NewShortField("b", 0),
+	})
+	l1.Set("a", uint8(0xAB))
+	l1.Set("b", uint16(0x1234))
+
+	p := NewFrom(l1)
+
+	buildOut, err := p.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 128)
+	intoOut, err := p.BuildInto(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(buildOut) != len(intoOut) {
+		t.Fatalf("Build len=%d, BuildInto len=%d", len(buildOut), len(intoOut))
+	}
+	for i, b := range buildOut {
+		if intoOut[i] != b {
+			t.Errorf("byte %d: Build=%#x, BuildInto=%#x", i, b, intoOut[i])
+		}
+	}
+}
+
+func BenchmarkBuildAlloc(b *testing.B) {
+	l := NewLayer("Bench", []fields.Field{
+		fields.NewByteField("a", 0x42),
+		fields.NewShortField("b", 0x1234),
+		fields.NewShortField("c", 0),
+		fields.NewIntField("d", 0xAABBCCDD),
+	})
+	p := NewFrom(l)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := p.Build()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkBuildIntoAlloc(b *testing.B) {
+	l := NewLayer("Bench", []fields.Field{
+		fields.NewByteField("a", 0x42),
+		fields.NewShortField("b", 0x1234),
+		fields.NewShortField("c", 0),
+		fields.NewIntField("d", 0xAABBCCDD),
+	})
+	p := NewFrom(l)
+	buf := make([]byte, 128)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := p.BuildInto(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

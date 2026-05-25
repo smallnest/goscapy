@@ -169,3 +169,72 @@ func (l *Layer) SerializeFields() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// SerializeInto packs all active fields directly into the provided buffer.
+// Returns the number of bytes written. No heap allocations.
+// The caller must ensure buf has sufficient capacity (use layerWireSize to compute).
+func (l *Layer) SerializeInto(buf []byte) (int, error) {
+	offset := 0
+	for _, f := range l.fields {
+		if cf, ok := f.(*fields.ConditionalField); ok {
+			if !cf.Active(l.values) {
+				continue
+			}
+		}
+		val, exists := l.values[f.Name()]
+		if !exists {
+			continue
+		}
+		pi, ok := f.(interface{ PackInto([]byte, any) (int, error) })
+		if !ok {
+			// Fallback to Pack + copy for fields without PackInto.
+			b, err := f.Pack(val)
+			if err != nil {
+				return offset, fmt.Errorf("packet: layer %s field %s: %w", l.proto, f.Name(), err)
+			}
+			copy(buf[offset:], b)
+			offset += len(b)
+			continue
+		}
+		n, err := pi.PackInto(buf[offset:], val)
+		if err != nil {
+			return offset, fmt.Errorf("packet: layer %s field %s: %w", l.proto, f.Name(), err)
+		}
+		offset += n
+	}
+	return offset, nil
+}
+
+// WireSize computes the serialized size of this layer without allocating.
+func (l *Layer) WireSize() int {
+	total := 0
+	for _, f := range l.fields {
+		if cf, ok := f.(*fields.ConditionalField); ok {
+			if !cf.Active(l.values) {
+				continue
+			}
+		}
+		fixed := f.FixedSize()
+		if fixed > 0 {
+			total += fixed
+			continue
+		}
+		// Variable-length field: must compute from value.
+		val, exists := l.values[f.Name()]
+		if !exists {
+			continue
+		}
+		switch v := val.(type) {
+		case string:
+			total += len(v)
+		case []byte:
+			total += len(v)
+		default:
+			// For other variable types (e.g. []TCPOption), serialize to measure.
+			// This is rare and only happens during size computation.
+			b, _ := f.Pack(val)
+			total += len(b)
+		}
+	}
+	return total
+}

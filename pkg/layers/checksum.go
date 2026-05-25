@@ -22,6 +22,27 @@ func Checksum(b []byte) uint16 {
 	return ^uint16(sum)
 }
 
+// checksumSum computes the one's complement sum over data, returning
+// the unfolded 32-bit accumulator. Used to chain multiple regions without concatenation.
+func checksumSum(b []byte) uint32 {
+	sum := uint32(0)
+	for i := 0; i < len(b)-1; i += 2 {
+		sum += uint32(binary.BigEndian.Uint16(b[i:]))
+	}
+	if len(b)%2 == 1 {
+		sum += uint32(b[len(b)-1]) << 8
+	}
+	return sum
+}
+
+// foldChecksum folds the 32-bit sum and returns the final one's complement checksum.
+func foldChecksum(sum uint32) uint16 {
+	for sum>>16 != 0 {
+		sum = (sum & 0xFFFF) + (sum >> 16)
+	}
+	return ^uint16(sum)
+}
+
 // IPChecksum computes the IPv4 header checksum over the header bytes.
 // The checksum field itself should be zeroed before calling this.
 func IPChecksum(header []byte) uint16 {
@@ -68,4 +89,39 @@ func pseudoHeaderChecksum(srcIP, dstIP []byte, proto uint8, data []byte) uint16 
 	buf = append(buf, data...)
 
 	return Checksum(buf)
+}
+
+// checksumIPv4Pseudo computes checksum with IPv4 pseudo-header without allocation.
+// Folds pseudo-header values directly into the running sum.
+func checksumIPv4Pseudo(srcIP, dstIP []byte, proto uint8, regions ...[]byte) uint16 {
+	transportLen := 0
+	for _, r := range regions {
+		transportLen += len(r)
+	}
+	sum := checksumSum(srcIP)
+	sum += checksumSum(dstIP)
+	sum += uint32(proto)
+	sum += uint32(transportLen)
+	for _, r := range regions {
+		sum += checksumSum(r)
+	}
+	return foldChecksum(sum)
+}
+
+// checksumIPv6Pseudo computes checksum with IPv6 pseudo-header without allocation.
+func checksumIPv6Pseudo(srcIP, dstIP []byte, nextHeader uint8, regions ...[]byte) uint16 {
+	upperLen := 0
+	for _, r := range regions {
+		upperLen += len(r)
+	}
+	sum := checksumSum(srcIP)
+	sum += checksumSum(dstIP)
+	// Upper-layer length as 32-bit big-endian.
+	sum += uint32(upperLen>>16) + uint32(upperLen&0xFFFF)
+	// Next header.
+	sum += uint32(nextHeader)
+	for _, r := range regions {
+		sum += checksumSum(r)
+	}
+	return foldChecksum(sum)
 }

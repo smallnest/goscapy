@@ -62,22 +62,19 @@ func icmpv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byt
 		return nil, err
 	}
 
-	// Zero checksum, serialize header.
+	// Single-pass: serialize header with zero checksum.
 	layer.Set("chksum", uint16(0))
-	hdrBytes, err := layer.SerializeFields()
+	buf := make([]byte, 4) // ICMPv6 base header: type+code+chksum = 4 bytes
+	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return nil, err
 	}
 
-	// Full ICMPv6 message = header + upper payload.
-	fullMsg := make([]byte, 0, len(hdrBytes)+len(upperBytes))
-	fullMsg = append(fullMsg, hdrBytes...)
-	fullMsg = append(fullMsg, upperBytes...)
-
-	csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrICMP, fullMsg)
+	csum := checksumIPv6Pseudo(srcIP, dstIP, IPv6NextHdrICMP, buf[:n], upperBytes)
 	layer.Set("chksum", csum)
-
-	return layer.SerializeFields()
+	buf[2] = byte(csum >> 8)
+	buf[3] = byte(csum)
+	return buf[:n], nil
 }
 
 // findIPv6Addresses searches downward from layerIdx to find the nearest IPv6 layer

@@ -53,7 +53,12 @@ func MakeIPv6VerTCFL(tc uint8, fl uint32) uint32 {
 func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
 	layer := pkt.Layers()[layerIdx]
 	layer.Set("plen", uint16(len(upperBytes)))
-	return layer.SerializeFields()
+	buf := make([]byte, 40)
+	n, err := layer.SerializeInto(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
 }
 
 // ---- Extension header layers ----

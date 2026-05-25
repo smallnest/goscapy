@@ -149,6 +149,19 @@ func (f *tcpOptionsField) Unpack(_ []byte) (any, int, error) {
 	return []TCPOption(nil), 0, nil
 }
 
+func (f *tcpOptionsField) PackInto(buf []byte, val any) (int, error) {
+	if val == nil {
+		return 0, nil
+	}
+	opts, ok := val.([]TCPOption)
+	if !ok {
+		return 0, fmt.Errorf("fields: options expects []TCPOption, got %T", val)
+	}
+	b := SerializeTCPOptions(opts)
+	copy(buf, b)
+	return len(b), nil
+}
+
 // tcpPostParseHook parses TCP option bytes from the gap between fixed header
 // fields (20 bytes) and the actual header size (from dataofs).
 func tcpPostParseHook(layer *packet.Layer, extra []byte) error {

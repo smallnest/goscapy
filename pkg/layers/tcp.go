@@ -65,19 +65,15 @@ func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, 
 	hdrLen := 20 + len(optsBytes)
 	layer.Set("dataofs", uint8((hdrLen/4)<<4))
 
-	// Zero checksum, serialize header.
+	// Single-pass: serialize with zero checksum.
 	layer.Set("chksum", uint16(0))
-	hdrBytes, err := layer.SerializeFields()
+	buf := make([]byte, hdrLen)
+	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return nil, err
 	}
 
-	// Full segment = header + upper payload.
-	fullSeg := make([]byte, 0, len(hdrBytes)+len(upperBytes))
-	fullSeg = append(fullSeg, hdrBytes...)
-	fullSeg = append(fullSeg, upperBytes...)
-
-	// Find IP layer below for src/dst addresses (supports both IPv4 and IPv6).
+	// Compute checksum without concatenation.
 	addr, err := findIPAddressesAny(pkt, layerIdx)
 	if err != nil {
 		return nil, err
@@ -85,11 +81,13 @@ func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, 
 
 	var csum uint16
 	if addr.isV6 {
-		csum = IPv6PseudoHeaderChecksum(addr.src, addr.dst, IPv6NextHdrTCP, fullSeg)
+		csum = checksumIPv6Pseudo(addr.src, addr.dst, IPv6NextHdrTCP, buf[:n], upperBytes)
 	} else {
-		csum = TCPChecksum(addr.src, addr.dst, fullSeg)
+		csum = checksumIPv4Pseudo(addr.src, addr.dst, 6, buf[:n], upperBytes)
 	}
 	layer.Set("chksum", csum)
-
-	return layer.SerializeFields()
+	// Write checksum at offset 16 (TCP checksum field: sport(2)+dport(2)+seq(4)+ack(4)+dataofs(1)+flags(1)+window(2) = 16).
+	buf[16] = byte(csum >> 8)
+	buf[17] = byte(csum)
+	return buf[:n], nil
 }
