@@ -1,9 +1,7 @@
 package snmp
 
 import (
-	"encoding/binary"
 	"fmt"
-	"math"
 	"net"
 	"strings"
 )
@@ -680,8 +678,3 @@ func VarBindValueAsString(vb VarBind) (string, bool) {
 	}
 	return string(val), true
 }
-
-// ---- Unused import guard ----
-
-var _ = binary.BigEndian
-var _ = math.MaxUint32
