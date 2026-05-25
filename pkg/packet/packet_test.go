@@ -53,13 +53,13 @@ func TestLayerGetSet(t *testing.T) {
 
 	// setting wrong name
 	if err := l.Set("noexist", 1); err == nil {
-		t.Fatal("expected error for unknown field")
+		t.Errorf("Set(%q, 1) = %v, want error", "noexist", err)
 	}
 
 	// getting wrong name
 	_, err := l.Get("noexist")
 	if err == nil {
-		t.Fatal("expected error for unknown field")
+		t.Errorf("Get(%q) = %v, want error", "noexist", err)
 	}
 }
 
@@ -137,13 +137,13 @@ func TestLayerFindField(t *testing.T) {
 	l := NewLayer("Test", []fields.Field{f1, f2})
 
 	if f := l.FindField("a"); f != f1 {
-		t.Error("FindField(a) should return first field")
+		t.Errorf("FindField(%q) = %v, want %v", "a", f, f1)
 	}
 	if f := l.FindField("b"); f != f2 {
-		t.Error("FindField(b) should return second field")
+		t.Errorf("FindField(%q) = %v, want %v", "b", f, f2)
 	}
 	if f := l.FindField("nope"); f != nil {
-		t.Error("FindField(nope) should return nil")
+		t.Errorf("FindField(%q) = %v, want nil", "nope", f)
 	}
 }
 
@@ -154,10 +154,10 @@ func TestLayerFieldIndex(t *testing.T) {
 	})
 
 	if idx := l.FieldIndex("a"); idx != 0 {
-		t.Errorf("FieldIndex(a) = %d", idx)
+		t.Errorf("FieldIndex(%q) = %d, want 0", "a", idx)
 	}
 	if idx := l.FieldIndex("b"); idx != 1 {
-		t.Errorf("FieldIndex(b) = %d", idx)
+		t.Errorf("FieldIndex(%q) = %d, want 1", "b", idx)
 	}
 	if idx := l.FieldIndex("c"); idx != -1 {
 		t.Errorf("FieldIndex(c) = %d, want -1", idx)
@@ -187,13 +187,13 @@ func TestStackedPacket(t *testing.T) {
 	p := New()
 
 	if p.Len() != 0 {
-		t.Fatalf("empty packet len = %d", p.Len())
+		t.Errorf("Len() = %d, want 0", p.Len())
 	}
 	if p.First() != nil {
-		t.Fatal("First() should be nil")
+		t.Error("First() = non-nil, want nil")
 	}
 	if p.Last() != nil {
-		t.Fatal("Last() should be nil")
+		t.Error("Last() = non-nil, want nil")
 	}
 
 	eth := NewLayer("Ethernet", nil)
@@ -239,16 +239,16 @@ func TestGetLayerHasLayer(t *testing.T) {
 	p.Push(NewLayer("TCP", nil))
 
 	if !p.HasLayer("IP") {
-		t.Error("HasLayer(IP) should be true")
+		t.Errorf("HasLayer(%q) = false, want true", "IP")
 	}
 	if p.HasLayer("UDP") {
-		t.Error("HasLayer(UDP) should be false")
+		t.Errorf("HasLayer(%q) = true, want false", "UDP")
 	}
 	if p.GetLayer("TCP") == nil {
-		t.Error("GetLayer(TCP) should not be nil")
+		t.Error("GetLayer(TCP) = nil, want non-nil")
 	}
 	if p.GetLayer("ARP") != nil {
-		t.Error("GetLayer(ARP) should be nil")
+		t.Error("GetLayer(ARP) = non-nil, want nil")
 	}
 }
 

@@ -269,7 +269,7 @@ func toUint64(v any) uint64 {
 	}
 }
 
-// makeRawLayer creates a Raw layer with the given payload.
+// makeRawLayer creates a Raw layer with the given payload bytes.
 func makeRawLayer(payload []byte) *Layer {
 	factory, ok := dissectRegistry.factories["Raw"]
 	if ok {

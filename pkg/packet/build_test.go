@@ -25,7 +25,7 @@ func TestRegisterBuildHook(t *testing.T) {
 	// Call it to verify it's the right hook.
 	h(nil, 0, nil)
 	if !called {
-		t.Error("hook was not called")
+		t.Error("BuildHook: not called")
 	}
 
 	// Non-existent protocol should return nil.

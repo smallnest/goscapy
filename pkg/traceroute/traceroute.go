@@ -127,14 +127,14 @@ func Traceroute(dst string, opts Options) (*TracerouteResult, error) {
 
 			ipLayer := resp.GetLayer("IP")
 			if ipLayer != nil {
-				if srcVal, e := ipLayer.Get("src"); e == nil && srcVal != nil {
+				if srcVal, err := ipLayer.Get("src"); err == nil && srcVal != nil {
 					hop.IP = srcVal.(net.IP).String()
 				}
 			}
 
 			icmpLayer := resp.GetLayer("ICMP")
 			if icmpLayer != nil {
-				if typeVal, e := icmpLayer.Get("type"); e == nil && typeVal != nil {
+				if typeVal, err := icmpLayer.Get("type"); err == nil && typeVal != nil {
 					if typeVal.(uint8) == 0 {
 						reached = true
 					}
@@ -144,7 +144,7 @@ func Traceroute(dst string, opts Options) (*TracerouteResult, error) {
 			// Also check for TCP RST/SYN-ACK as reachability indicator.
 			tcpLayer := resp.GetLayer("TCP")
 			if tcpLayer != nil {
-				if flagsVal, e := tcpLayer.Get("flags"); e == nil && flagsVal != nil {
+				if flagsVal, err := tcpLayer.Get("flags"); err == nil && flagsVal != nil {
 					flags := flagsVal.(uint8)
 					if flags&layers.TCPSyn != 0 || flags&layers.TCPRst != 0 {
 						reached = true
@@ -365,8 +365,8 @@ func buildMatcher(dstIP net.IP, pid uint16, opts Options) sendrecv.MatchFunc {
 			if rawLayer == nil {
 				return false
 			}
-			loadVal, e := rawLayer.Get("load")
-			if e != nil || loadVal == nil {
+			loadVal, err := rawLayer.Get("load")
+			if err != nil || loadVal == nil {
 				return false
 			}
 			loadBytes, ok := loadVal.([]byte)

@@ -140,8 +140,7 @@ func cidrToIPs(cidr string) []string {
 	}
 
 	var ips []string
-	ip := ipnet.IP
-	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); incIP(ip) {
+	for ip := ipnet.IP.Mask(ipnet.Mask); ipnet.Contains(ip); incIP(ip) {
 		ips = append(ips, ip.String())
 	}
 	return ips

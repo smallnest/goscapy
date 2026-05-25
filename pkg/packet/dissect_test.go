@@ -159,7 +159,7 @@ func TestRegisterHeuristic(t *testing.T) {
 	// Verify next layer mapping.
 	next, ok := dissectRegistry.nextLayer["TestLower"][0x9999]
 	if !ok || next != "TestUpper" {
-		t.Errorf("nextLayer mapping: ok=%v, next=%q", ok, next)
+		t.Errorf("nextLayer mapping: ok=%v, next=%q, want ok=true, next=TestUpper", ok, next)
 	}
 
 	// Clean up.
@@ -203,14 +203,14 @@ func TestRegisterDissector(t *testing.T) {
 
 	d, ok := dissectRegistry.dissectors["TestProto"]
 	if !ok {
-		t.Fatal("dissector not registered")
+		t.Errorf("%s.dissectors[%q]: expected true", "dissectRegistry", "TestProto")
 	}
 	proto, skip, err := d([]byte{1, 2, 3})
 	if err != nil || proto != "TestProto" || skip != 0 {
 		t.Errorf("dissector: proto=%q, skip=%d, err=%v", proto, skip, err)
 	}
 	if !called {
-		t.Error("dissector not called")
+		t.Error("DissectorFunc: not called")
 	}
 
 	delete(dissectRegistry.dissectors, "TestProto")
