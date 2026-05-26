@@ -65,8 +65,7 @@ func (l *TokenBucketLimiter) Wait(ctx context.Context) error {
 	// Compute how long until we have 1 token.
 	deficit := 1.0 - l.tokens
 	waitNs := time.Duration(deficit / l.rate)
-	l.tokens = 0 // will be replenished on next call
-	l.last = now.Add(waitNs)
+	l.tokens -= 1.0
 	l.mu.Unlock()
 
 	// Sleep for the computed duration.

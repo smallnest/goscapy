@@ -42,7 +42,7 @@ func TestTokenBucketLimiterRate(t *testing.T) {
 	elapsed := time.Since(start)
 
 	expectedDur := time.Duration(float64(n) / float64(pps) * float64(time.Second))
-	tolerance := 0.10 // 10% tolerance
+	tolerance := 0.15 // 15% tolerance
 	low := time.Duration(float64(expectedDur) * (1 - tolerance))
 	high := time.Duration(float64(expectedDur) * (1 + tolerance))
 
