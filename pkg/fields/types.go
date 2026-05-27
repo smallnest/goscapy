@@ -106,18 +106,15 @@ func (f *ThreeBytesField) Pack(val any) ([]byte, error) {
 	if v > 0xFFFFFF {
 		return nil, fmt.Errorf("fields: %s value %d exceeds 3 bytes", f.name, v)
 	}
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, v)
-	return b[1:], nil
+	return []byte{byte(v >> 16), byte(v >> 8), byte(v)}, nil
 }
 
 func (f *ThreeBytesField) Unpack(b []byte) (any, int, error) {
 	if err := validateSize(f.name, b, 3); err != nil {
 		return nil, 0, err
 	}
-	tmp := make([]byte, 4)
-	copy(tmp[1:], b[:3])
-	return binary.BigEndian.Uint32(tmp), 3, nil
+	v := uint32(b[0])<<16 | uint32(b[1])<<8 | uint32(b[2])
+	return v, 3, nil
 }
 
 // IntField is a 4-byte big-endian unsigned integer field.

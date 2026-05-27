@@ -52,29 +52,29 @@ func newICMPv6EchoLayer() *packet.Layer     { return NewICMPv6Echo(0, 0) }
 func newICMPv6EchoReplyLayer() *packet.Layer { return NewICMPv6EchoReply(0, 0) }
 
 // icmpv6BuildHook is called during Packet.Build() for ICMPv6 layers.
-// It auto-computes the ICMPv6 checksum using the IPv6 pseudo-header.
-func icmpv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+// It auto-computes the ICMPv6 checksum using the IPv6 pseudo-header,
+// writing directly into buf.
+func icmpv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
 
 	// Find IPv6 layer below for src/dst addresses.
 	srcIP, dstIP, err := findIPv6Addresses(pkt, layerIdx)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	// Single-pass: serialize header with zero checksum.
+	// Serialize header with zero checksum into buf.
 	layer.Set("chksum", uint16(0))
-	buf := make([]byte, 4) // ICMPv6 base header: type+code+chksum = 4 bytes
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	csum := checksumIPv6Pseudo(srcIP, dstIP, IPv6NextHdrICMP, buf[:n], upperBytes)
 	layer.Set("chksum", csum)
 	buf[2] = byte(csum >> 8)
 	buf[3] = byte(csum)
-	return buf[:n], nil
+	return n, nil
 }
 
 // findIPv6Addresses searches downward from layerIdx to find the nearest IPv6 layer

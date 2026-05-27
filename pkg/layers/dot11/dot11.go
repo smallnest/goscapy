@@ -337,11 +337,11 @@ func ParseRadioTapData(data []byte, present uint32) map[string]any {
 
 // ---- Build hooks ----
 
-func radiotapBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+func radiotapBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
 	totalLen := 8 + len(upperBytes)
 	layer.Set("len", uint16(totalLen))
-	return layer.SerializeFields()
+	return layer.SerializeInto(buf)
 }
 
 // ---- Header size functions ----

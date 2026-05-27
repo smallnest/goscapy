@@ -7,10 +7,11 @@ package packet
 //   - pkt:       the full packet being built
 //   - layerIdx:  index of this layer within pkt.Layers()
 //   - upperBytes: concatenated bytes of all layers above this one (already serialized)
+//   - buf:        pre-sized buffer for this layer's serialized output
 //
 // The hook should set derived field values (length, checksum, etc.) on the layer,
-// then return the final wire bytes by calling layer.SerializeFields().
-type BuildHook func(pkt *Packet, layerIdx int, upperBytes []byte) ([]byte, error)
+// then serialize directly into buf. Returns the number of bytes written.
+type BuildHook func(pkt *Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error)
 
 var buildHooks map[string]BuildHook
 

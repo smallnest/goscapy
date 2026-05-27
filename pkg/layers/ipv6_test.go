@@ -127,7 +127,8 @@ func TestIPv6BuildHook(t *testing.T) {
 	upper := []byte{0x08, 0x00, 0x00, 0x00, 0x12, 0x34, 0x00, 0x01} // 8 bytes ICMPv6
 	pkt := packet.NewFrom(ipv6)
 
-	got, err := ipv6BuildHook(pkt, 0, upper)
+	buf := make([]byte, ipv6.WireSize())
+	n, err := ipv6BuildHook(pkt, 0, upper, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,8 +139,8 @@ func TestIPv6BuildHook(t *testing.T) {
 		t.Errorf("plen = %d, want 8", plen)
 	}
 
-	if len(got) != 40 {
-		t.Fatalf("len = %d, want 40", len(got))
+	if n != 40 {
+		t.Fatalf("n = %d, want 40", n)
 	}
 }
 

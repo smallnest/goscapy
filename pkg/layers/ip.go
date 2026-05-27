@@ -42,8 +42,8 @@ func IPFlags(frag uint16) uint8 { return uint8(frag >> 13) }
 func IPFragOffset(frag uint16) uint16 { return frag & 0x1FFF }
 
 // ipBuildHook is called during Packet.Build() for IP layers.
-// It auto-computes the total length and header checksum.
-func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+// It auto-computes the total length and header checksum, writing directly into buf.
+func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
 
 	// Compute total length: header size + upper layer bytes.
@@ -55,18 +55,16 @@ func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, e
 	totalLen := uint16(headerSize + len(upperBytes))
 	layer.Set("len", totalLen)
 
-	// Single-pass: serialize with zero checksum, compute, write back.
+	// Serialize with zero checksum into buf.
 	layer.Set("chksum", uint16(0))
-	buf := make([]byte, headerSize)
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	csum := IPChecksum(buf[:n])
 	layer.Set("chksum", csum)
-	// Write checksum directly into buffer at offset 10 (IP checksum field).
 	buf[10] = byte(csum >> 8)
 	buf[11] = byte(csum)
-	return buf[:n], nil
+	return n, nil
 }

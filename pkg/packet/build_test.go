@@ -8,9 +8,9 @@ import (
 
 func TestRegisterBuildHook(t *testing.T) {
 	called := false
-	hook := func(pkt *Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+	hook := func(pkt *Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 		called = true
-		return nil, nil
+		return 0, nil
 	}
 
 	// Register a hook for a test protocol.
@@ -23,7 +23,7 @@ func TestRegisterBuildHook(t *testing.T) {
 	}
 
 	// Call it to verify it's the right hook.
-	h(nil, 0, nil)
+	h(nil, 0, nil, nil)
 	if !called {
 		t.Error("BuildHook: not called")
 	}

@@ -49,16 +49,11 @@ func MakeIPv6VerTCFL(tc uint8, fl uint32) uint32 {
 }
 
 // ipv6BuildHook is called during Packet.Build() for IPv6 layers.
-// It auto-computes the payload length from upper layer bytes.
-func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+// It auto-computes the payload length from upper layer bytes, writing directly into buf.
+func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
 	layer.Set("plen", uint16(len(upperBytes)))
-	buf := make([]byte, 40)
-	n, err := layer.SerializeInto(buf)
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return layer.SerializeInto(buf)
 }
 
 // ---- Extension header layers ----

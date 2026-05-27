@@ -2,6 +2,7 @@ package packet
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/smallnest/goscapy/pkg/fields"
 )
@@ -76,7 +77,7 @@ func (p *Packet) GetLayer(proto string) *Layer {
 // GetLayers("IP") returns [outer IP, inner IP].
 // GetLayers("UDP") returns [outer UDP, inner UDP].
 func (p *Packet) GetLayers(proto string) []*Layer {
-	var result []*Layer
+	result := make([]*Layer, 0, len(p.layers))
 	for _, l := range p.layers {
 		if l.Proto() == proto {
 			result = append(result, l)
@@ -126,14 +127,17 @@ func (p *Packet) Len() int { return len(p.layers) }
 
 // String returns a summary of the packet's layer stack.
 func (p *Packet) String() string {
-	s := ""
-	for i, l := range p.layers {
-		if i > 0 {
-			s += " / "
-		}
-		s += l.Proto()
+	if len(p.layers) == 0 {
+		return ""
 	}
-	return s
+	var b strings.Builder
+	b.Grow(len(p.layers) * 8) // approximate: " / " + proto name
+	b.WriteString(p.layers[0].Proto())
+	for _, l := range p.layers[1:] {
+		b.WriteString(" / ")
+		b.WriteString(l.Proto())
+	}
+	return b.String()
 }
 
 // Copy returns a shallow copy of the packet (shares layer objects).
@@ -183,79 +187,51 @@ func (p *Packet) BuildFrom(startIdx int) ([]byte, error) {
 		return nil, fmt.Errorf("packet: BuildFrom index %d out of range [0, %d)", startIdx, len(p.layers))
 	}
 
-	// Ensure binding rules are applied.
 	p.Sync()
-
 	n := len(p.layers)
 
-	// Phase 1: Serialize all layers. For layers with hooks, skip naive serialization
-	// and let the hook handle it entirely.
-	layerBytes := make([][]byte, n)
+	// Phase 1: Compute total wire size.
+	total := 0
 	for i := startIdx; i < n; i++ {
-		if lookupBuildHook(p.layers[i].Proto()) != nil {
-			continue // hook will serialize this layer
-		}
-		raw, err := p.layers[i].SerializeFields()
-		if err != nil {
-			return nil, err
-		}
-		layerBytes[i] = raw
+		total += p.layers[i].WireSize()
 	}
 
-	// Phase 2: Compute cumulative sizes from each layer to the end.
-	// For hooked layers, compute size without allocating.
-	cumSize := make([]int, n+1)
-	for i := n - 1; i >= startIdx; i-- {
-		if layerBytes[i] != nil {
-			cumSize[i] = cumSize[i+1] + len(layerBytes[i])
-		} else {
-			cumSize[i] = cumSize[i+1] + p.layers[i].WireSize()
-		}
-	}
+	buf := make([]byte, total)
 
-	// Allocate the full output buffer and fill with serialized bytes.
-	total := make([]byte, cumSize[startIdx])
-	offset := 0
+	// Phase 2: Serialize non-hooked layers bottom-to-top so upper bytes are available.
+	layerOff := make([]int, n+1)
+	off := 0
 	for i := startIdx; i < n; i++ {
-		var sz int
-		if layerBytes[i] != nil {
-			copy(total[offset:], layerBytes[i])
-			sz = len(layerBytes[i])
-		} else {
-			sz = p.layers[i].WireSize()
-		}
-		offset += sz
-	}
-
-	// Phase 3: Call build hooks bottom-to-top.
-	// For each layer, upperBytes = total[layerEnd:] (bytes of all layers above this one).
-	curOffset := 0
-	for i := startIdx; i < n; i++ {
-		var origLen int
-		if layerBytes[i] != nil {
-			origLen = len(layerBytes[i])
-		} else {
-			origLen = p.layers[i].WireSize()
-		}
-		layerEnd := curOffset + origLen
-		upper := total[layerEnd:]
-
-		hook := lookupBuildHook(p.layers[i].Proto())
-		if hook != nil {
-			fixed, err := hook(p, i, upper)
+		layerOff[i] = off
+		sz := p.layers[i].WireSize()
+		if lookupBuildHook(p.layers[i].Proto()) == nil {
+			_, err := p.layers[i].SerializeInto(buf[off:])
 			if err != nil {
-				return nil, fmt.Errorf("packet: build hook for %s: %w", p.layers[i].Proto(), err)
+				return nil, err
 			}
-			if len(fixed) != origLen {
-				return nil, fmt.Errorf("packet: build hook for %s returned %d bytes, expected %d", p.layers[i].Proto(), len(fixed), origLen)
-			}
-			copy(total[curOffset:layerEnd], fixed)
 		}
+		off += sz
+	}
+	layerOff[n] = off
 
-		curOffset = layerEnd
+	// Phase 3: Run build hooks bottom-to-top, writing directly into reserved space.
+	for i := startIdx; i < n; i++ {
+		hook := lookupBuildHook(p.layers[i].Proto())
+		if hook == nil {
+			continue
+		}
+		layerSize := layerOff[i+1] - layerOff[i]
+		upper := buf[layerOff[i+1]:]
+		written, err := hook(p, i, upper, buf[layerOff[i]:layerOff[i+1]])
+		if err != nil {
+			return nil, fmt.Errorf("packet: build hook for %s: %w", p.layers[i].Proto(), err)
+		}
+		if written != layerSize {
+			return nil, fmt.Errorf("packet: build hook for %s wrote %d bytes, expected %d", p.layers[i].Proto(), written, layerSize)
+		}
 	}
 
-	return total, nil
+	return buf, nil
 }
 
 // BuildInto serializes the packet into the provided buffer.
@@ -274,40 +250,38 @@ func (p *Packet) BuildFromInto(startIdx int, buf []byte) ([]byte, error) {
 	p.Sync()
 	n := len(p.layers)
 
-	// Serialize non-hooked layers and compute sizes.
-	layerOffsets := make([]int, n+1) // start offset of each layer
-	curOff := 0
+	// Phase 1: Serialize non-hooked layers bottom-to-top.
+	layerOff := make([]int, n+1)
+	off := 0
 	for i := startIdx; i < n; i++ {
-		layerOffsets[i] = curOff
-		if lookupBuildHook(p.layers[i].Proto()) != nil {
-			curOff += p.layers[i].WireSize()
-			continue
+		layerOff[i] = off
+		sz := p.layers[i].WireSize()
+		if lookupBuildHook(p.layers[i].Proto()) == nil {
+			_, err := p.layers[i].SerializeInto(buf[off:])
+			if err != nil {
+				return nil, err
+			}
 		}
-		written, err := p.layers[i].SerializeInto(buf[curOff:])
-		if err != nil {
-			return nil, err
-		}
-		curOff += written
+		off += sz
 	}
-	layerOffsets[n] = curOff
+	layerOff[n] = off
 
-	// Run hooks.
+	// Phase 2: Run build hooks bottom-to-top, writing into reserved space.
 	for i := startIdx; i < n; i++ {
 		hook := lookupBuildHook(p.layers[i].Proto())
 		if hook == nil {
 			continue
 		}
-		origLen := layerOffsets[i+1] - layerOffsets[i]
-		upper := buf[layerOffsets[i+1]:]
-		fixed, err := hook(p, i, upper)
+		layerSize := layerOff[i+1] - layerOff[i]
+		upper := buf[layerOff[i+1]:]
+		written, err := hook(p, i, upper, buf[layerOff[i]:layerOff[i+1]])
 		if err != nil {
 			return nil, fmt.Errorf("packet: build hook for %s: %w", p.layers[i].Proto(), err)
 		}
-		if len(fixed) != origLen {
-			return nil, fmt.Errorf("packet: build hook for %s returned %d bytes, expected %d", p.layers[i].Proto(), len(fixed), origLen)
+		if written != layerSize {
+			return nil, fmt.Errorf("packet: build hook for %s wrote %d bytes, expected %d", p.layers[i].Proto(), written, layerSize)
 		}
-		copy(buf[layerOffsets[i]:], fixed)
 	}
 
-	return buf[:curOff], nil
+	return buf[:off], nil
 }

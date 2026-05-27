@@ -129,7 +129,8 @@ func TestICMPv6BuildHook(t *testing.T) {
 
 	// Upper bytes for ICMPv6 base = Echo sub-layer bytes.
 	echoBytes, _ := echo.SerializeFields()
-	got, err := icmpv6BuildHook(pkt, 1, echoBytes)
+	buf := make([]byte, icmpBase.WireSize())
+	n, err := icmpv6BuildHook(pkt, 1, echoBytes, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +143,7 @@ func TestICMPv6BuildHook(t *testing.T) {
 	// Verify checksum with pseudo-header.
 	srcIP := net.ParseIP("::1").To16()
 	dstIP := net.ParseIP("::1").To16()
-	fullMsg := append(got, echoBytes...)
+	fullMsg := append(buf[:n], echoBytes...)
 	verify := IPv6PseudoHeaderChecksum(srcIP, dstIP, 58, fullMsg)
 	if verify != 0 {
 		t.Errorf("build hook checksum invalid: got %#x, want 0", verify)

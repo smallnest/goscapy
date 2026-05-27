@@ -25,26 +25,26 @@ func NewUDPWith(sport, dport uint16) *packet.Layer {
 }
 
 // udpBuildHook is called during Packet.Build() for UDP layers.
-// It auto-computes the UDP length and checksum using the IPv4 or IPv6 pseudo-header.
-func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, error) {
+// It auto-computes the UDP length and checksum using the IPv4 or IPv6 pseudo-header,
+// writing directly into buf.
+func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
 
 	// Compute total length: header (8) + upper payload.
 	totalLen := uint16(8 + len(upperBytes))
 	layer.Set("len", totalLen)
 
-	// Single-pass: serialize with zero checksum.
+	// Serialize with zero checksum into buf.
 	layer.Set("chksum", uint16(0))
-	buf := make([]byte, 8)
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	// Compute checksum without concatenation.
 	addr, err := findIPAddressesAny(pkt, layerIdx)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	var csum uint16
@@ -57,8 +57,7 @@ func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte) ([]byte, 
 		csum = 0xFFFF // RFC 768: 0 means "no checksum", use 0xFFFF instead
 	}
 	layer.Set("chksum", csum)
-	// Write checksum at offset 6 (UDP checksum: sport(2)+dport(2)+len(2) = 6).
 	buf[6] = byte(csum >> 8)
 	buf[7] = byte(csum)
-	return buf[:n], nil
+	return n, nil
 }
