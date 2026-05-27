@@ -182,7 +182,7 @@ func EtherIPGREERSPAN(srcMAC, dstMAC, srcIP, dstIP string, e *erspan.ERSPAN, inn
 // Default: OSPFv2 Hello message, router_id and area_id set from parameters.
 func IPOSPF(srcIP, dstIP, routerID, areaID string, msgType uint8) ([]byte, error) {
 	return NewIP().SrcIP(srcIP).DstIP(dstIP).Proto(89).
-		Over(NewOSPFLayer().RouterID(routerID).AreaID(areaID).Type(msgType)).
+		Over(NewOSPF().RouterID(routerID).AreaID(areaID).Type(msgType)).
 		Build()
 }
 
@@ -191,7 +191,7 @@ func IPOSPF(srcIP, dstIP, routerID, areaID string, msgType uint8) ([]byte, error
 func IPTCPBGP(srcIP, dstIP string, srcPort, dstPort uint16, msgType uint8) ([]byte, error) {
 	return NewIP().SrcIP(srcIP).DstIP(dstIP).
 		Over(NewTCP().SrcPort(srcPort).DstPort(dstPort)).
-		Over(NewBGPLayer().Type(msgType)).
+		Over(NewBGP().Type(msgType)).
 		Build()
 }
 
@@ -200,6 +200,6 @@ func IPTCPBGP(srcIP, dstIP string, srcPort, dstPort uint16, msgType uint8) ([]by
 func IPUDPQUIC(srcIP, dstIP string, srcPort, dstPort uint16, dcid, scid []byte) ([]byte, error) {
 	return NewIP().SrcIP(srcIP).DstIP(dstIP).
 		Over(NewUDP().SrcPort(srcPort).DstPort(dstPort)).
-		Over(NewQUICLayer().DCID(dcid).SCID(scid)).
+		Over(NewQUIC().DCID(dcid).SCID(scid)).
 		Build()
 }

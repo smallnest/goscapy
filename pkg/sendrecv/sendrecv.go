@@ -2,8 +2,6 @@ package sendrecv
 
 import (
 	"errors"
-	"fmt"
-	"net"
 	"time"
 
 	"github.com/smallnest/goscapy/pkg/packet"
@@ -82,483 +80,118 @@ func Recv(iface string, timeout time.Duration) (*packet.Packet, error) {
 	return rx.Recv(timeout)
 }
 
+// ---- Internal helpers ----
+
+// collectResponses reads packets from rx until the deadline, collecting those
+// that match. If match is nil, all packets are collected.
+func collectResponses(rx Receiver, deadline time.Time, match MatchFunc, pkt *packet.Packet) []*packet.Packet {
+	var responses []*packet.Packet
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		resp, err := rx.Recv(remaining)
+		if err != nil {
+			break
+		}
+		if match == nil || match(pkt, resp) {
+			responses = append(responses, resp)
+		}
+	}
+	return responses
+}
+
+// collectFirstResponse reads packets from rx until the deadline, returning the
+// first that matches. Returns nil, false if none found.
+func collectFirstResponse(rx Receiver, deadline time.Time, match MatchFunc, pkt *packet.Packet) (*packet.Packet, bool) {
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		resp, err := rx.Recv(remaining)
+		if err != nil {
+			break
+		}
+		if match == nil || match(pkt, resp) {
+			return resp, true
+		}
+	}
+	return nil, false
+}
+
+// sendAndCollect opens a receiver, sends a packet, and collects responses.
+// sendL2 chooses L2 (Sendp) vs L3 (Send). match may be nil to collect all.
+func sendAndCollect(pkt *packet.Packet, sendL2 bool, iface string, timeout time.Duration, filter []BPFInstruction, match MatchFunc, firstOnly bool) (*packet.Packet, *packet.Packet, []*packet.Packet, error) {
+	var rx Receiver
+	var err error
+
+	if len(filter) > 0 {
+		rx, err = OpenFilteredReceiver(iface, filter)
+	} else {
+		rx, err = OpenReceiver(iface)
+	}
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer rx.Close()
+
+	if sendL2 {
+		if err := Sendp(pkt, iface); err != nil {
+			return nil, nil, nil, err
+		}
+	} else {
+		if err := Send(pkt, iface); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	if firstOnly {
+		first, ok := collectFirstResponse(rx, deadline, match, pkt)
+		if !ok {
+			return pkt, nil, nil, nil
+		}
+		return pkt, first, nil, nil
+	}
+
+	responses := collectResponses(rx, deadline, match, pkt)
+	return pkt, nil, responses, nil
+}
+
+// ---- Public SendRecv variants ----
+
 // SendRecv opens a receiver, sends a packet at L3, then collects response
 // packets until timeout. The receiver is opened before sending to avoid
 // missing fast responses (e.g. on loopback).
 // Returns the sent packet and all received response packets.
 func SendRecv(pkt *packet.Packet, iface string, timeout time.Duration) (*packet.Packet, []*packet.Packet, error) {
-	// Open receiver before sending to avoid racing with the response.
-	rx, err := OpenReceiver(iface)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: SendRecv open receiver: %w", err)
-	}
-	defer rx.Close()
-
-	if err := Send(pkt, iface); err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: SendRecv send: %w", err)
-	}
-
-	deadline := time.Now().Add(timeout)
-	var responses []*packet.Packet
-
-	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			break
-		}
-
-		resp, err := rx.Recv(remaining)
-		if err != nil {
-			// Timeout or other error — stop collecting.
-			break
-		}
-		responses = append(responses, resp)
-	}
-
-	return pkt, responses, nil
+	_, _, responses, err := sendAndCollect(pkt, false, iface, timeout, nil, nil, false)
+	return pkt, responses, err
 }
 
 // SendRecv1 sends a packet at L3 and returns the first response, or nil
 // if no response is received within the timeout.
 func SendRecv1(pkt *packet.Packet, iface string, timeout time.Duration) (*packet.Packet, *packet.Packet, error) {
-	_, responses, err := SendRecv(pkt, iface, timeout)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(responses) == 0 {
-		return pkt, nil, nil
-	}
-	return pkt, responses[0], nil
+	_, first, _, err := sendAndCollect(pkt, false, iface, timeout, nil, nil, true)
+	return pkt, first, err
 }
 
 // SendRecvFiltered is like SendRecv but applies a BPF filter to the receiver,
 // so only packets matching the filter are captured.
 func SendRecvFiltered(pkt *packet.Packet, iface string, timeout time.Duration, instructions []BPFInstruction) (*packet.Packet, []*packet.Packet, error) {
-	rx, err := OpenFilteredReceiver(iface, instructions)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: SendRecvFiltered open receiver: %w", err)
-	}
-	defer rx.Close()
-
-	if err := Send(pkt, iface); err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: SendRecvFiltered send: %w", err)
-	}
-
-	deadline := time.Now().Add(timeout)
-	var responses []*packet.Packet
-
-	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			break
-		}
-
-		resp, err := rx.Recv(remaining)
-		if err != nil {
-			break
-		}
-		responses = append(responses, resp)
-	}
-
-	return pkt, responses, nil
+	_, _, responses, err := sendAndCollect(pkt, false, iface, timeout, instructions, nil, false)
+	return pkt, responses, err
 }
 
 // SendRecvFiltered1 is like SendRecv1 but applies a BPF filter.
 func SendRecvFiltered1(pkt *packet.Packet, iface string, timeout time.Duration, instructions []BPFInstruction) (*packet.Packet, *packet.Packet, error) {
-	_, responses, err := SendRecvFiltered(pkt, iface, timeout, instructions)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(responses) == 0 {
-		return pkt, nil, nil
-	}
-	return pkt, responses[0], nil
+	_, first, _, err := sendAndCollect(pkt, false, iface, timeout, instructions, nil, true)
+	return pkt, first, err
 }
 
-// MatchFunc is a predicate that returns true if a received packet is a valid
-// response to the sent packet. It implements Scapy's automatic response-matching
-// logic across multiple protocols (ICMP, TCP, UDP, DNS).
-type MatchFunc func(sent, received *packet.Packet) bool
-
-// ICMP type constants (IANA-assigned).
-const (
-	icmpEchoReply        uint8 = 0
-	icmpDestUnreach      uint8 = 3
-	icmpEchoRequest      uint8 = 8
-	icmpTimeExceeded     uint8 = 11
-)
-
-// ARP operation constants.
-const (
-	arpWhoHas uint16 = 1
-	arpIsAt   uint16 = 2
-)
-
-// BOOTP operation constants.
-const (
-	bootRequest uint8 = 1
-	bootReply   uint8 = 2
-)
-
-// DefaultMatch returns a MatchFunc that uses protocol-specific heuristics to
-// match a received packet against the sent packet. The matching logic is:
-//
-//	ICMP Echo: received.IP.src == sent.IP.dst &&
-//	           received.ICMP.type == EchoReply (if sent.type == EchoRequest) &&
-//	           received.ICMP.id == sent.ICMP.id
-//	ICMP Error: received.IP.src == sent.IP.dst (no id/seq check; error types
-//	            repurpose those fields as "unused" or gateway address)
-//	TCP:  received.IP.src == sent.IP.dst &&
-//	      received.TCP.sport == sent.TCP.dport &&
-//	      received.TCP.dport == sent.TCP.sport
-//	      If sent.flags has SYN: received.flags must have SYN|ACK &&
-//	      received.TCP.ack == sent.TCP.seq + 1
-//	UDP:  received.IP.src == sent.IP.dst &&
-//	      received.UDP.sport == sent.UDP.dport &&
-//	      received.UDP.dport == sent.UDP.sport
-//	DNS:  received.DNS.id == sent.DNS.id (transaction ID match)
-//	ARP:  received.ARP.op == is-at &&
-//	      received.ARP.psrc == sent.ARP.pdst &&
-//	      received.ARP.pdst == sent.ARP.psrc (IP swap)
-//	DHCP: received.DHCP.xid == sent.DHCP.xid (transaction ID match)
-//
-// When the sent packet has no IP layer (e.g. ARP at L2), the IP-level check
-// is skipped.
-func DefaultMatch(sent *packet.Packet) MatchFunc {
-	sentIP := sent.GetLayer("IP")
-	sentICMP := sent.GetLayer("ICMP")
-	sentTCP := sent.GetLayer("TCP")
-	sentUDP := sent.GetLayer("UDP")
-	sentDNS := sent.GetLayer("DNS")
-	sentARP := sent.GetLayer("ARP")
-	sentDHCP := sent.GetLayer("DHCP")
-
-	// Pre-extract fields from the sent packet to avoid repeated lookups.
-	var sentDstIP net.IP
-	if sentIP != nil {
-		if v, err := sentIP.Get("dst"); err == nil {
-			sentDstIP, _ = v.(net.IP)
-		}
-	}
-
-	var (
-		hasICMP      bool
-		sentICMPType uint8
-		sentICMPID   uint16
-	)
-	if sentICMP != nil {
-		hasICMP = true
-		if v, err := sentICMP.Get("type"); err == nil {
-			sentICMPType, _ = v.(uint8)
-		}
-		if v, err := sentICMP.Get("id"); err == nil {
-			sentICMPID, _ = v.(uint16)
-		}
-	}
-
-	var (
-		hasTCP       bool
-		sentTCPSport uint16
-		sentTCPDport uint16
-		sentTCPSeq   uint32
-		sentTCPFlags uint8
-	)
-	if sentTCP != nil {
-		hasTCP = true
-		if v, err := sentTCP.Get("sport"); err == nil {
-			sentTCPSport, _ = v.(uint16)
-		}
-		if v, err := sentTCP.Get("dport"); err == nil {
-			sentTCPDport, _ = v.(uint16)
-		}
-		if v, err := sentTCP.Get("seq"); err == nil {
-			sentTCPSeq, _ = v.(uint32)
-		}
-		if v, err := sentTCP.Get("flags"); err == nil {
-			sentTCPFlags, _ = v.(uint8)
-		}
-	}
-
-	var (
-		hasUDP       bool
-		sentUDPSport uint16
-		sentUDPDport uint16
-	)
-	if sentUDP != nil {
-		hasUDP = true
-		if v, err := sentUDP.Get("sport"); err == nil {
-			sentUDPSport, _ = v.(uint16)
-		}
-		if v, err := sentUDP.Get("dport"); err == nil {
-			sentUDPDport, _ = v.(uint16)
-		}
-	}
-
-	var (
-		hasDNS    bool
-		sentDNSID uint16
-	)
-	if sentDNS != nil {
-		hasDNS = true
-		if v, err := sentDNS.Get("id"); err == nil {
-			sentDNSID, _ = v.(uint16)
-		}
-	}
-
-	var (
-		hasARP    bool
-		sentARPOp uint16
-		sentARPPsrc net.IP
-		sentARPPdst net.IP
-	)
-	if sentARP != nil {
-		hasARP = true
-		if v, err := sentARP.Get("op"); err == nil {
-			sentARPOp, _ = v.(uint16)
-		}
-		if v, err := sentARP.Get("psrc"); err == nil {
-			sentARPPsrc, _ = v.(net.IP)
-		}
-		if v, err := sentARP.Get("pdst"); err == nil {
-			sentARPPdst, _ = v.(net.IP)
-		}
-	}
-
-	var (
-		hasDHCP    bool
-		sentDHCPOp uint8
-		sentDHCPXid uint32
-	)
-	if sentDHCP != nil {
-		hasDHCP = true
-		if v, err := sentDHCP.Get("op"); err == nil {
-			sentDHCPOp, _ = v.(uint8)
-		}
-		if v, err := sentDHCP.Get("xid"); err == nil {
-			sentDHCPXid, _ = v.(uint32)
-		}
-	}
-
-	return func(_, received *packet.Packet) bool {
-		// ARP matching: operates at L2, no IP layer involved.
-		if hasARP {
-			recvARP := received.GetLayer("ARP")
-			if recvARP == nil {
-				return false
-			}
-
-			// ARP request (who-has) must be answered with is-at.
-			if sentARPOp == arpWhoHas {
-				recvOp, err := recvARP.Get("op")
-				if err != nil {
-					return false
-				}
-				recvOpVal, ok := recvOp.(uint16)
-				if !ok || recvOpVal != arpIsAt {
-					return false
-				}
-			}
-
-			// Reply psrc == request pdst (IP the request was looking for).
-			if sentARPPdst != nil {
-				recvPsrc, err := recvARP.Get("psrc")
-				if err != nil {
-					return false
-				}
-				recvPsrcIP, ok := recvPsrc.(net.IP)
-				if !ok || !recvPsrcIP.Equal(sentARPPdst) {
-					return false
-				}
-			}
-
-			// Reply pdst == request psrc (reply is directed back to requester).
-			if sentARPPsrc != nil {
-				recvPdst, err := recvARP.Get("pdst")
-				if err != nil {
-					return false
-				}
-				recvPdstIP, ok := recvPdst.(net.IP)
-				if !ok || !recvPdstIP.Equal(sentARPPsrc) {
-					return false
-				}
-			}
-
-			return true
-		}
-
-		// IP-level check: received src must equal sent dst.
-		// Skipped for ARP (L2 protocol) and when the sent packet has no IP layer.
-		if sentDstIP != nil {
-			recvIP := received.GetLayer("IP")
-			if recvIP == nil {
-				return false
-			}
-			recvSrc, err := recvIP.Get("src")
-			if err != nil {
-				return false
-			}
-			recvSrcIP, ok := recvSrc.(net.IP)
-			if !ok || !recvSrcIP.Equal(sentDstIP) {
-				return false
-			}
-		}
-
-		// ICMP-level check.
-		if hasICMP {
-			recvICMP := received.GetLayer("ICMP")
-			if recvICMP == nil {
-				return false
-			}
-
-			// Echo Request must be answered with Echo Reply.
-			if sentICMPType == icmpEchoRequest {
-				recvType, err := recvICMP.Get("type")
-				if err != nil {
-					return false
-				}
-				recvTypeVal, ok := recvType.(uint8)
-				if !ok {
-					return false
-				}
-
-				switch recvTypeVal {
-				case icmpEchoReply:
-					// Echo Reply: id must match.
-					recvID, err := recvICMP.Get("id")
-					if err != nil {
-						return false
-					}
-					recvIDVal, ok := recvID.(uint16)
-					if !ok || recvIDVal != sentICMPID {
-						return false
-					}
-				case icmpDestUnreach, icmpTimeExceeded:
-					// Error responses: no id/seq field; the error payload
-					// contains the original packet. For now, IP-level
-					// match (checked above) is sufficient as a best-effort
-					// filter.
-				default:
-					// Unknown ICMP type — reject.
-					return false
-				}
-			}
-		}
-
-		// TCP-level check: ports must be swapped.
-		// If the sent packet has SYN, the response must be SYN-ACK
-		// with ack == sent.seq + 1.
-		if hasTCP {
-			recvTCP := received.GetLayer("TCP")
-			if recvTCP == nil {
-				return false
-			}
-			recvSport, err := recvTCP.Get("sport")
-			if err != nil {
-				return false
-			}
-			recvDport, err := recvTCP.Get("dport")
-			if err != nil {
-				return false
-			}
-			recvSportVal, _ := recvSport.(uint16)
-			recvDportVal, _ := recvDport.(uint16)
-			if recvSportVal != sentTCPDport || recvDportVal != sentTCPSport {
-				return false
-			}
-
-			// SYN-ACK check.
-			const tcpSyn = uint8(0x02)
-			const tcpAck = uint8(0x10)
-			if sentTCPFlags&tcpSyn != 0 {
-				recvFlags, err := recvTCP.Get("flags")
-				if err != nil {
-					return false
-				}
-				recvFlagsVal, _ := recvFlags.(uint8)
-				if recvFlagsVal&tcpSyn == 0 || recvFlagsVal&tcpAck == 0 {
-					return false
-				}
-
-				recvAck, err := recvTCP.Get("ack")
-				if err != nil {
-					return false
-				}
-				recvAckVal, _ := recvAck.(uint32)
-				if recvAckVal != sentTCPSeq+1 {
-					return false
-				}
-			}
-		}
-
-		// UDP-level check: ports must be swapped.
-		if hasUDP {
-			recvUDP := received.GetLayer("UDP")
-			if recvUDP == nil {
-				return false
-			}
-			recvSport, err := recvUDP.Get("sport")
-			if err != nil {
-				return false
-			}
-			recvDport, err := recvUDP.Get("dport")
-			if err != nil {
-				return false
-			}
-			recvSportVal, _ := recvSport.(uint16)
-			recvDportVal, _ := recvDport.(uint16)
-			if recvSportVal != sentUDPDport || recvDportVal != sentUDPSport {
-				return false
-			}
-		}
-
-		// DNS-level check: transaction ID must match.
-		if hasDNS {
-			recvDNS := received.GetLayer("DNS")
-			if recvDNS == nil {
-				return false
-			}
-			recvID, err := recvDNS.Get("id")
-			if err != nil {
-				return false
-			}
-			recvIDVal, ok := recvID.(uint16)
-			if !ok || recvIDVal != sentDNSID {
-				return false
-			}
-		}
-
-			// DHCP-level check: transaction ID (xid) must match.
-			if hasDHCP {
-				recvDHCP := received.GetLayer("DHCP")
-				if recvDHCP == nil {
-					return false
-				}
-
-				// BOOTREPLY op check if request was BOOTREQUEST.
-				if sentDHCPOp == bootRequest {
-					recvOp, err := recvDHCP.Get("op")
-					if err != nil {
-						return false
-					}
-					recvOpVal, ok := recvOp.(uint8)
-					if !ok || recvOpVal != bootReply {
-						return false
-					}
-				}
-
-				recvXid, err := recvDHCP.Get("xid")
-				if err != nil {
-					return false
-				}
-				recvXidVal, ok := recvXid.(uint32)
-				if !ok || recvXidVal != sentDHCPXid {
-					return false
-				}
-			}
-
-			return true
-		}
-	}
 // Sr sends a packet at L3 and collects matching response packets.
 // It uses the provided MatchFunc (or DefaultMatch if nil) to match responses
 // against the sent packet, mimicking Scapy's sr() function.
@@ -566,36 +199,8 @@ func Sr(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFunc
 	if match == nil {
 		match = DefaultMatch(pkt)
 	}
-
-	rx, err := OpenReceiver(iface)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Sr open receiver: %w", err)
-	}
-	defer rx.Close()
-
-	if err := Send(pkt, iface); err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Sr send: %w", err)
-	}
-
-	deadline := time.Now().Add(timeout)
-	var responses []*packet.Packet
-
-	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			break
-		}
-
-		resp, err := rx.Recv(remaining)
-		if err != nil {
-			break
-		}
-		if match(pkt, resp) {
-			responses = append(responses, resp)
-		}
-	}
-
-	return pkt, responses, nil
+	_, _, responses, err := sendAndCollect(pkt, false, iface, timeout, nil, match, false)
+	return pkt, responses, err
 }
 
 // Sr1 sends a packet at L3 and returns the first matching response.
@@ -604,34 +209,8 @@ func Sr1(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFun
 	if match == nil {
 		match = DefaultMatch(pkt)
 	}
-
-	rx, err := OpenReceiver(iface)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Sr1 open receiver: %w", err)
-	}
-	defer rx.Close()
-
-	if err := Send(pkt, iface); err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Sr1 send: %w", err)
-	}
-
-	deadline := time.Now().Add(timeout)
-	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			break
-		}
-
-		resp, err := rx.Recv(remaining)
-		if err != nil {
-			break
-		}
-		if match(pkt, resp) {
-			return pkt, resp, nil
-		}
-	}
-
-	return pkt, nil, nil
+	_, first, _, err := sendAndCollect(pkt, false, iface, timeout, nil, match, true)
+	return pkt, first, err
 }
 
 // Srp sends a packet at L2 and collects matching response packets.
@@ -641,36 +220,8 @@ func Srp(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFun
 	if match == nil {
 		match = DefaultMatch(pkt)
 	}
-
-	rx, err := OpenReceiver(iface)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Srp open receiver: %w", err)
-	}
-	defer rx.Close()
-
-	if err := Sendp(pkt, iface); err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Srp send: %w", err)
-	}
-
-	deadline := time.Now().Add(timeout)
-	var responses []*packet.Packet
-
-	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			break
-		}
-
-		resp, err := rx.Recv(remaining)
-		if err != nil {
-			break
-		}
-		if match(pkt, resp) {
-			responses = append(responses, resp)
-		}
-	}
-
-	return pkt, responses, nil
+	_, _, responses, err := sendAndCollect(pkt, true, iface, timeout, nil, match, false)
+	return pkt, responses, err
 }
 
 // Srp1 sends a packet at L2 and returns the first matching response.
@@ -679,34 +230,8 @@ func Srp1(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFu
 	if match == nil {
 		match = DefaultMatch(pkt)
 	}
-
-	rx, err := OpenReceiver(iface)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Srp1 open receiver: %w", err)
-	}
-	defer rx.Close()
-
-	if err := Sendp(pkt, iface); err != nil {
-		return nil, nil, fmt.Errorf("sendrecv: Srp1 send: %w", err)
-	}
-
-	deadline := time.Now().Add(timeout)
-	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			break
-		}
-
-		resp, err := rx.Recv(remaining)
-		if err != nil {
-			break
-		}
-		if match(pkt, resp) {
-			return pkt, resp, nil
-		}
-	}
-
-	return pkt, nil, nil
+	_, first, _, err := sendAndCollect(pkt, true, iface, timeout, nil, match, true)
+	return pkt, first, err
 }
 
 // Platform-specific implementations are provided in:
@@ -714,8 +239,9 @@ func Srp1(pkt *packet.Packet, iface string, timeout time.Duration, match MatchFu
 //   - sendrecv_linux.go  (Linux: AF_PACKET + AF_INET)
 //
 // Each platform file must implement:
-//   openReceiver(iface string) (Receiver, error)
-//   openFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver, error)
-//   sendL3(pkt *packet.Packet, iface string) error
-//   sendL2(pkt *packet.Packet, iface string) error
-//   loopbackName() string
+//
+//	openReceiver(iface string) (Receiver, error)
+//	openFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver, error)
+//	sendL3(pkt *packet.Packet, iface string) error
+//	sendL2(pkt *packet.Packet, iface string) error
+//	loopbackName() string

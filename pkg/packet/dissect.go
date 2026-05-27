@@ -35,6 +35,9 @@ type dissectReg struct {
 	postParseHooks map[string]PostParseHook     // proto → hook called after fixed fields are parsed
 }
 
+// dissectRegistry holds all protocol dissection registrations.
+// Must be populated during init() only; read-only after program startup.
+// Not safe for concurrent writes.
 var dissectRegistry = dissectReg{
 	factories:      make(map[string]LayerFactory),
 	nextLayer:      make(map[string]map[uint64]string),

@@ -13,6 +13,9 @@ package packet
 // then serialize directly into buf. Returns the number of bytes written.
 type BuildHook func(pkt *Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error)
 
+// buildHooks maps protocol names to their BuildHook functions.
+// Must be populated during init() only; read-only after program startup.
+// Not safe for concurrent writes.
 var buildHooks map[string]BuildHook
 
 func init() {
@@ -20,7 +23,7 @@ func init() {
 }
 
 // RegisterBuildHook registers a build hook for the given protocol name.
-// Typically called from init() in layer definition files.
+// Must be called during init() only; not safe for concurrent use after startup.
 func RegisterBuildHook(proto string, hook BuildHook) {
 	buildHooks[proto] = hook
 }

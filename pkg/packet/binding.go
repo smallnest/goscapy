@@ -11,10 +11,13 @@ type BindingRule struct {
 }
 
 // bindingRules maps upperProto → lowerProto → rules for O(1) lookup.
+// Must be populated during init() only; read-only after program startup.
+// Not safe for concurrent writes.
 var bindingRules = make(map[string]map[string][]BindingRule)
 
 // RegisterBinding registers a field binding between two adjacent protocol layers.
 // When upper is stacked on lower, lower.FieldName is set to FieldValue.
+// Must be called during init() only; not safe for concurrent use after startup.
 func RegisterBinding(upper, lower, field string, value any) {
 	if bindingRules[upper] == nil {
 		bindingRules[upper] = make(map[string][]BindingRule)

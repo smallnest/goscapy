@@ -14,12 +14,6 @@ import (
 
 // BPF ioctls — not defined in Go's syscall package for macOS.
 // Verified by compiling against macOS system headers:
-//
-//	BIOCSETIF    = _IOW('B', 108, struct ifreq)  = 0x8020426C
-//	BIOCSBLEN    = _IOWR('B', 102, u_int)        = 0xC0044266
-//	BIOCIMMEDIATE = _IOW('B', 112, u_int)        = 0x80044270
-//	BIOCPROMISC  = _IO('B', 105)                 = 0x20004269
-//	BIOCFLUSH    = _IO('B', 104)                 = 0x20004268
 const (
 	_bIOCSETIF     = 0x8020426C
 	_bIOCSBLEN     = 0xC0044266
