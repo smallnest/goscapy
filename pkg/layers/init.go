@@ -47,6 +47,8 @@ func init() {
 	// Layer binding rules.
 	// IP over Ethernet → Ether.type = 0x0800
 	packet.RegisterBinding("IP", "Ethernet", "type", uint16(0x0800))
+	// IPv6 over Ethernet → Ether.type = 0x86DD
+	packet.RegisterBinding("IPv6", "Ethernet", "type", uint16(0x86DD))
 	// ARP over Ethernet → Ether.type = 0x0806
 	packet.RegisterBinding("ARP", "Ethernet", "type", uint16(0x0806))
 	// RARP over Ethernet → Ether.type = 0x8035
@@ -63,8 +65,19 @@ func init() {
 	packet.RegisterBinding("TCP", "IP", "proto", uint8(6))
 	// UDP over IP → IP.proto = 17
 	packet.RegisterBinding("UDP", "IP", "proto", uint8(17))
+	// UDP over IPv6 → IPv6.nh = 17
+	packet.RegisterBinding("UDP", "IPv6", "nh", uint8(17))
+	// TCP over IPv6 → IPv6.nh = 6
+	packet.RegisterBinding("TCP", "IPv6", "nh", uint8(6))
 	// ICMP over IP → IP.proto = 1
 	packet.RegisterBinding("ICMP", "IP", "proto", uint8(1))
+	// ICMPv6 over IPv6 → IPv6.nh = 58
+	packet.RegisterBinding("ICMPv6", "IPv6", "nh", uint8(58))
+	// IPv6 extension headers over IPv6
+	packet.RegisterBinding("IPv6 Hop-by-Hop", "IPv6", "nh", uint8(0))
+	packet.RegisterBinding("IPv6 Routing", "IPv6", "nh", uint8(43))
+	packet.RegisterBinding("IPv6 Fragment", "IPv6", "nh", uint8(44))
+	packet.RegisterBinding("IPv6 DestOpts", "IPv6", "nh", uint8(60))
 
 	// Build hooks for derived field auto-computation.
 	packet.RegisterBuildHook("IP", ipBuildHook)
@@ -76,6 +89,9 @@ func init() {
 
 	// Post-parse hooks for variable-length header fields.
 	packet.RegisterPostParseHook("TCP", tcpPostParseHook)
+	packet.RegisterPostParseHook("IPv6 Hop-by-Hop", extHdrPostParseHook)
+	packet.RegisterPostParseHook("IPv6 Routing", extHdrPostParseHook)
+	packet.RegisterPostParseHook("IPv6 DestOpts", extHdrPostParseHook)
 
 	// ---- Dissect (parsing) registrations ----
 
@@ -111,6 +127,7 @@ func init() {
 	packet.RegisterNextLayer("Ethernet", 0x0800, "IP")
 	packet.RegisterNextLayer("Ethernet", 0x0806, "ARP")
 	packet.RegisterNextLayer("Ethernet", 0x8035, "RARP")
+	packet.RegisterNextLayer("Ethernet", 0x86DD, "IPv6")
 
 	// Register next-layer mappings: IP.proto → upper protocol.
 	packet.RegisterNextLayer("IP", 1, "ICMP") // ICMP

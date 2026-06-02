@@ -896,3 +896,408 @@ func TestDissectVXLAN(t *testing.T) {
 		t.Errorf("layer 3 = %s, want ICMP", layers[3].Proto())
 	}
 }
+
+// ---- IPv6 UDP dissect tests ----
+
+func TestDissectIPv6UDPRaw(t *testing.T) {
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6NextHdrUDP))
+
+	udp := NewUDPWith(12345, 53)
+	raw := NewRawWith([]byte("test"))
+
+	pkt := packet.NewFrom(ipv6, udp, raw)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := packet.DissectByProto(built, "IPv6")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.Len() != 3 {
+		t.Fatalf("parsed layers = %d, want 3", parsed.Len())
+	}
+
+	// Verify IPv6 layer.
+	ipv6Layer := parsed.GetLayer("IPv6")
+	if ipv6Layer == nil {
+		t.Fatal("missing IPv6 layer")
+	}
+	nh, _ := ipv6Layer.Get("nh")
+	if nh.(uint8) != 17 {
+		t.Errorf("IPv6.nh = %d, want 17 (UDP)", nh)
+	}
+	parsedSrc, _ := ipv6Layer.Get("src")
+	if ip := parsedSrc.(net.IP); !ip.Equal(net.ParseIP("2001:db8::1")) {
+		t.Errorf("IPv6.src = %v, want 2001:db8::1", ip)
+	}
+	parsedDst, _ := ipv6Layer.Get("dst")
+	if ip := parsedDst.(net.IP); !ip.Equal(net.ParseIP("2001:db8::2")) {
+		t.Errorf("IPv6.dst = %v, want 2001:db8::2", ip)
+	}
+
+	// Verify UDP layer.
+	udpLayer := parsed.GetLayer("UDP")
+	if udpLayer == nil {
+		t.Fatal("missing UDP layer")
+	}
+	sport, _ := udpLayer.Get("sport")
+	if sport.(uint16) != 12345 {
+		t.Errorf("UDP.sport = %d, want 12345", sport)
+	}
+	dport, _ := udpLayer.Get("dport")
+	if dport.(uint16) != 53 {
+		t.Errorf("UDP.dport = %d, want 53", dport)
+	}
+	udpLen, _ := udpLayer.Get("len")
+	if udpLen.(uint16) != 12 {
+		t.Errorf("UDP.len = %d, want 12", udpLen)
+	}
+
+	// Verify Raw payload.
+	rawLayer := parsed.GetLayer("Raw")
+	if rawLayer == nil {
+		t.Fatal("missing Raw layer")
+	}
+	load, _ := rawLayer.Get("load")
+	loadBytes, ok := load.([]byte)
+	if !ok {
+		t.Fatalf("Raw.load type = %T, want []byte", load)
+	}
+	if string(loadBytes) != "test" {
+		t.Errorf("Raw.load = %q, want \"test\"", string(loadBytes))
+	}
+}
+
+func TestDissectEthernetIPv6UDPRaw(t *testing.T) {
+	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6NextHdrUDP))
+
+	udp := NewUDPWith(12345, 53)
+	raw := NewRawWith([]byte("hello"))
+
+	pkt := eth.Over(ipv6)
+	pkt.Push(udp)
+	pkt.Push(raw)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := packet.Dissect(built, ethernetStartFn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.Len() != 4 {
+		t.Fatalf("parsed layers = %d, want 4", parsed.Len())
+	}
+
+	// Verify Ethernet EtherType.
+	ethLayer := parsed.GetLayer("Ethernet")
+	if ethLayer == nil {
+		t.Fatal("missing Ethernet layer")
+	}
+	etype, _ := ethLayer.Get("type")
+	if etype.(uint16) != 0x86DD {
+		t.Errorf("Ethernet.type = %#x, want 0x86DD (IPv6)", etype)
+	}
+
+	// Verify IPv6.
+	ipv6Layer := parsed.GetLayer("IPv6")
+	if ipv6Layer == nil {
+		t.Fatal("missing IPv6 layer")
+	}
+	nh, _ := ipv6Layer.Get("nh")
+	if nh.(uint8) != 17 {
+		t.Errorf("IPv6.nh = %d, want 17 (UDP)", nh)
+	}
+
+	// Verify UDP.
+	udpLayer := parsed.GetLayer("UDP")
+	if udpLayer == nil {
+		t.Fatal("missing UDP layer")
+	}
+	sport, _ := udpLayer.Get("sport")
+	if sport.(uint16) != 12345 {
+		t.Errorf("UDP.sport = %d, want 12345", sport)
+	}
+	dport, _ := udpLayer.Get("dport")
+	if dport.(uint16) != 53 {
+		t.Errorf("UDP.dport = %d, want 53", dport)
+	}
+
+	// Verify Raw payload.
+	rawLayer := parsed.GetLayer("Raw")
+	if rawLayer == nil {
+		t.Fatal("missing Raw layer")
+	}
+	load, _ := rawLayer.Get("load")
+	loadBytes := load.([]byte)
+	if string(loadBytes) != "hello" {
+		t.Errorf("Raw.load = %q, want \"hello\"", string(loadBytes))
+	}
+}
+
+func TestDissectRoundTripIPv6UDPRaw(t *testing.T) {
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("fe80::1"))
+	ipv6.Set("dst", net.ParseIP("fe80::2"))
+
+	udp := NewUDPWith(54321, 53)
+	raw := NewRawWith([]byte("dns query"))
+
+	pkt := packet.NewFrom(ipv6, udp, raw)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify UDP checksum.
+	srcIP := net.ParseIP("fe80::1").To16()
+	dstIP := net.ParseIP("fe80::2").To16()
+	udpAndPayload := built[40:]
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrUDP, udpAndPayload); csum != 0 {
+		t.Errorf("UDP over IPv6 checksum invalid: %#x", csum)
+	}
+
+	parsed, err := packet.DissectByProto(built, "IPv6")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.Len() != 3 {
+		t.Fatalf("parsed layers = %d, want 3", parsed.Len())
+	}
+
+	// Verify IPv6 fields.
+	ipv6Layer := parsed.GetLayer("IPv6")
+	parsedSrc, _ := ipv6Layer.Get("src")
+	if ip := parsedSrc.(net.IP); !ip.Equal(net.ParseIP("fe80::1")) {
+		t.Errorf("IPv6.src = %v, want fe80::1", ip)
+	}
+	parsedDst, _ := ipv6Layer.Get("dst")
+	if ip := parsedDst.(net.IP); !ip.Equal(net.ParseIP("fe80::2")) {
+		t.Errorf("IPv6.dst = %v, want fe80::2", ip)
+	}
+
+	// Verify UDP fields.
+	udpLayer := parsed.GetLayer("UDP")
+	sport, _ := udpLayer.Get("sport")
+	if sport.(uint16) != 54321 {
+		t.Errorf("UDP.sport = %d, want 54321", sport)
+	}
+	dport, _ := udpLayer.Get("dport")
+	if dport.(uint16) != 53 {
+		t.Errorf("UDP.dport = %d, want 53", dport)
+	}
+
+	// Verify Raw payload.
+	rawLayer := parsed.GetLayer("Raw")
+	load, _ := rawLayer.Get("load")
+	if string(load.([]byte)) != "dns query" {
+		t.Errorf("Raw.load = %q, want \"dns query\"", string(load.([]byte)))
+	}
+}
+
+func TestDissectRoundTripEthernetIPv6UDPRaw(t *testing.T) {
+	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+
+	udp := NewUDPWith(12345, 53)
+	raw := NewRawWith([]byte("test"))
+
+	pkt := eth.Over(ipv6)
+	pkt.Push(udp)
+	pkt.Push(raw)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify UDP checksum via IPv6 pseudo-header.
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	udpAndPayload := built[54:] // Ethernet(14) + IPv6(40)
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrUDP, udpAndPayload); csum != 0 {
+		t.Errorf("UDP over Ethernet/IPv6 checksum invalid: %#x", csum)
+	}
+
+	// Dissect back from Ethernet.
+	parsed, err := packet.Dissect(built, ethernetStartFn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.Len() != 4 {
+		t.Fatalf("parsed layers = %d, want 4", parsed.Len())
+	}
+
+	layers := parsed.Layers()
+	if layers[0].Proto() != "Ethernet" {
+		t.Errorf("layer 0 = %s, want Ethernet", layers[0].Proto())
+	}
+	if layers[1].Proto() != "IPv6" {
+		t.Errorf("layer 1 = %s, want IPv6", layers[1].Proto())
+	}
+	if layers[2].Proto() != "UDP" {
+		t.Errorf("layer 2 = %s, want UDP", layers[2].Proto())
+	}
+	if layers[3].Proto() != "Raw" {
+		t.Errorf("layer 3 = %s, want Raw", layers[3].Proto())
+	}
+
+	// Verify Ethernet EtherType auto-set.
+	ethLayer := parsed.GetLayer("Ethernet")
+	etype, _ := ethLayer.Get("type")
+	if etype.(uint16) != 0x86DD {
+		t.Errorf("Ethernet.type = %#x, want 0x86DD", etype)
+	}
+
+	// Verify IPv6 fields.
+	ipv6Layer := parsed.GetLayer("IPv6")
+	parsedSrc, _ := ipv6Layer.Get("src")
+	if ip := parsedSrc.(net.IP); !ip.Equal(net.ParseIP("2001:db8::1")) {
+		t.Errorf("IPv6.src = %v, want 2001:db8::1", ip)
+	}
+
+	// Verify UDP fields.
+	udpLayer := parsed.GetLayer("UDP")
+	sport, _ := udpLayer.Get("sport")
+	if sport.(uint16) != 12345 {
+		t.Errorf("UDP.sport = %d, want 12345", sport)
+	}
+	dport, _ := udpLayer.Get("dport")
+	if dport.(uint16) != 53 {
+		t.Errorf("UDP.dport = %d, want 53", dport)
+	}
+
+	// Verify Raw payload.
+	rawLayer := parsed.GetLayer("Raw")
+	load, _ := rawLayer.Get("load")
+	if string(load.([]byte)) != "test" {
+		t.Errorf("Raw.load = %q, want \"test\"", string(load.([]byte)))
+	}
+}
+
+func TestDissectIPv6ExtHdrUDPRaw(t *testing.T) {
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
+
+	hopByHop := NewIPv6HopByHop()
+	hopByHop.Set("nh", uint8(IPv6NextHdrUDP))
+	hopByHop.Set("len", uint8(0))
+	hopByHop.Set("options", string(make([]byte, 6)))
+
+	udp := NewUDPWith(54321, 53)
+	raw := NewRawWith([]byte("data"))
+
+	pkt := packet.NewFrom(ipv6, hopByHop, udp, raw)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := packet.DissectByProto(built, "IPv6")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.Len() != 4 {
+		t.Fatalf("parsed layers = %d, want 4", parsed.Len())
+	}
+
+	layers := parsed.Layers()
+	if layers[0].Proto() != "IPv6" {
+		t.Errorf("layer 0 = %s, want IPv6", layers[0].Proto())
+	}
+	if layers[1].Proto() != "IPv6 Hop-by-Hop" {
+		t.Errorf("layer 1 = %s, want IPv6 Hop-by-Hop", layers[1].Proto())
+	}
+	if layers[2].Proto() != "UDP" {
+		t.Errorf("layer 2 = %s, want UDP", layers[2].Proto())
+	}
+	if layers[3].Proto() != "Raw" {
+		t.Errorf("layer 3 = %s, want Raw", layers[3].Proto())
+	}
+
+	// Verify UDP checksum.
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	udpAndPayload := built[48:] // IPv6(40) + HopByHop(8)
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrUDP, udpAndPayload); csum != 0 {
+		t.Errorf("UDP over IPv6+HopByHop checksum invalid: %#x", csum)
+	}
+}
+
+func TestDissectIPv6UDPEmptyPayload(t *testing.T) {
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("::1"))
+	ipv6.Set("dst", net.ParseIP("::1"))
+
+	udp := NewUDPWith(1234, 5678)
+
+	pkt := packet.NewFrom(ipv6, udp)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := packet.DissectByProto(built, "IPv6")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.Len() != 2 {
+		t.Fatalf("parsed layers = %d, want 2", parsed.Len())
+	}
+
+	udpLayer := parsed.GetLayer("UDP")
+	if udpLayer == nil {
+		t.Fatal("missing UDP layer")
+	}
+	udpLen, _ := udpLayer.Get("len")
+	if udpLen.(uint16) != 8 {
+		t.Errorf("UDP.len = %d, want 8 (header only)", udpLen)
+	}
+}
+
+func TestIPv6UDPChecksumMandatory(t *testing.T) {
+	// Verify that IPv6 UDP checksum is never 0 (unlike IPv4 where it's optional).
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+
+	udp := NewUDPWith(12345, 53)
+
+	pkt := packet.NewFrom(ipv6, udp)
+
+	built, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// UDP checksum is at byte offset 46-47 (IPv6=40, UDP chksum at byte 6-7 of UDP header).
+	chksum := uint16(built[46])<<8 | uint16(built[47])
+	if chksum == 0 {
+		t.Errorf("IPv6 UDP checksum = 0, but it's mandatory per RFC 2460")
+	}
+}
