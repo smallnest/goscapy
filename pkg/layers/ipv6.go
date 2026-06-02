@@ -103,6 +103,33 @@ func extHdrSizeFn(layer *packet.Layer) int {
 	return (int(hdrLen.(uint8)) + 1) * 8
 }
 
+// extHdrPostParseHook truncates the "options" field to the correct size
+// after ParseFields. StrField consumes all remaining bytes, so we need
+// to trim it to just the actual options bytes.
+func extHdrPostParseHook(layer *packet.Layer, extra []byte) error {
+	hdrLen, err := layer.Get("len")
+	if err != nil {
+		return nil
+	}
+	totalSize := (int(hdrLen.(uint8)) + 1) * 8
+	optionsSize := totalSize - 2 // subtract nh(1) + len(1)
+	if optionsSize < 0 {
+		optionsSize = 0
+	}
+	opts, _ := layer.Get("options")
+	switch v := opts.(type) {
+	case string:
+		if len(v) > optionsSize {
+			layer.Set("options", v[:optionsSize])
+		}
+	case []byte:
+		if len(v) > optionsSize {
+			layer.Set("options", string(v[:optionsSize]))
+		}
+	}
+	return nil
+}
+
 // ---- IPv6 pseudo-header checksum ----
 
 // IPv6PseudoHeaderChecksum computes the checksum using the IPv6 pseudo-header

@@ -584,6 +584,53 @@ func TestBuildIPv6DestOptsUDP(t *testing.T) {
 	}
 }
 
+func TestBuildEthernetIPv6UDPRawAutoBinding(t *testing.T) {
+	// Ethernet/IPv6/UDP/Raw with auto-binding — no manual nh or EtherType set.
+	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
+	ipv6 := NewIPv6()
+	ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	// No manual ipv6.Set("nh", ...) — should be auto-set by binding.
+
+	udp := NewUDPWith(12345, 53)
+	raw := NewRawWith([]byte("test"))
+
+	pkt := eth.Over(ipv6)
+	pkt.Push(udp)
+	pkt.Push(raw)
+	pkt.Sync()
+
+	// Verify auto-set EtherType.
+	etype, _ := eth.Get("type")
+	if etype.(uint16) != 0x86DD {
+		t.Errorf("Ethernet.type = %#x, want 0x86DD (auto-set by IPv6 binding)", etype)
+	}
+
+	// Verify auto-set IPv6 next header.
+	nh, _ := ipv6.Get("nh")
+	if nh.(uint8) != 17 {
+		t.Errorf("IPv6.nh = %d, want 17 (UDP, auto-set by binding)", nh)
+	}
+
+	got, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ethernet(14) + IPv6(40) + UDP(8) + "test"(4) = 66 bytes
+	if len(got) != 66 {
+		t.Fatalf("len = %d, want 66", len(got))
+	}
+
+	// Verify UDP checksum.
+	srcIP := net.ParseIP("2001:db8::1").To16()
+	dstIP := net.ParseIP("2001:db8::2").To16()
+	udpAndPayload := got[54:] // Ethernet(14) + IPv6(40)
+	if csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, IPv6NextHdrUDP, udpAndPayload); csum != 0 {
+		t.Errorf("UDP checksum invalid: %#x", csum)
+	}
+}
+
 func BenchmarkBuildEthernetIPTCP(b *testing.B) {
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()

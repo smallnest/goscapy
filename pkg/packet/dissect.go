@@ -170,7 +170,7 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 
 		actualHeaderSize := consumed
 		if sizeFn, hasFn := dissectRegistry.headerSizeFn[currentProto]; hasFn {
-			if hs := sizeFn(layer); hs > consumed {
+			if hs := sizeFn(layer); hs > 0 {
 				actualHeaderSize = hs
 			}
 		}
