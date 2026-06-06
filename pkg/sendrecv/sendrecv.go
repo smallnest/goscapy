@@ -53,6 +53,23 @@ func OpenFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver
 // ("lo0" on macOS, "lo" on Linux).
 func LoopbackName() string { return loopbackName() }
 
+// Sender sends L3 packets via a persistent raw socket.
+// Unlike Send, which opens and closes a socket per call, Sender reuses a single
+// raw socket for all sends — suitable for high-rate probing loops.
+type Sender interface {
+	// Send transmits a packet at L3 (IP level). The OS handles L2 framing.
+	// If the packet contains an Ethernet layer, it is skipped during build.
+	Send(pkt *packet.Packet) error
+	// Close releases the underlying raw socket.
+	Close() error
+}
+
+// NewSender opens a persistent L3 raw socket for sending IPv4 packets.
+// The caller must call Close when done.
+func NewSender() (Sender, error) {
+	return newSender()
+}
+
 // Send sends a packet at L3 (IP level) on the given interface.
 // The OS handles L2 framing (Ethernet header).
 // If the packet contains an Ethernet layer, it is skipped during build

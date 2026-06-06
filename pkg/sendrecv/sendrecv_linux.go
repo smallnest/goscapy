@@ -17,6 +17,57 @@ const _ETH_P_ALL = 0x0003
 
 func loopbackName() string { return "lo" }
 
+// --- Persistent Sender (L3, AF_INET raw socket) ---
+
+type linuxSender struct {
+	fd int
+}
+
+func newSender() (Sender, error) {
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
+	if err != nil {
+		return nil, fmt.Errorf("sendrecv: sender socket: %w", err)
+	}
+
+	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
+		syscall.Close(fd)
+		return nil, fmt.Errorf("sendrecv: sender IP_HDRINCL: %w", err)
+	}
+
+	return &linuxSender{fd: fd}, nil
+}
+
+func (s *linuxSender) Send(pkt *packet.Packet) error {
+	if hasIPv6Layer(pkt) {
+		return sendL3v6(pkt, "") // IPv6 uses per-call socket
+	}
+
+	rawBytes, err := buildL3(pkt)
+	if err != nil {
+		return fmt.Errorf("sendrecv: sender build: %w", err)
+	}
+
+	dstIP, err := extractDstIP(pkt)
+	if err != nil {
+		return err
+	}
+
+	addr := syscall.SockaddrInet4{Addr: dstIP}
+	if err := syscall.Sendto(s.fd, rawBytes, 0, &addr); err != nil {
+		return fmt.Errorf("sendrecv: sender sendto: %w", err)
+	}
+
+	runtime.KeepAlive(rawBytes)
+	return nil
+}
+
+func (s *linuxSender) Close() error {
+	return syscall.Close(s.fd)
+}
+
+// ensure linuxSender implements Sender at compile time.
+var _ Sender = (*linuxSender)(nil)
+
 // --- L3 Send (AF_INET / AF_INET6 raw socket) ---
 
 func sendL3(pkt *packet.Packet, iface string) error {

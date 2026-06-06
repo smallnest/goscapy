@@ -29,6 +29,10 @@ func sendL2(pkt *packet.Packet, iface string) error {
 	return fmt.Errorf("sendrecv: Sendp not implemented on this platform")
 }
 
+func newSender() (Sender, error) {
+	return nil, fmt.Errorf("sendrecv: NewSender not implemented on this platform")
+}
+
 type RawConn struct {
 	fd int
 }
