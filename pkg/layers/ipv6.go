@@ -15,10 +15,10 @@ const (
 
 // IPv6 next header values for common upper-layer protocols.
 const (
-	IPv6NextHdrICMP   uint8 = 58
-	IPv6NextHdrTCP    uint8 = 6
-	IPv6NextHdrUDP    uint8 = 17
-	IPv6NextHdrNoHdr  uint8 = 59
+	IPv6NextHdrICMP  uint8 = 58
+	IPv6NextHdrTCP   uint8 = 6
+	IPv6NextHdrUDP   uint8 = 17
+	IPv6NextHdrNoHdr uint8 = 59
 )
 
 // NewIPv6 creates an IPv6 header layer with sensible defaults.
@@ -38,7 +38,7 @@ func NewIPv6() *packet.Layer {
 func IPv6Version(verTCFL uint32) uint8 { return uint8(verTCFL >> 28) }
 
 // IPv6TrafficClass extracts the 8-bit traffic class field.
-func IPv6TrafficClass(verTCFL uint32) uint8 { return uint8(verTCFL >> 20) & 0xFF }
+func IPv6TrafficClass(verTCFL uint32) uint8 { return uint8(verTCFL>>20) & 0xFF }
 
 // IPv6FlowLabel extracts the 20-bit flow label field.
 func IPv6FlowLabel(verTCFL uint32) uint32 { return verTCFL & 0x000FFFFF }
@@ -52,7 +52,7 @@ func MakeIPv6VerTCFL(tc uint8, fl uint32) uint32 {
 // It auto-computes the payload length from upper layer bytes, writing directly into buf.
 func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
-	layer.Set("plen", uint16(len(upperBytes)))
+	_ = layer.Set("plen", uint16(len(upperBytes)))
 	return layer.SerializeInto(buf)
 }
 
@@ -63,7 +63,7 @@ func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []by
 func newIPv6ExtHdr(proto string) *packet.Layer {
 	return packet.NewLayer(proto, []fields.Field{
 		fields.NewByteField("nh", 0),
-		fields.NewByteField("len", 0),  // Hdr Ext Len in 8-byte units, not counting first 8 bytes
+		fields.NewByteField("len", 0),     // Hdr Ext Len in 8-byte units, not counting first 8 bytes
 		fields.NewStrField("options", ""), // variable-length options
 	})
 }
@@ -120,11 +120,11 @@ func extHdrPostParseHook(layer *packet.Layer, extra []byte) error {
 	switch v := opts.(type) {
 	case string:
 		if len(v) > optionsSize {
-			layer.Set("options", v[:optionsSize])
+			_ = layer.Set("options", v[:optionsSize])
 		}
 	case []byte:
 		if len(v) > optionsSize {
-			layer.Set("options", string(v[:optionsSize]))
+			_ = layer.Set("options", string(v[:optionsSize]))
 		}
 	}
 	return nil

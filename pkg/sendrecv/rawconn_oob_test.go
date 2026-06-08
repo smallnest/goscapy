@@ -24,7 +24,7 @@ func TestRecvmsgOOBInto(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Enable software timestamps.
 	if err := conn.EnableTimestamping(false); err != nil {
@@ -119,7 +119,7 @@ func TestRecvmsgOOB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.EnableTimestamping(false); err != nil {
 		t.Fatalf("EnableTimestamping: %v", err)
@@ -195,7 +195,7 @@ func TestSendmsgOOB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	icmp := layers.NewICMPEcho(0xCCCC, 1)
 	pkt := packet.NewFrom(icmp)
@@ -256,7 +256,7 @@ func TestSendmsgOOBWithPktInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	icmp := layers.NewICMPEcho(0xDDDD, 1)
 	pkt := packet.NewFrom(icmp)
@@ -314,7 +314,7 @@ func buildPktInfoCmsg(t *testing.T, srcIP string, ifindex int) []byte {
 	pktInfoData := make([]byte, 12)
 	binary.NativeEndian.PutUint32(pktInfoData[0:4], uint32(ifindex))
 	ip := parseIP4(srcIP)
-	copy(pktInfoData[4:8], ip[:]) // spec_dst
+	copy(pktInfoData[4:8], ip[:])  // spec_dst
 	copy(pktInfoData[8:12], ip[:]) // addr
 
 	return buildCmsg(t, syscall.IPPROTO_IP, syscall.IP_PKTINFO, pktInfoData)

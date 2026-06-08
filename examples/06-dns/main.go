@@ -49,9 +49,9 @@ func main() {
 	// DNSQuestion 定义要查询的域名和记录类型
 	questions := []dns.DNSQuestion{
 		{
-			Name:  "example.com",      // 查询的域名
-			Type:  dns.QtypeA,         // 记录类型: A (IPv4 地址)
-			Class: dns.QclassIN,       // 类别: IN (Internet)
+			Name:  "example.com", // 查询的域名
+			Type:  dns.QtypeA,    // 记录类型: A (IPv4 地址)
+			Class: dns.QclassIN,  // 类别: IN (Internet)
 		},
 	}
 
@@ -61,15 +61,15 @@ func main() {
 		SrcMAC("00:11:22:33:44:55").
 		Over(goscapy.NewIP().
 			SrcIP("192.168.1.100").
-			DstIP("8.8.8.8").                // Google DNS 服务器
-			Proto(17)).                       // UDP
+			DstIP("8.8.8.8"). // Google DNS 服务器
+			Proto(17)).       // UDP
 		Over(goscapy.NewUDP().
 			SrcPort(54321).
-			DstPort(53)).                     // DNS 端口
+			DstPort(53)). // DNS 端口
 		Over(goscapy.NewDNS().
-			ID(0x1234).                        // 事务 ID
-			Flags(0x0100).                     // 标志: 标准查询, RD=1
-			Questions(questions))              // 设置查询问题
+			ID(0x1234).           // 事务 ID
+			Flags(0x0100).        // 标志: 标准查询, RD=1
+			Questions(questions)) // 设置查询问题
 
 	dnsBytes, err := dnsPkt.Build()
 	if err != nil {
@@ -91,7 +91,7 @@ func main() {
 	aaaaQuestions := []dns.DNSQuestion{
 		{
 			Name:  "google.com",
-			Type:  dns.QtypeAAAA,       // AAAA: IPv6 地址
+			Type:  dns.QtypeAAAA, // AAAA: IPv6 地址
 			Class: dns.QclassIN,
 		},
 	}
@@ -129,12 +129,12 @@ func main() {
 	}
 
 	shortcutBytes, err := goscapy.EtherIPUDPDNS(
-		"00:11:22:33:44:55",    // 源 MAC
-		"00:aa:bb:cc:dd:ee",    // 目标 MAC
-		"192.168.1.100",         // 源 IP
-		"8.8.8.8",               // 目标 IP (DNS 服务器)
-		53,                      // DNS 端口
-		shortcutQuestions,       // DNS 查询问题
+		"00:11:22:33:44:55", // 源 MAC
+		"00:aa:bb:cc:dd:ee", // 目标 MAC
+		"192.168.1.100",     // 源 IP
+		"8.8.8.8",           // 目标 IP (DNS 服务器)
+		53,                  // DNS 端口
+		shortcutQuestions,   // DNS 查询问题
 	)
 	if err != nil {
 		log.Fatalf("Shortcut DNS 构建失败: %v", err)

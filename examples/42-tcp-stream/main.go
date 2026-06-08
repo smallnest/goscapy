@@ -77,19 +77,19 @@ func main() {
 // mkPkt creates an IP+TCP(+payload) packet for testing.
 func mkPkt(srcIP, dstIP string, srcPort, dstPort uint16, seq uint32, flags uint8, payload []byte) *packet.Packet {
 	ip := layers.NewIP()
-	ip.Set("src", net.ParseIP(srcIP))
-	ip.Set("dst", net.ParseIP(dstIP))
+	_ = ip.Set("src", net.ParseIP(srcIP))
+	_ = ip.Set("dst", net.ParseIP(dstIP))
 
 	tcp := layers.NewTCP()
-	tcp.Set("sport", srcPort)
-	tcp.Set("dport", dstPort)
-	tcp.Set("seq", seq)
-	tcp.Set("flags", flags)
+	_ = tcp.Set("sport", srcPort)
+	_ = tcp.Set("dport", dstPort)
+	_ = tcp.Set("seq", seq)
+	_ = tcp.Set("flags", flags)
 
 	pkt := ip.Over(tcp)
 	if len(payload) > 0 {
 		raw := layers.NewRaw()
-		raw.Set("load", payload)
+		_ = raw.Set("load", payload)
 		pkt.Push(raw)
 	}
 	return pkt

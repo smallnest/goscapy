@@ -17,7 +17,7 @@ func TestBatchConnPermission(t *testing.T) {
 
 	conn, err := DialRaw(1)
 	if err == nil {
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		t.Fatal("expected DialRaw to fail for non-root user")
 	}
 }
@@ -31,7 +31,7 @@ func TestBatchConnSendRecvICMP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial raw socket: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	batch := conn.Batch()
 

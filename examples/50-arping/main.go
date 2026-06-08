@@ -2,7 +2,8 @@
 //
 // 运行: sudo go run main.go [选项] <目标>
 // 示例: sudo go run main.go 192.168.1.0/24
-//       sudo go run main.go -c 20 10.0.0.1
+//
+//	sudo go run main.go -c 20 10.0.0.1
 //
 // 需要 root 权限。
 package main

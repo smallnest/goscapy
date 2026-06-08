@@ -176,10 +176,10 @@ func TestARPSerialization(t *testing.T) {
 	}
 
 	arp := NewARP()
-	arp.Set("hwsrc", "00:11:22:33:44:55")
-	arp.Set("psrc", "192.168.1.1")
-	arp.Set("hwdst", "00:00:00:00:00:00")
-	arp.Set("pdst", "192.168.1.100")
+	_ = arp.Set("hwsrc", "00:11:22:33:44:55")
+	_ = arp.Set("psrc", "192.168.1.1")
+	_ = arp.Set("hwdst", "00:00:00:00:00:00")
+	_ = arp.Set("pdst", "192.168.1.100")
 
 	got := serializeLayer(t, arp)
 
@@ -208,11 +208,11 @@ func TestARPReplySerialization(t *testing.T) {
 	}
 
 	arp := NewARP()
-	arp.Set("op", ARPIsAt)
-	arp.Set("hwsrc", "aa:bb:cc:dd:ee:ff")
-	arp.Set("psrc", "10.0.0.1")
-	arp.Set("hwdst", "00:11:22:33:44:55")
-	arp.Set("pdst", "10.0.0.2")
+	_ = arp.Set("op", ARPIsAt)
+	_ = arp.Set("hwsrc", "aa:bb:cc:dd:ee:ff")
+	_ = arp.Set("psrc", "10.0.0.1")
+	_ = arp.Set("hwdst", "00:11:22:33:44:55")
+	_ = arp.Set("pdst", "10.0.0.2")
 
 	got := serializeLayer(t, arp)
 	if !bytes.Equal(got, b) {
@@ -225,7 +225,7 @@ func TestEthernetARPStacking(t *testing.T) {
 	// After stacking, Ether.type should be auto-set to 0x0806 by binding.
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	arp := NewARP()
-	arp.Set("pdst", "192.168.1.1")
+	_ = arp.Set("pdst", "192.168.1.1")
 
 	pkt := eth.Over(arp)
 
@@ -353,9 +353,9 @@ func TestIPSerialization(t *testing.T) {
 	}
 
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
-	ip.Set("proto", IPProtoUDP)
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("proto", IPProtoUDP)
 
 	got := serializeLayer(t, ip)
 
@@ -371,9 +371,9 @@ func TestIPChecksumCalc(t *testing.T) {
 	// Scapy: IP(src="10.0.0.1", dst="10.0.0.2", proto=1, ttl=64)
 	// Build the header, zero checksum, compute, verify.
 	ip := NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
-	ip.Set("proto", IPProtoICMP)
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("proto", IPProtoICMP)
 
 	hdr := serializeLayer(t, ip)
 	if len(hdr) != 20 {
@@ -490,9 +490,9 @@ func TestICMPEchoReplySerialization(t *testing.T) {
 	}
 
 	icmp := NewICMP()
-	icmp.Set("type", ICMPEchoReply)
-	icmp.Set("id", uint16(1))
-	icmp.Set("seq", uint16(42))
+	_ = icmp.Set("type", ICMPEchoReply)
+	_ = icmp.Set("id", uint16(1))
+	_ = icmp.Set("seq", uint16(42))
 
 	got := serializeLayer(t, icmp)
 	if !bytes.Equal(got, expected) {
@@ -681,7 +681,7 @@ func TestTCPSerialization(t *testing.T) {
 	}
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("seq", uint32(1000))
 
 	got := serializeLayer(t, tcp)
 
@@ -708,9 +708,9 @@ func TestTCPSynAckSerialization(t *testing.T) {
 	}
 
 	tcp := NewTCPWith(80, 12345, TCPSyn|TCPAck)
-	tcp.Set("seq", uint32(2000))
-	tcp.Set("ack", uint32(1001))
-	tcp.Set("window", uint16(65535))
+	_ = tcp.Set("seq", uint32(2000))
+	_ = tcp.Set("ack", uint32(1001))
+	_ = tcp.Set("window", uint16(65535))
 
 	got := serializeLayer(t, tcp)
 
@@ -722,7 +722,7 @@ func TestTCPSynAckSerialization(t *testing.T) {
 func TestTCPChecksumCalc(t *testing.T) {
 	// Build a TCP SYN segment, compute checksum with pseudo-header.
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("seq", uint32(1000))
 
 	seg := serializeLayer(t, tcp)
 

@@ -33,8 +33,8 @@ func TestSendRequiresIP(t *testing.T) {
 func TestBuildForSendSkipsEthernet(t *testing.T) {
 	// Verify that buildL3 skips Ethernet when present.
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("127.0.0.1"))
-	ip.Set("src", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("src", net.ParseIP("127.0.0.1"))
 	icmp := layers.NewICMPEcho(0x1234, 1)
 	pkt := ip.Over(icmp)
 
@@ -65,8 +65,8 @@ func TestSendICMPOnLoopback(t *testing.T) {
 	skipIfNotRoot(t)
 
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("127.0.0.1"))
-	ip.Set("src", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("src", net.ParseIP("127.0.0.1"))
 	icmp := layers.NewICMPEcho(0xABCD, 1)
 	pkt := ip.Over(icmp)
 
@@ -81,8 +81,8 @@ func TestSendRecv1ICMP(t *testing.T) {
 	skipIfNotRoot(t)
 
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("127.0.0.1"))
-	ip.Set("src", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("src", net.ParseIP("127.0.0.1"))
 	icmp := layers.NewICMPEcho(0xDCBA, 42)
 	pkt := ip.Over(icmp)
 
@@ -119,8 +119,8 @@ func TestSendpEthernetFrame(t *testing.T) {
 		layers.EtherTypeIPv4,
 	)
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("127.0.0.1"))
-	ip.Set("src", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("src", net.ParseIP("127.0.0.1"))
 	icmp := layers.NewICMPEcho(0x5555, 1)
 
 	// Build 3-layer packet: Ethernet / IP / ICMP.

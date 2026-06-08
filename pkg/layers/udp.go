@@ -19,8 +19,8 @@ func NewUDP() *packet.Layer {
 // NewUDPWith creates a UDP header with the given source and destination ports.
 func NewUDPWith(sport, dport uint16) *packet.Layer {
 	l := NewUDP()
-	l.Set("sport", sport)
-	l.Set("dport", dport)
+	_ = l.Set("sport", sport)
+	_ = l.Set("dport", dport)
 	return l
 }
 
@@ -32,10 +32,10 @@ func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byt
 
 	// Compute total length: header (8) + upper payload.
 	totalLen := uint16(8 + len(upperBytes))
-	layer.Set("len", totalLen)
+	_ = layer.Set("len", totalLen)
 
 	// Serialize with zero checksum into buf.
-	layer.Set("chksum", uint16(0))
+	_ = layer.Set("chksum", uint16(0))
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return 0, err
@@ -56,7 +56,7 @@ func udpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byt
 	if csum == 0 {
 		csum = 0xFFFF // RFC 768: 0 means "no checksum", use 0xFFFF instead
 	}
-	layer.Set("chksum", csum)
+	_ = layer.Set("chksum", csum)
 	buf[6] = byte(csum >> 8)
 	buf[7] = byte(csum)
 	return n, nil

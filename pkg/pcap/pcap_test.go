@@ -154,16 +154,16 @@ func TestPcapngReader(t *testing.T) {
 
 	// Write SHB.
 	writePcapngBlock(&buf, order, blockTypeSHB, func(b *bytes.Buffer) {
-		order.PutUint32(scratch4(b), 0x1A2B3C4D) // BOM
-		order.PutUint16(scratch2(b), 1)           // version major
-		order.PutUint16(scratch2(b), 0)           // version minor
+		order.PutUint32(scratch4(b), 0x1A2B3C4D)         // BOM
+		order.PutUint16(scratch2(b), 1)                  // version major
+		order.PutUint16(scratch2(b), 0)                  // version minor
 		order.PutUint64(scratch8(b), 0xFFFFFFFFFFFFFFFF) // section length (unknown)
 	})
 
 	// Write IDB (Ethernet, snaplen=65535).
 	writePcapngBlock(&buf, order, blockTypeIDB, func(b *bytes.Buffer) {
 		order.PutUint16(scratch2(b), uint16(LinkTypeEthernet)) // link type
-		order.PutUint16(scratch2(b), 0)                       // reserved
+		order.PutUint16(scratch2(b), 0)                        // reserved
 		order.PutUint32(scratch4(b), 65535)                    // snap len
 	})
 
@@ -171,8 +171,8 @@ func TestPcapngReader(t *testing.T) {
 	pktData := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x08, 0x00}
 	ts := uint64(1700000000) * 1000000 // microseconds
 	writePcapngBlock(&buf, order, blockTypeEPB, func(b *bytes.Buffer) {
-		order.PutUint32(scratch4(b), 0)                 // interface ID
-		order.PutUint32(scratch4(b), uint32(ts>>32))    // timestamp high
+		order.PutUint32(scratch4(b), 0)                     // interface ID
+		order.PutUint32(scratch4(b), uint32(ts>>32))        // timestamp high
 		order.PutUint32(scratch4(b), uint32(ts&0xFFFFFFFF)) // timestamp low
 		order.PutUint32(scratch4(b), uint32(len(pktData)))  // captured len
 		order.PutUint32(scratch4(b), uint32(len(pktData)))  // original len
@@ -213,7 +213,7 @@ func TestPacketsChannel(t *testing.T) {
 
 	ts := time.Now()
 	for i := range 5 {
-		w.WritePacket([]byte{byte(i), 0x01, 0x02}, ts.Add(time.Duration(i)*time.Millisecond))
+		_ = w.WritePacket([]byte{byte(i), 0x01, 0x02}, ts.Add(time.Duration(i)*time.Millisecond))
 	}
 
 	r, err := NewReader(bytes.NewReader(buf.Bytes()))
@@ -250,7 +250,7 @@ func TestWriterSnapLen(t *testing.T) {
 	for i := range bigPkt {
 		bigPkt[i] = byte(i)
 	}
-	w.WritePacket(bigPkt, time.Now())
+	_ = w.WritePacket(bigPkt, time.Now())
 
 	r, err := NewReader(bytes.NewReader(buf.Bytes()))
 	if err != nil {
@@ -274,14 +274,14 @@ func TestWriterSnapLen(t *testing.T) {
 func TestPacketRecordDissect(t *testing.T) {
 	// Build a real Ethernet/IP/TCP packet.
 	eth := layers.NewEthernet()
-	eth.Set("src", "00:11:22:33:44:55")
-	eth.Set("dst", "ff:ff:ff:ff:ff:ff")
-	eth.Set("type", uint16(0x0800))
+	_ = eth.Set("src", "00:11:22:33:44:55")
+	_ = eth.Set("dst", "ff:ff:ff:ff:ff:ff")
+	_ = eth.Set("type", uint16(0x0800))
 
 	ip := layers.NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
-	ip.Set("proto", layers.IPProtoTCP)
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("proto", layers.IPProtoTCP)
 
 	tcp := layers.NewTCPWith(80, 12345, layers.TCPSyn|layers.TCPAck)
 

@@ -38,7 +38,7 @@ const (
 
 // PacketRecord represents a single captured packet with metadata.
 type PacketRecord struct {
-	Timestamp time.Time
+	Timestamp  time.Time
 	CaptureLen uint32
 	OrigLen    uint32
 	Data       []byte
@@ -213,12 +213,13 @@ func newPcapngReader(r io.Reader, firstBytes []byte) (*Reader, error) {
 	blockLen := binary.LittleEndian.Uint32(shbHeader[0:4])
 	bom := binary.LittleEndian.Uint32(shbHeader[4:8])
 
-	if bom == 0x1A2B3C4D {
+	switch bom {
+	case 0x1A2B3C4D:
 		rd.byteOrder = binary.LittleEndian
-	} else if bom == 0x4D3C2B1A {
+	case 0x4D3C2B1A:
 		rd.byteOrder = binary.BigEndian
 		blockLen = binary.BigEndian.Uint32(shbHeader[0:4])
-	} else {
+	default:
 		return nil, fmt.Errorf("pcap: invalid pcapng byte order magic: %08x", bom)
 	}
 
@@ -304,8 +305,8 @@ func (rd *Reader) parsePcapngMetadata() error {
 
 // peekReader wraps an io.Reader and allows pushing back unread data.
 type peekReader struct {
-	r    io.Reader
-	buf  []byte
+	r   io.Reader
+	buf []byte
 }
 
 func (p *peekReader) Read(b []byte) (int, error) {

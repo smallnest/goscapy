@@ -53,17 +53,17 @@ func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte
 		headerSize = 20
 	}
 	totalLen := uint16(headerSize + len(upperBytes))
-	layer.Set("len", totalLen)
+	_ = layer.Set("len", totalLen)
 
 	// Serialize with zero checksum into buf.
-	layer.Set("chksum", uint16(0))
+	_ = layer.Set("chksum", uint16(0))
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return 0, err
 	}
 
 	csum := IPChecksum(buf[:n])
-	layer.Set("chksum", csum)
+	_ = layer.Set("chksum", csum)
 	buf[10] = byte(csum >> 8)
 	buf[11] = byte(csum)
 	return n, nil

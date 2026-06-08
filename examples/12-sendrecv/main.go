@@ -54,7 +54,7 @@ func main() {
 	pingPkt := goscapy.NewEthernet().
 		Over(goscapy.NewIP().
 			SrcIP("0.0.0.0").
-			DstIP("127.0.0.1").                // 回环地址
+			DstIP("127.0.0.1"). // 回环地址
 			TTL(64).
 			Proto(layers.IPProtoICMP)).
 		Over(goscapy.NewICMP().

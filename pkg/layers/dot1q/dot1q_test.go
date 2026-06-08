@@ -124,7 +124,7 @@ func TestDot1QWithDEI(t *testing.T) {
 
 	// Parse back.
 	layer := NewDot1QLayer()
-	layer.ParseFields(raw)
+	_, _ = layer.ParseFields(raw)
 	if GetVID(layer) != 50 {
 		t.Errorf("VID = %d, want 50", GetVID(layer))
 	}
@@ -177,7 +177,7 @@ func TestDot1QTPID(t *testing.T) {
 
 	// Parse back.
 	layer := NewDot1QLayer()
-	layer.ParseFields(raw)
+	_, _ = layer.ParseFields(raw)
 	tpid, _ := layer.Get("tpid")
 	if tpid.(uint16) != TPID8021AD {
 		t.Errorf("parsed TPID = %#x", tpid)
@@ -216,13 +216,13 @@ func TestEtherDot1QIPv4(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
 
 	raw := packet.NewLayer("Raw", []fields.Field{
 		fields.NewStrField("load", ""),
 	})
-	raw.Set("load", []byte("test"))
+	_ = raw.Set("load", []byte("test"))
 
 	pkt := packet.NewFrom(eth, dot1q.Layer, ip, raw)
 	built, err := pkt.Build()
@@ -276,8 +276,8 @@ func TestQinQ(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
 
 	pkt := packet.NewFrom(eth, outer.Layer, inner.Layer, ip)
 	built, err := pkt.Build()

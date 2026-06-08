@@ -277,7 +277,7 @@ func makeRawLayer(payload []byte) *Layer {
 	factory, ok := dissectRegistry.factories["Raw"]
 	if ok {
 		layer := factory()
-		layer.Set("load", payload)
+		_ = layer.Set("load", payload)
 		return layer
 	}
 	layer := &Layer{

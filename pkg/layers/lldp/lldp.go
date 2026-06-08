@@ -51,8 +51,10 @@ const (
 
 // LLDPDU represents a complete LLDP Data Unit with TLV entries.
 // The wire format is a sequence of TLVs where each TLV header is 2 bytes:
-//   bits 0-6:  Type (7 bits)
-//   bits 7-15: Length (9 bits) = length of the Value field
+//
+//	bits 0-6:  Type (7 bits)
+//	bits 7-15: Length (9 bits) = length of the Value field
+//
 // Followed by Value (Length bytes).
 // The LLDPDU is terminated by an End TLV (type=0, length=0).
 type LLDPDU struct {
@@ -61,8 +63,8 @@ type LLDPDU struct {
 
 // TLV represents a single LLDP TLV entry.
 type TLV struct {
-	Type   uint8 // 7-bit type
-	Value  []byte
+	Type  uint8 // 7-bit type
+	Value []byte
 }
 
 // NewLLDP creates an LLDP layer with default mandatory TLVs:
@@ -106,8 +108,8 @@ func ParseLLDPDU(data []byte) (*LLDPDU, error) {
 
 	for len(remaining) >= 2 {
 		header := binary.BigEndian.Uint16(remaining[0:2])
-		typ := uint8(header >> 9)       // upper 7 bits
-		length := int(header & 0x01FF)  // lower 9 bits
+		typ := uint8(header >> 9)      // upper 7 bits
+		length := int(header & 0x01FF) // lower 9 bits
 
 		if len(remaining) < 2+length {
 			return nil, fmt.Errorf("lldp: TLV type %d: need %d bytes, have %d", typ, 2+length, len(remaining))

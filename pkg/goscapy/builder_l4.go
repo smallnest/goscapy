@@ -19,37 +19,37 @@ func (b *TCPBuilder) Layer() *packet.Layer { return b.layer }
 
 // SrcPort sets the source port.
 func (b *TCPBuilder) SrcPort(p uint16) *TCPBuilder {
-	b.layer.Set("sport", p)
+	_ = b.layer.Set("sport", p)
 	return b
 }
 
 // DstPort sets the destination port.
 func (b *TCPBuilder) DstPort(p uint16) *TCPBuilder {
-	b.layer.Set("dport", p)
+	_ = b.layer.Set("dport", p)
 	return b
 }
 
 // Flags sets the TCP flags byte (e.g. layers.TCPSyn | layers.TCPAck).
 func (b *TCPBuilder) Flags(f uint8) *TCPBuilder {
-	b.layer.Set("flags", f)
+	_ = b.layer.Set("flags", f)
 	return b
 }
 
 // Seq sets the sequence number.
 func (b *TCPBuilder) Seq(s uint32) *TCPBuilder {
-	b.layer.Set("seq", s)
+	_ = b.layer.Set("seq", s)
 	return b
 }
 
 // Ack sets the acknowledgment number.
 func (b *TCPBuilder) Ack(a uint32) *TCPBuilder {
-	b.layer.Set("ack", a)
+	_ = b.layer.Set("ack", a)
 	return b
 }
 
 // Window sets the window size.
 func (b *TCPBuilder) Window(w uint16) *TCPBuilder {
-	b.layer.Set("window", w)
+	_ = b.layer.Set("window", w)
 	return b
 }
 
@@ -73,13 +73,13 @@ func (b *UDPBuilder) Layer() *packet.Layer { return b.layer }
 
 // SrcPort sets the source port.
 func (b *UDPBuilder) SrcPort(p uint16) *UDPBuilder {
-	b.layer.Set("sport", p)
+	_ = b.layer.Set("sport", p)
 	return b
 }
 
 // DstPort sets the destination port.
 func (b *UDPBuilder) DstPort(p uint16) *UDPBuilder {
-	b.layer.Set("dport", p)
+	_ = b.layer.Set("dport", p)
 	return b
 }
 

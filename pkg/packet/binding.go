@@ -41,6 +41,6 @@ func applyBindings(lower, upper *Layer) {
 		return
 	}
 	for _, rule := range rules {
-		lower.Set(rule.FieldName, rule.FieldValue)
+		_ = lower.Set(rule.FieldName, rule.FieldValue)
 	}
 }

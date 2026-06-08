@@ -13,7 +13,7 @@ const (
 	IPFIXVersion uint16 = 10
 
 	// Set IDs.
-	IPFIXTemplateSetID     uint16 = 2
+	IPFIXTemplateSetID       uint16 = 2
 	IPFIXOptionTemplateSetID uint16 = 3
 	// Data Set IDs: 256-65535
 
@@ -96,7 +96,7 @@ func ParseIPFIXTemplate(data []byte) (IPFIXTemplate, error) {
 			return t, fmt.Errorf("ipfix: truncated template field %d", i)
 		}
 		typ := binary.BigEndian.Uint16(data[off:])
-	flen := binary.BigEndian.Uint16(data[off+2:])
+		flen := binary.BigEndian.Uint16(data[off+2:])
 		off += 4
 
 		f := IPFIXTemplateField{Type: typ & 0x7FFF, Len: flen}

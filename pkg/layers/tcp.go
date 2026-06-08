@@ -39,9 +39,9 @@ func NewTCP() *packet.Layer {
 // NewTCPWith creates a TCP header with the given source port, destination port, and flags.
 func NewTCPWith(sport, dport uint16, flags uint8) *packet.Layer {
 	l := NewTCP()
-	l.Set("sport", sport)
-	l.Set("dport", dport)
-	l.Set("flags", flags)
+	_ = l.Set("sport", sport)
+	_ = l.Set("dport", dport)
+	_ = l.Set("flags", flags)
 	return l
 }
 
@@ -63,10 +63,10 @@ func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byt
 		optsBytes = SerializeTCPOptions(opts)
 	}
 	hdrLen := 20 + len(optsBytes)
-	layer.Set("dataofs", uint8((hdrLen/4)<<4))
+	_ = layer.Set("dataofs", uint8((hdrLen/4)<<4))
 
 	// Serialize with zero checksum into buf.
-	layer.Set("chksum", uint16(0))
+	_ = layer.Set("chksum", uint16(0))
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return 0, err
@@ -84,7 +84,7 @@ func tcpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byt
 	} else {
 		csum = checksumIPv4Pseudo(addr.src, addr.dst, 6, buf[:n], upperBytes)
 	}
-	layer.Set("chksum", csum)
+	_ = layer.Set("chksum", csum)
 	buf[16] = byte(csum >> 8)
 	buf[17] = byte(csum)
 	return n, nil

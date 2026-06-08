@@ -14,9 +14,9 @@ func TestNewTLS(t *testing.T) {
 
 func TestTLSSerializeParse(t *testing.T) {
 	layer := NewTLS()
-	layer.Set("content_type", uint8(ContentTypeHandshake))
-	layer.Set("version", uint16(VersionTLS12))
-	layer.Set("fragment", []byte{0x01, 0x00, 0x00, 0x05, 0x03, 0x03, 0x00, 0x00, 0x00})
+	_ = layer.Set("content_type", uint8(ContentTypeHandshake))
+	_ = layer.Set("version", uint16(VersionTLS12))
+	_ = layer.Set("fragment", []byte{0x01, 0x00, 0x00, 0x05, 0x03, 0x03, 0x00, 0x00, 0x00})
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -43,10 +43,10 @@ func TestTLSSerializeParse(t *testing.T) {
 func TestParseHandshake(t *testing.T) {
 	// ClientHello with minimal body
 	hs := []byte{
-		0x01,                   // type = ClientHello
-		0x00, 0x00, 0x05,       // length = 5
-		0x03, 0x03,             // version TLS 1.2
-		0x00, 0x00, 0x00,       // partial random
+		0x01,             // type = ClientHello
+		0x00, 0x00, 0x05, // length = 5
+		0x03, 0x03, // version TLS 1.2
+		0x00, 0x00, 0x00, // partial random
 	}
 	hsType, length, body, err := ParseHandshake(hs)
 	if err != nil {
@@ -77,11 +77,11 @@ func TestBuildParseClientHello(t *testing.T) {
 	}
 
 	ch := &ClientHello{
-		Version:       VersionTLS12,
-		Random:        random,
-		SessionID:     nil,
-		CipherSuites:  []uint16{0xC02F, 0xC030, 0x009E}, // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 etc.
-		Compression:   []uint8{0},
+		Version:      VersionTLS12,
+		Random:       random,
+		SessionID:    nil,
+		CipherSuites: []uint16{0xC02F, 0xC030, 0x009E}, // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 etc.
+		Compression:  []uint8{0},
 		Extensions: []Extension{
 			BuildSNIExtension("example.com"),
 		},
@@ -118,11 +118,11 @@ func TestParseClientHelloNoExtensions(t *testing.T) {
 		0x03, 0x03, // TLS 1.2
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // random (32 bytes)
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0x00,                   // session ID length = 0
-		0x00, 0x02,             // cipher suites length = 2
-		0x00, 0x2F,             // TLS_RSA_WITH_AES_128_CBC_SHA
-		0x01,                   // compression methods length = 1
-		0x00,                   // null compression
+		0x00,       // session ID length = 0
+		0x00, 0x02, // cipher suites length = 2
+		0x00, 0x2F, // TLS_RSA_WITH_AES_128_CBC_SHA
+		0x01, // compression methods length = 1
+		0x00, // null compression
 	}
 	ch, err := ParseClientHello(body)
 	if err != nil {
@@ -145,9 +145,9 @@ func TestParseServerHello(t *testing.T) {
 		0x03, 0x03, // TLS 1.2
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // random (32 bytes)
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0x00,                   // session ID length = 0
-		0xC0, 0x2F,             // selected cipher suite
-		0x00,                   // compression = null
+		0x00,       // session ID length = 0
+		0xC0, 0x2F, // selected cipher suite
+		0x00, // compression = null
 		// no extensions
 	}
 	sh, err := ParseServerHello(body)
@@ -232,7 +232,7 @@ func TestALPN(t *testing.T) {
 	// Build ALPN extension data manually: list_len(2) + proto_len(1) + proto("h2") + proto_len(1) + proto("http/1.1")
 	data := []byte{
 		0x00, 0x0C, // list length = 12
-		0x02, 'h', '2',              // h2
+		0x02, 'h', '2', // h2
 		0x08, 'h', 't', 't', 'p', '/', '1', '.', '1', // http/1.1
 	}
 	exts := []Extension{{Type: ExtTypeALPN, Data: data}}
@@ -294,10 +294,10 @@ func TestFindExtension(t *testing.T) {
 
 func TestTLSRecordRoundTrip(t *testing.T) {
 	layer := NewTLS()
-	layer.Set("content_type", uint8(ContentTypeApplication))
-	layer.Set("version", uint16(VersionTLS12))
+	_ = layer.Set("content_type", uint8(ContentTypeApplication))
+	_ = layer.Set("version", uint16(VersionTLS12))
 	fragment := []byte("hello tls")
-	layer.Set("fragment", fragment)
+	_ = layer.Set("fragment", fragment)
 
 	data, err := layer.SerializeFields()
 	if err != nil {

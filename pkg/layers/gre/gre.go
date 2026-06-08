@@ -67,32 +67,32 @@ func NewGRELayer() *packet.Layer {
 
 // ProtocolType sets the ProtocolType and returns the builder.
 func (g *GRE) ProtocolType(pt uint16) *GRE {
-	g.Layer.Set("proto", pt)
+	_ = g.Set("proto", pt)
 	return g
 }
 
 // Key sets the Key field and enables the K flag, returning the builder.
 func (g *GRE) Key(k uint32) *GRE {
-	g.Layer.Set("key", k)
-	flags, _ := g.Layer.Get("flagsver")
-	g.Layer.Set("flagsver", flags.(uint16)|FlagK)
+	_ = g.Set("key", k)
+	flags, _ := g.Get("flagsver")
+	_ = g.Set("flagsver", flags.(uint16)|FlagK)
 	return g
 }
 
 // Seq sets the Sequence Number and enables the S flag, returning the builder.
 func (g *GRE) Seq(s uint32) *GRE {
-	g.Layer.Set("seq", s)
-	flags, _ := g.Layer.Get("flagsver")
-	g.Layer.Set("flagsver", flags.(uint16)|FlagS)
+	_ = g.Set("seq", s)
+	flags, _ := g.Get("flagsver")
+	_ = g.Set("flagsver", flags.(uint16)|FlagS)
 	return g
 }
 
 // SetChecksum sets the Checksum and enables the C flag, returning the builder.
 func (g *GRE) SetChecksum(csum uint16) *GRE {
-	g.Layer.Set("chksum", csum)
-	g.Layer.Set("reserved1", uint16(0))
-	flags, _ := g.Layer.Get("flagsver")
-	g.Layer.Set("flagsver", flags.(uint16)|FlagC)
+	_ = g.Set("chksum", csum)
+	_ = g.Set("reserved1", uint16(0))
+	flags, _ := g.Get("flagsver")
+	_ = g.Set("flagsver", flags.(uint16)|FlagC)
 	return g
 }
 

@@ -49,13 +49,13 @@ func main() {
 
 	// 构造 TCP 选项
 	opts := []layers.TCPOption{
-		layers.TCPOptMSSVal(1460),             // MSS = 1460
-		layers.TCPOptNOPVal(),                 // NOP (padding)
-		layers.TCPOptWScaleVal(7),             // Window Scale = 7 (multiply by 128)
-		layers.TCPOptNOPVal(),                 // NOP
-		layers.TCPOptNOPVal(),                 // NOP
-		layers.TCPOptTimestampVal(12345, 0),   // Timestamps: TSval=12345, TSecr=0
-		layers.TCPOptSACKPermVal(),            // SACK Permitted
+		layers.TCPOptMSSVal(1460),           // MSS = 1460
+		layers.TCPOptNOPVal(),               // NOP (padding)
+		layers.TCPOptWScaleVal(7),           // Window Scale = 7 (multiply by 128)
+		layers.TCPOptNOPVal(),               // NOP
+		layers.TCPOptNOPVal(),               // NOP
+		layers.TCPOptTimestampVal(12345, 0), // Timestamps: TSval=12345, TSecr=0
+		layers.TCPOptSACKPermVal(),          // SACK Permitted
 	}
 
 	fmt.Println("构造的 TCP 选项:")
@@ -70,14 +70,14 @@ func main() {
 
 	// 构造 SYN 包
 	ip := layers.NewIP()
-	ip.Set("src", srcIP.String())
-	ip.Set("dst", *dst)
-	ip.Set("proto", layers.IPProtoTCP)
+	_ = ip.Set("src", srcIP.String())
+	_ = ip.Set("dst", *dst)
+	_ = ip.Set("proto", layers.IPProtoTCP)
 
 	tcp := layers.NewTCPWith(54321, uint16(*port), layers.TCPSyn)
-	tcp.Set("seq", uint32(1000))
-	tcp.Set("win", uint16(65535))
-	tcp.Set("options", opts)
+	_ = tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("win", uint16(65535))
+	_ = tcp.Set("options", opts)
 
 	pkt := packet.NewFrom(ip, tcp)
 
@@ -131,9 +131,9 @@ func main() {
 	fmt.Println("\n--- 纯解析演示 ---")
 	rawOpts := []byte{
 		0x02, 0x04, 0x05, 0xb4, // MSS 1460
-		0x01,                   // NOP
-		0x03, 0x03, 0x07,      // WScale 7
-		0x04, 0x02,            // SACK Permitted
+		0x01,             // NOP
+		0x03, 0x03, 0x07, // WScale 7
+		0x04, 0x02, // SACK Permitted
 	}
 	parsed := layers.ParseTCPOptions(rawOpts)
 	fmt.Printf("解析 %d 字节原始选项:\n", len(rawOpts))

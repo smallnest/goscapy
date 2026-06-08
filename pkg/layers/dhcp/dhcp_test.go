@@ -33,18 +33,18 @@ func TestNewDHCPDefaults(t *testing.T) {
 
 func TestDHCPSerializeHeader(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("op", uint8(BOOTREQUEST))
-	layer.Set("htype", uint8(1))
-	layer.Set("hlen", uint8(6))
-	layer.Set("hops", uint8(0))
-	layer.Set("xid", uint32(0x12345678))
-	layer.Set("secs", uint16(0))
-	layer.Set("flags", uint16(0x8000))
-	layer.Set("ciaddr", net.IPv4zero)
-	layer.Set("yiaddr", net.IPv4zero)
-	layer.Set("siaddr", net.IPv4zero)
-	layer.Set("giaddr", net.IPv4zero)
-	layer.Set("options", []byte{OptEnd})
+	_ = layer.Set("op", uint8(BOOTREQUEST))
+	_ = layer.Set("htype", uint8(1))
+	_ = layer.Set("hlen", uint8(6))
+	_ = layer.Set("hops", uint8(0))
+	_ = layer.Set("xid", uint32(0x12345678))
+	_ = layer.Set("secs", uint16(0))
+	_ = layer.Set("flags", uint16(0x8000))
+	_ = layer.Set("ciaddr", net.IPv4zero)
+	_ = layer.Set("yiaddr", net.IPv4zero)
+	_ = layer.Set("siaddr", net.IPv4zero)
+	_ = layer.Set("giaddr", net.IPv4zero)
+	_ = layer.Set("options", []byte{OptEnd})
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -87,9 +87,9 @@ func TestDHCPSerializeHeader(t *testing.T) {
 
 func TestDHCPParseHeader(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("xid", uint32(0x12345678))
-	layer.Set("flags", uint16(0x8000))
-	layer.Set("options", []byte{OptEnd})
+	_ = layer.Set("xid", uint32(0x12345678))
+	_ = layer.Set("flags", uint16(0x8000))
+	_ = layer.Set("options", []byte{OptEnd})
 
 	raw, _ := layer.SerializeFields()
 
@@ -159,14 +159,14 @@ func TestDHCPBuildOptions(t *testing.T) {
 
 func TestDHCPDiscover(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("xid", uint32(0x12345678))
-	layer.Set("flags", uint16(0x8000))
+	_ = layer.Set("xid", uint32(0x12345678))
+	_ = layer.Set("flags", uint16(0x8000))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPDISCOVER),
 		NewParamListOption([]uint8{1, 3, 6, 15}),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -177,8 +177,8 @@ func TestDHCPDiscover(t *testing.T) {
 	// Fixed header (240 bytes) + options
 	expected := make([]byte, 240)
 	expected[0] = BOOTREQUEST // op
-	expected[1] = 1            // htype
-	expected[2] = 6            // hlen
+	expected[1] = 1           // htype
+	expected[2] = 6           // hlen
 	binary.BigEndian.PutUint32(expected[4:8], 0x12345678)
 	binary.BigEndian.PutUint16(expected[10:12], 0x8000)
 	binary.BigEndian.PutUint32(expected[236:240], MagicCookie)
@@ -192,10 +192,10 @@ func TestDHCPDiscover(t *testing.T) {
 
 func TestDHCPOffer(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("op", uint8(BOOTREPLY))
-	layer.Set("xid", uint32(0x12345678))
-	layer.Set("yiaddr", net.ParseIP("192.168.1.100"))
-	layer.Set("siaddr", net.ParseIP("192.168.1.1"))
+	_ = layer.Set("op", uint8(BOOTREPLY))
+	_ = layer.Set("xid", uint32(0x12345678))
+	_ = layer.Set("yiaddr", net.ParseIP("192.168.1.100"))
+	_ = layer.Set("siaddr", net.ParseIP("192.168.1.1"))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPOFFER),
@@ -205,7 +205,7 @@ func TestDHCPOffer(t *testing.T) {
 		NewRouterOption([]string{"192.168.1.1"}),
 		NewDNSOption([]string{"8.8.8.8"}),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -246,15 +246,15 @@ func TestDHCPOffer(t *testing.T) {
 
 func TestDHCPRequest(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("xid", uint32(0xDEADBEEF))
-	layer.Set("flags", uint16(0x8000))
+	_ = layer.Set("xid", uint32(0xDEADBEEF))
+	_ = layer.Set("flags", uint16(0x8000))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPREQUEST),
 		NewRequestedIPOption("192.168.1.100"),
 		NewServerIDOption("192.168.1.1"),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -283,10 +283,10 @@ func TestDHCPRequest(t *testing.T) {
 
 func TestDHCPAck(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("op", uint8(BOOTREPLY))
-	layer.Set("xid", uint32(0x12345678))
-	layer.Set("yiaddr", net.ParseIP("192.168.1.100"))
-	layer.Set("siaddr", net.ParseIP("192.168.1.1"))
+	_ = layer.Set("op", uint8(BOOTREPLY))
+	_ = layer.Set("xid", uint32(0x12345678))
+	_ = layer.Set("yiaddr", net.ParseIP("192.168.1.100"))
+	_ = layer.Set("siaddr", net.ParseIP("192.168.1.1"))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPACK),
@@ -296,7 +296,7 @@ func TestDHCPAck(t *testing.T) {
 		NewRouterOption([]string{"192.168.1.1"}),
 		NewDNSOption([]string{"8.8.8.8", "8.8.4.4"}),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -331,12 +331,12 @@ func TestDHCPAck(t *testing.T) {
 
 func TestDHCPRoundTrip(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("op", uint8(BOOTREPLY))
-	layer.Set("xid", uint32(0xCAFEBABE))
-	layer.Set("flags", uint16(0x8000))
-	layer.Set("yiaddr", net.ParseIP("10.0.0.100"))
-	layer.Set("siaddr", net.ParseIP("10.0.0.1"))
-	layer.Set("giaddr", net.ParseIP("10.0.0.254"))
+	_ = layer.Set("op", uint8(BOOTREPLY))
+	_ = layer.Set("xid", uint32(0xCAFEBABE))
+	_ = layer.Set("flags", uint16(0x8000))
+	_ = layer.Set("yiaddr", net.ParseIP("10.0.0.100"))
+	_ = layer.Set("siaddr", net.ParseIP("10.0.0.1"))
+	_ = layer.Set("giaddr", net.ParseIP("10.0.0.254"))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPOFFER),
@@ -350,7 +350,7 @@ func TestDHCPRoundTrip(t *testing.T) {
 		NewRenewalOption(1800),
 		NewRebindingOption(3150),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	raw, err := layer.SerializeFields()
 	if err != nil {
@@ -420,8 +420,8 @@ func TestDHCPRoundTrip(t *testing.T) {
 
 	// Verify layer can be built into a full packet.
 	layer3 := NewDHCP()
-	layer3.Set("xid", uint32(0xABCD))
-	layer3.Set("options", []byte{OptEnd})
+	_ = layer3.Set("xid", uint32(0xABCD))
+	_ = layer3.Set("options", []byte{OptEnd})
 	pkt := packet.NewFrom(layer3)
 	raw3, err := pkt.Build()
 	if err != nil {
@@ -553,10 +553,10 @@ func TestConvenienceOptionConstructors(t *testing.T) {
 func TestDHCPParseWithOptions(t *testing.T) {
 	// Build a full DHCPOFFER with options.
 	layer := NewDHCP()
-	layer.Set("op", uint8(BOOTREPLY))
-	layer.Set("xid", uint32(0xAABBCCDD))
-	layer.Set("yiaddr", net.ParseIP("172.16.0.50"))
-	layer.Set("siaddr", net.ParseIP("172.16.0.1"))
+	_ = layer.Set("op", uint8(BOOTREPLY))
+	_ = layer.Set("xid", uint32(0xAABBCCDD))
+	_ = layer.Set("yiaddr", net.ParseIP("172.16.0.50"))
+	_ = layer.Set("siaddr", net.ParseIP("172.16.0.1"))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPOFFER),
@@ -566,7 +566,7 @@ func TestDHCPParseWithOptions(t *testing.T) {
 		NewRouterOption([]string{"172.16.0.1"}),
 		NewDNSOption([]string{"172.16.0.53"}),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	raw, _ := layer.SerializeFields()
 
@@ -644,14 +644,14 @@ func TestDHCPEmptyOptionsAutoEnd(t *testing.T) {
 
 func TestDHCPRelease(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("xid", uint32(0x11112222))
-	layer.Set("ciaddr", net.ParseIP("192.168.1.100"))
+	_ = layer.Set("xid", uint32(0x11112222))
+	_ = layer.Set("ciaddr", net.ParseIP("192.168.1.100"))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPRELEASE),
 		NewServerIDOption("192.168.1.1"),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -679,13 +679,13 @@ func TestDHCPRelease(t *testing.T) {
 
 func TestDHCPInform(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("xid", uint32(0x99990000))
-	layer.Set("ciaddr", net.ParseIP("10.0.0.50"))
+	_ = layer.Set("xid", uint32(0x99990000))
+	_ = layer.Set("ciaddr", net.ParseIP("10.0.0.50"))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPINFORM),
 	})
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -712,7 +712,7 @@ func TestDHCPChaddr(t *testing.T) {
 
 	// Set a 6-byte MAC as chaddr (should be right-padded to 16 bytes).
 	mac := []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
-	layer.Set("chaddr", mac)
+	_ = layer.Set("chaddr", mac)
 
 	raw, err := layer.SerializeFields()
 	if err != nil {
@@ -748,8 +748,8 @@ func TestDHCPChaddr(t *testing.T) {
 
 func TestDHCPSnameFile(t *testing.T) {
 	layer := NewDHCP()
-	layer.Set("sname", []byte("myserver"))
-	layer.Set("file", []byte("pxelinux.0"))
+	_ = layer.Set("sname", []byte("myserver"))
+	_ = layer.Set("file", []byte("pxelinux.0"))
 
 	raw, err := layer.SerializeFields()
 	if err != nil {
@@ -780,14 +780,14 @@ func TestDHCPOverUDPOverIPOverEther(t *testing.T) {
 	// Full stack test: Ether/IP/UDP/DHCP with Raw options payload.
 	// This tests that the DHCP layer integrates with the full packet pipeline.
 	dhcp := NewDHCP()
-	dhcp.Set("xid", uint32(0x12345678))
-	dhcp.Set("flags", uint16(0x8000))
+	_ = dhcp.Set("xid", uint32(0x12345678))
+	_ = dhcp.Set("flags", uint16(0x8000))
 
 	opts := BuildDHCPOptions([]fields.TLVOption{
 		NewMessageTypeOption(DHCPDISCOVER),
 		NewParamListOption([]uint8{1, 3, 6, 15}),
 	})
-	dhcp.Set("options", opts)
+	_ = dhcp.Set("options", opts)
 
 	// We use Raw layer to carry DHCP bytes as UDP payload.
 	// This simulates how DHCP would work in real packet building.
@@ -799,7 +799,7 @@ func TestDHCPOverUDPOverIPOverEther(t *testing.T) {
 	raw := packet.NewLayer("Raw", []fields.Field{
 		fields.NewStrField("load", ""),
 	})
-	raw.Set("load", dhcpBytes)
+	_ = raw.Set("load", dhcpBytes)
 
 	eth := packet.NewLayer("Ethernet", []fields.Field{
 		fields.NewMACField("dst", net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}),
@@ -818,8 +818,8 @@ func TestDHCPOverUDPOverIPOverEther(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	ip.Set("src", "192.168.1.10")
-	ip.Set("dst", "255.255.255.255")
+	_ = ip.Set("src", "192.168.1.10")
+	_ = ip.Set("dst", "255.255.255.255")
 
 	udp := packet.NewLayer("UDP", []fields.Field{
 		fields.NewShortField("sport", 0),
@@ -827,8 +827,8 @@ func TestDHCPOverUDPOverIPOverEther(t *testing.T) {
 		fields.NewShortField("len", 8),
 		fields.NewShortField("chksum", 0),
 	})
-	udp.Set("sport", uint16(68))
-	udp.Set("dport", uint16(67))
+	_ = udp.Set("sport", uint16(68))
+	_ = udp.Set("dport", uint16(67))
 
 	pkt := packet.NewFrom(eth, ip, udp, raw)
 	built, err := pkt.Build()

@@ -121,10 +121,10 @@ func TestNewDNSDefaults(t *testing.T) {
 
 func TestDNSSerializeHeader(t *testing.T) {
 	layer := NewDNS()
-	layer.Set("id", uint16(0x1234))
-	layer.Set("flags", uint16(0x0100))
-	layer.Set("qdcount", uint16(1))
-	layer.Set("data", []byte{})
+	_ = layer.Set("id", uint16(0x1234))
+	_ = layer.Set("flags", uint16(0x0100))
+	_ = layer.Set("qdcount", uint16(1))
+	_ = layer.Set("data", []byte{})
 
 	got, err := layer.SerializeFields()
 	if err != nil {
@@ -148,14 +148,14 @@ func TestDNSSerializeHeader(t *testing.T) {
 }
 
 func TestDNSParse(t *testing.T) {
-		raw := []byte{
-			0x12, 0x34, // ID
-			0x81, 0x80, // Flags: QR=1, RD=1, RA=1
-			0x00, 0x01, // QDCount = 1
-			0x00, 0x01, // ANCount = 1
-			0x00, 0x00, // NSCount
-			0x00, 0x00, // ARCount
-		}
+	raw := []byte{
+		0x12, 0x34, // ID
+		0x81, 0x80, // Flags: QR=1, RD=1, RA=1
+		0x00, 0x01, // QDCount = 1
+		0x00, 0x01, // ANCount = 1
+		0x00, 0x00, // NSCount
+		0x00, 0x00, // ARCount
+	}
 	layer := NewDNS()
 	consumed, err := layer.ParseFields(raw)
 	if err != nil {
@@ -181,9 +181,9 @@ func TestDNSQuery(t *testing.T) {
 	body := BuildDNSMessage([]DNSQuestion{q}, nil, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("id", uint16(0x1234))
-	layer.Set("qdcount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("id", uint16(0x1234))
+	_ = layer.Set("qdcount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, err := layer.SerializeFields()
 	if err != nil {
@@ -207,9 +207,9 @@ func TestDNSQueryParse(t *testing.T) {
 	body := BuildDNSMessage([]DNSQuestion{q}, nil, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("id", uint16(0x1234))
-	layer.Set("qdcount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("id", uint16(0x1234))
+	_ = layer.Set("qdcount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 
@@ -255,11 +255,11 @@ func TestDNSResponse(t *testing.T) {
 	body := BuildDNSMessage([]DNSQuestion{q}, []DNSRR{rr}, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("id", uint16(0x1234))
-	layer.Set("flags", uint16(0x8180)) // QR=1, RD=1, RA=1
-	layer.Set("qdcount", uint16(1))
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("id", uint16(0x1234))
+	_ = layer.Set("flags", uint16(0x8180)) // QR=1, RD=1, RA=1
+	_ = layer.Set("qdcount", uint16(1))
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, err := layer.SerializeFields()
 	if err != nil {
@@ -306,12 +306,12 @@ func TestDNSAAAARecord(t *testing.T) {
 	body := BuildDNSMessage(nil, []DNSRR{rr}, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 	layer2 := NewDNS()
-	layer2.ParseFields(raw)
+	_, _ = layer2.ParseFields(raw)
 
 	answers, _ := GetAnswers(layer2)
 	if len(answers) != 1 {
@@ -337,13 +337,13 @@ func TestDNSCNAME(t *testing.T) {
 	body := BuildDNSMessage([]DNSQuestion{q}, []DNSRR{rr}, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("qdcount", uint16(1))
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("qdcount", uint16(1))
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 	layer2 := NewDNS()
-	layer2.ParseFields(raw)
+	_, _ = layer2.ParseFields(raw)
 
 	answers, _ := GetAnswers(layer2)
 	if len(answers) != 1 {
@@ -371,14 +371,14 @@ func TestDNSMX(t *testing.T) {
 	body := BuildDNSMessage(nil, []DNSRR{rr}, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 
 	// Parse back.
 	layer2 := NewDNS()
-	layer2.ParseFields(raw)
+	_, _ = layer2.ParseFields(raw)
 	answers, _ := GetAnswers(layer2)
 	if len(answers) != 1 {
 		t.Fatal("no answer")
@@ -406,12 +406,12 @@ func TestDNSSOA(t *testing.T) {
 	body := BuildDNSMessage(nil, []DNSRR{rr}, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 	layer2 := NewDNS()
-	layer2.ParseFields(raw)
+	_, _ = layer2.ParseFields(raw)
 
 	answers, _ := GetAnswers(layer2)
 	if len(answers) != 1 || answers[0].Type != QtypeSOA {
@@ -425,12 +425,12 @@ func TestEDNS0(t *testing.T) {
 	body := BuildDNSMessage(nil, nil, nil, []DNSRR{*opt})
 
 	layer := NewDNS()
-	layer.Set("arcount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("arcount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 	layer2 := NewDNS()
-	layer2.ParseFields(raw)
+	_, _ = layer2.ParseFields(raw)
 
 	// The OPT record should be in the AR section.
 	_, _, _, additionals, err := GetAllSections(layer2)
@@ -464,7 +464,6 @@ func GetAllSections(layer *packet.Layer) (questions []DNSQuestion, answers, auth
 		if err != nil {
 			return
 		}
-		offset = len(questions) // approximate — but since we only use the offset to skip, we need to re-parse
 	}
 	// Re-parse to get correct offset.
 	_, qc, _ := ParseQuestions(b, 0, int(qd.(uint16)), -12)
@@ -515,12 +514,12 @@ func TestTXTRecord(t *testing.T) {
 
 	body := BuildDNSMessage(nil, []DNSRR{rr}, nil, nil)
 	layer := NewDNS()
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 	layer2 := NewDNS()
-	layer2.ParseFields(raw)
+	_, _ = layer2.ParseFields(raw)
 
 	answers, _ := GetAnswers(layer2)
 	if len(answers) != 1 || answers[0].Type != QtypeTXT {
@@ -544,11 +543,11 @@ func TestDNSRoundTrip(t *testing.T) {
 	body := BuildDNSMessage([]DNSQuestion{q1, q2}, []DNSRR{ans}, nil, nil)
 
 	layer := NewDNS()
-	layer.Set("id", uint16(0xABCD))
-	layer.Set("flags", uint16(0x8180))
-	layer.Set("qdcount", uint16(2))
-	layer.Set("ancount", uint16(1))
-	layer.Set("data", body)
+	_ = layer.Set("id", uint16(0xABCD))
+	_ = layer.Set("flags", uint16(0x8180))
+	_ = layer.Set("qdcount", uint16(2))
+	_ = layer.Set("ancount", uint16(1))
+	_ = layer.Set("data", body)
 
 	raw, _ := layer.SerializeFields()
 
@@ -581,7 +580,7 @@ func TestDNSRoundTrip(t *testing.T) {
 
 func TestDNSFlags(t *testing.T) {
 	layer := NewDNS()
-	layer.Set("flags", uint16(0x0100)) // RD=1
+	_ = layer.Set("flags", uint16(0x0100)) // RD=1
 
 	flags, _ := layer.Get("flags")
 	if flags.(uint16)&0x0100 == 0 {
@@ -589,7 +588,7 @@ func TestDNSFlags(t *testing.T) {
 	}
 
 	// Set QR bit.
-	layer.Set("flags", uint16(0x8180))
+	_ = layer.Set("flags", uint16(0x8180))
 	flags, _ = layer.Get("flags")
 	if flags.(uint16)&0x8000 == 0 {
 		t.Error("QR not set")
@@ -604,22 +603,22 @@ func TestParseDNSWithCompressedResponse(t *testing.T) {
 	// Build answer with pointer to qname in question section.
 	msg := make([]byte, 12+len(qRaw)+16)
 	// Header
-	msg[0], msg[1] = 0x12, 0x34  // ID
-	msg[2], msg[3] = 0x81, 0x80  // Flags
-	msg[4], msg[5] = 0x00, 0x01  // QDCount
-	msg[6], msg[7] = 0x00, 0x01  // ANCount
-	msg[8], msg[9] = 0x00, 0x00  // NSCount
+	msg[0], msg[1] = 0x12, 0x34   // ID
+	msg[2], msg[3] = 0x81, 0x80   // Flags
+	msg[4], msg[5] = 0x00, 0x01   // QDCount
+	msg[6], msg[7] = 0x00, 0x01   // ANCount
+	msg[8], msg[9] = 0x00, 0x00   // NSCount
 	msg[10], msg[11] = 0x00, 0x00 // ARCount
 	// Question
 	copy(msg[12:], qRaw)
 	// Answer with compression pointer to 0x0C (offset of question name)
 	off := 12 + len(qRaw)
-	msg[off], msg[off+1] = 0xC0, 0x0C // pointer to question name
-	msg[off+2], msg[off+3] = 0x00, 0x01  // TYPE A
-	msg[off+4], msg[off+5] = 0x00, 0x01  // CLASS IN
+	msg[off], msg[off+1] = 0xC0, 0x0C                                       // pointer to question name
+	msg[off+2], msg[off+3] = 0x00, 0x01                                     // TYPE A
+	msg[off+4], msg[off+5] = 0x00, 0x01                                     // CLASS IN
 	msg[off+6], msg[off+7], msg[off+8], msg[off+9] = 0x00, 0x00, 0x01, 0x2C // TTL=300
-	msg[off+10], msg[off+11] = 0x00, 0x04 // RDLENGTH=4
-	msg[off+12], msg[off+13], msg[off+14], msg[off+15] = 1, 2, 3, 4 // RDATA
+	msg[off+10], msg[off+11] = 0x00, 0x04                                   // RDLENGTH=4
+	msg[off+12], msg[off+13], msg[off+14], msg[off+15] = 1, 2, 3, 4         // RDATA
 
 	layer := NewDNS()
 	_, err := layer.ParseFields(msg)

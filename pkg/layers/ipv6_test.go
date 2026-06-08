@@ -45,10 +45,10 @@ func TestIPv6Serialize(t *testing.T) {
 	}
 
 	ipv6 := NewIPv6()
-	ipv6.Set("nh", uint8(58))
-	ipv6.Set("src", "::1")
-	ipv6.Set("dst", "ff02::1")
-	ipv6.Set("plen", uint16(8))
+	_ = ipv6.Set("nh", uint8(58))
+	_ = ipv6.Set("src", "::1")
+	_ = ipv6.Set("dst", "ff02::1")
+	_ = ipv6.Set("plen", uint16(8))
 
 	got, err := ipv6.SerializeFields()
 	if err != nil {
@@ -120,9 +120,9 @@ func TestIPv6ParseFields(t *testing.T) {
 
 func TestIPv6BuildHook(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("nh", uint8(58))
-	ipv6.Set("src", "::1")
-	ipv6.Set("dst", "ff02::1")
+	_ = ipv6.Set("nh", uint8(58))
+	_ = ipv6.Set("src", "::1")
+	_ = ipv6.Set("dst", "ff02::1")
 
 	upper := []byte{0x08, 0x00, 0x00, 0x00, 0x12, 0x34, 0x00, 0x01} // 8 bytes ICMPv6
 	pkt := packet.NewFrom(ipv6)
@@ -172,19 +172,9 @@ func TestIPv6PseudoHeaderChecksumOddLength(t *testing.T) {
 	// Odd-length payload (3 bytes)
 	data := []byte{0x01, 0x02, 0x03}
 	csum := IPv6PseudoHeaderChecksum(srcIP, dstIP, 17, data)
-	if csum == 0 && !allZero(data) {
-		// checksum of 0 is valid for UDP (means no checksum), but unlikely for non-zero data
-	}
+	// checksum of 0 is valid for UDP (means no checksum), but unlikely for non-zero data;
+	// just verify it computed without panicking.
 	_ = csum
-}
-
-func allZero(b []byte) bool {
-	for _, v := range b {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
 }
 
 // ---- Extension header tests ----
@@ -192,9 +182,9 @@ func allZero(b []byte) bool {
 func TestIPv6ExtHdrSerialize(t *testing.T) {
 	// Hop-by-Hop header with 8 bytes of options.
 	hdr := NewIPv6HopByHop()
-	hdr.Set("nh", uint8(58))  // next = ICMPv6
-	hdr.Set("len", uint8(0))  // 0 means (0+1)*8 = 8 bytes total, 6 bytes of options
-	hdr.Set("options", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
+	_ = hdr.Set("nh", uint8(58)) // next = ICMPv6
+	_ = hdr.Set("len", uint8(0)) // 0 means (0+1)*8 = 8 bytes total, 6 bytes of options
+	_ = hdr.Set("options", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 
 	got, err := hdr.SerializeFields()
 	if err != nil {
@@ -244,7 +234,7 @@ func TestIPv6ExtHdrParse(t *testing.T) {
 
 func TestExtHdrSizeFn(t *testing.T) {
 	hdr := NewIPv6HopByHop()
-	hdr.Set("len", uint8(2)) // (2+1)*8 = 24 bytes
+	_ = hdr.Set("len", uint8(2)) // (2+1)*8 = 24 bytes
 
 	size := extHdrSizeFn(hdr)
 	if size != 24 {
@@ -254,10 +244,10 @@ func TestExtHdrSizeFn(t *testing.T) {
 
 func TestIPv6FragmentSerialize(t *testing.T) {
 	frag := NewIPv6Fragment()
-	frag.Set("nh", uint8(58))        // next = ICMPv6
-	frag.Set("res", uint8(0))
-	frag.Set("frag", uint16(0x0001)) // offset=0, M=1
-	frag.Set("id", uint32(0x12345678))
+	_ = frag.Set("nh", uint8(58)) // next = ICMPv6
+	_ = frag.Set("res", uint8(0))
+	_ = frag.Set("frag", uint16(0x0001)) // offset=0, M=1
+	_ = frag.Set("id", uint32(0x12345678))
 
 	got, err := frag.SerializeFields()
 	if err != nil {
@@ -274,9 +264,9 @@ func TestIPv6FragmentSerialize(t *testing.T) {
 
 func TestIPv6FragmentParse(t *testing.T) {
 	raw := []byte{
-		0x3A,             // nh = 58
-		0x00,             // res = 0
-		0x00, 0x01,       // offset=0, M=1
+		0x3A,       // nh = 58
+		0x00,       // res = 0
+		0x00, 0x01, // offset=0, M=1
 		0x12, 0x34, 0x56, 0x78, // id
 	}
 
@@ -340,16 +330,16 @@ func TestIPv6ExtHdrChainParse(t *testing.T) {
 
 	// Hop-by-Hop header (8 bytes: nh=44, len=0, 6 options bytes)
 	raw = append(raw,
-		0x2C,       // nh = 44 (Fragment)
-		0x00,       // len = 0 => 8 bytes total
+		0x2C,                               // nh = 44 (Fragment)
+		0x00,                               // len = 0 => 8 bytes total
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 6 padding bytes
 	)
 
 	// Fragment header (8 bytes)
 	raw = append(raw,
-		0x3A,             // nh = 58 (ICMPv6)
-		0x00,             // res
-		0x00, 0x00,       // offset=0, M=0
+		0x3A,       // nh = 58 (ICMPv6)
+		0x00,       // res
+		0x00, 0x00, // offset=0, M=0
 		0x00, 0x00, 0x00, 0x01, // id=1
 	)
 

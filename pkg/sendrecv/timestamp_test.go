@@ -19,7 +19,7 @@ func TestEnableTimestampingSoftware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.EnableTimestamping(false); err != nil {
 		t.Fatalf("EnableTimestamping(false): %v", err)
@@ -35,7 +35,7 @@ func TestEnableTimestampingHardware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Hardware timestamping may not be supported by the NIC but the
 	// setsockopt should still succeed — the kernel degrades gracefully.
@@ -163,15 +163,14 @@ func TestParseTimestampSO_TIMESTAMPING_Hardware(t *testing.T) {
 }
 
 func TestParseTimestampEmpty(t *testing.T) {
-	ts, ok := ParseTimestamp(nil)
+	_, ok := ParseTimestamp(nil)
 	if ok {
 		t.Error("expected false for nil oob")
 	}
-	ts, ok = ParseTimestamp([]byte{})
+	_, ok = ParseTimestamp([]byte{})
 	if ok {
 		t.Error("expected false for empty oob")
 	}
-	_ = ts
 }
 
 // buildCmsg constructs a single socket control message for testing.
@@ -191,9 +190,9 @@ func buildCmsg(t *testing.T, level, typ int32, data []byte) []byte {
 	//   macOS: {Len uint32, Level int32, Type int32}   = 12 bytes
 	//   Linux: {Len uint64, Level int32, Type int32}   = 16 bytes (with padding)
 	if hdrSize == 12 {
-		binary.NativeEndian.PutUint32(buf[0:4], uint32(total))  // cmsg_len
-		binary.NativeEndian.PutUint32(buf[4:8], uint32(level))  // cmsg_level
-		binary.NativeEndian.PutUint32(buf[8:12], uint32(typ))   // cmsg_type
+		binary.NativeEndian.PutUint32(buf[0:4], uint32(total)) // cmsg_len
+		binary.NativeEndian.PutUint32(buf[4:8], uint32(level)) // cmsg_level
+		binary.NativeEndian.PutUint32(buf[8:12], uint32(typ))  // cmsg_type
 	} else {
 		binary.NativeEndian.PutUint64(buf[0:8], uint64(total))  // cmsg_len
 		binary.NativeEndian.PutUint32(buf[8:12], uint32(level)) // cmsg_level

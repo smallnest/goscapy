@@ -21,13 +21,13 @@ func (b *VXLANBuilder) Layer() *packet.Layer { return b.layer }
 
 // VNI sets the VXLAN Network Identifier (24 bits, 0-16777215).
 func (b *VXLANBuilder) VNI(vni uint32) *VXLANBuilder {
-	b.layer.Set("vni", vni&0xFFFFFF)
+	_ = b.layer.Set("vni", vni&0xFFFFFF)
 	return b
 }
 
 // Flags sets the VXLAN flags byte.
 func (b *VXLANBuilder) Flags(flags uint8) *VXLANBuilder {
-	b.layer.Set("flags", flags)
+	_ = b.layer.Set("flags", flags)
 	return b
 }
 
@@ -51,32 +51,32 @@ func (b *GREBuilder) Layer() *packet.Layer { return b.layer }
 
 // ProtocolType sets the GRE Protocol Type (e.g. 0x0800 for IP, 0x6558 for Ethernet).
 func (b *GREBuilder) ProtocolType(pt uint16) *GREBuilder {
-	b.layer.Set("proto", pt)
+	_ = b.layer.Set("proto", pt)
 	return b
 }
 
 // Key sets the GRE Key field and enables the K flag.
 func (b *GREBuilder) Key(k uint32) *GREBuilder {
-	b.layer.Set("key", k)
+	_ = b.layer.Set("key", k)
 	flags, _ := b.layer.Get("flagsver")
-	b.layer.Set("flagsver", flags.(uint16)|gre.FlagK)
+	_ = b.layer.Set("flagsver", flags.(uint16)|gre.FlagK)
 	return b
 }
 
 // Seq sets the GRE Sequence Number and enables the S flag.
 func (b *GREBuilder) Seq(s uint32) *GREBuilder {
-	b.layer.Set("seq", s)
+	_ = b.layer.Set("seq", s)
 	flags, _ := b.layer.Get("flagsver")
-	b.layer.Set("flagsver", flags.(uint16)|gre.FlagS)
+	_ = b.layer.Set("flagsver", flags.(uint16)|gre.FlagS)
 	return b
 }
 
 // SetChecksum sets the GRE Checksum and enables the C flag.
 func (b *GREBuilder) SetChecksum(csum uint16) *GREBuilder {
-	b.layer.Set("chksum", csum)
-	b.layer.Set("reserved1", uint16(0))
+	_ = b.layer.Set("chksum", csum)
+	_ = b.layer.Set("reserved1", uint16(0))
 	flags, _ := b.layer.Get("flagsver")
-	b.layer.Set("flagsver", flags.(uint16)|gre.FlagC)
+	_ = b.layer.Set("flagsver", flags.(uint16)|gre.FlagC)
 	return b
 }
 
@@ -105,13 +105,13 @@ func (b *ERSPANBuilder) FromERSPAN(e *erspan.ERSPAN) *ERSPANBuilder {
 		return b
 	}
 	// Set individual fields from serialized data
-	b.layer.Set("ver_vlan_hi", data[0])
-	b.layer.Set("vlan_lo_cos_bso_en", uint16(data[1])<<8|uint16(data[2]))
-	b.layer.Set("session_id_flags", data[3])
-	b.layer.Set("reserved", data[4])
+	_ = b.layer.Set("ver_vlan_hi", data[0])
+	_ = b.layer.Set("vlan_lo_cos_bso_en", uint16(data[1])<<8|uint16(data[2]))
+	_ = b.layer.Set("session_id_flags", data[3])
+	_ = b.layer.Set("reserved", data[4])
 	ts := uint32(data[5])<<24 | uint32(data[6])<<16 | uint32(data[7])<<8 | uint32(data[8])
-	b.layer.Set("timestamp", ts)
-	b.layer.Set("sgt_p_ft", uint16(data[9])<<8|uint16(data[10]))
-	b.layer.Set("offset_hw", uint16(data[11])<<8)
+	_ = b.layer.Set("timestamp", ts)
+	_ = b.layer.Set("sgt_p_ft", uint16(data[9])<<8|uint16(data[10]))
+	_ = b.layer.Set("offset_hw", uint16(data[11])<<8)
 	return b
 }

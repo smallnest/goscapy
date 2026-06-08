@@ -117,9 +117,9 @@ func TestOSPFChecksum(t *testing.T) {
 
 func TestOSPFSetGet(t *testing.T) {
 	layer := NewOSPF()
-	layer.Set("router_id", "1.1.1.1")
-	layer.Set("area_id", "0.0.0.0")
-	layer.Set("type", uint8(TypeDBD))
+	_ = layer.Set("router_id", "1.1.1.1")
+	_ = layer.Set("area_id", "0.0.0.0")
+	_ = layer.Set("type", uint8(TypeDBD))
 
 	routerID, _ := layer.Get("router_id")
 	if routerID == nil {

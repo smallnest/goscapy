@@ -45,11 +45,11 @@ type TracerouteResult struct {
 
 // Options configures traceroute behavior.
 type Options struct {
-	MaxTTL   int
-	Timeout  time.Duration
-	Probes   int // probes per hop
-	Port     uint16
-	Protocol Protocol
+	MaxTTL    int
+	Timeout   time.Duration
+	Probes    int // probes per hop
+	Port      uint16
+	Protocol  Protocol
 	Interface string
 	ResolveAS bool
 }
@@ -233,8 +233,8 @@ func (r *TracerouteResult) Graph() string {
 	buf.WriteString("digraph traceroute {\n")
 	buf.WriteString("  rankdir=TB;\n")
 	buf.WriteString("  node [shape=box];\n")
-	buf.WriteString(fmt.Sprintf("  src [label=\"Source\"];\n"))
-	buf.WriteString(fmt.Sprintf("  dst [label=\"%s (%s)\"];\n", r.Dst, r.DstIP))
+	buf.WriteString("  src [label=\"Source\"];\n")
+	fmt.Fprintf(&buf, "  dst [label=\"%s (%s)\"];\n", r.Dst, r.DstIP)
 
 	prev := "src"
 	for _, hop := range r.Hops {
@@ -273,36 +273,36 @@ func buildProbe(srcIP, dstIP net.IP, ttl int, pid uint16, probe int, opts Option
 
 func buildICMPProbe(srcIP, dstIP net.IP, ttl int, pid uint16, probe int) *packet.Packet {
 	ip := layers.NewIP()
-	ip.Set("src", srcIP)
-	ip.Set("dst", dstIP)
-	ip.Set("ttl", uint8(ttl))
+	_ = ip.Set("src", srcIP)
+	_ = ip.Set("dst", dstIP)
+	_ = ip.Set("ttl", uint8(ttl))
 	icmp := layers.NewICMPEcho(pid, uint16(ttl*1000+probe))
 	return ip.Over(icmp)
 }
 
 func buildTCPProbe(srcIP, dstIP net.IP, ttl int, pid uint16, probe int, opts Options) *packet.Packet {
 	ip := layers.NewIP()
-	ip.Set("src", srcIP)
-	ip.Set("dst", dstIP)
-	ip.Set("ttl", uint8(ttl))
+	_ = ip.Set("src", srcIP)
+	_ = ip.Set("dst", dstIP)
+	_ = ip.Set("ttl", uint8(ttl))
 	tcp := layers.NewTCP()
-	tcp.Set("sport", pid+uint16(probe))
-	tcp.Set("dport", opts.Port)
-	tcp.Set("flags", uint8(layers.TCPSyn))
+	_ = tcp.Set("sport", pid+uint16(probe))
+	_ = tcp.Set("dport", opts.Port)
+	_ = tcp.Set("flags", uint8(layers.TCPSyn))
 	return ip.Over(tcp)
 }
 
 func buildUDPProbe(srcIP, dstIP net.IP, ttl int, pid uint16, probe int, opts Options) *packet.Packet {
 	ip := layers.NewIP()
-	ip.Set("src", srcIP)
-	ip.Set("dst", dstIP)
-	ip.Set("ttl", uint8(ttl))
+	_ = ip.Set("src", srcIP)
+	_ = ip.Set("dst", dstIP)
+	_ = ip.Set("ttl", uint8(ttl))
 	udp := layers.NewUDP()
-	udp.Set("sport", pid+uint16(probe))
-	udp.Set("dport", opts.Port)
+	_ = udp.Set("sport", pid+uint16(probe))
+	_ = udp.Set("dport", opts.Port)
 	// Add a small payload so the packet isn't empty.
 	raw := layers.NewRaw()
-	raw.Set("load", []byte{0x00, 0x00, 0x00, 0x00})
+	_ = raw.Set("load", []byte{0x00, 0x00, 0x00, 0x00})
 	pkt := ip.Over(udp)
 	pkt.Push(raw)
 	return pkt

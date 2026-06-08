@@ -32,16 +32,16 @@ const (
 
 // Direction constants.
 const (
-	DirIngress  uint8 = 0 // Ingress (received)
-	DirEgress   uint8 = 1 // Egress (transmitted)
+	DirIngress uint8 = 0 // Ingress (received)
+	DirEgress  uint8 = 1 // Egress (transmitted)
 )
 
 // NewERSPAN creates an ERSPAN v3 layer with default values.
 func NewERSPAN() *packet.Layer {
 	return packet.NewLayer("ERSPAN", []fields.Field{
-		fields.NewByteField("ver_vlan_hi", 0x30), // ver=3 (upper 4 bits), vlan bits [11:8]=0
+		fields.NewByteField("ver_vlan_hi", 0x30),      // ver=3 (upper 4 bits), vlan bits [11:8]=0
 		fields.NewShortField("vlan_lo_cos_bso_en", 0), // vlan[7:0], cos, bso, en, t
-		fields.NewByteField("session_id_flags", 0),     // session_id (6b) | reserved
+		fields.NewByteField("session_id_flags", 0),    // session_id (6b) | reserved
 		fields.NewByteField("reserved", 0),
 		fields.NewIntField("timestamp", 0),   // 4-byte timestamp
 		fields.NewShortField("sgt_p_ft", 0),  // sgt(16b) | p(1b) | ft(2b) | offset_high

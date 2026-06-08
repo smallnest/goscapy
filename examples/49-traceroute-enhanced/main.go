@@ -2,7 +2,8 @@
 //
 // 运行: sudo go run main.go [选项] <目标>
 // 示例: sudo go run main.go 8.8.8.8
-//       sudo go run main.go -proto tcp google.com
+//
+//	sudo go run main.go -proto tcp google.com
 //
 // 需要 root 权限。
 package main

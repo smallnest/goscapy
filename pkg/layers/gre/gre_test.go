@@ -12,7 +12,7 @@ import (
 func TestNewGREDefaults(t *testing.T) {
 	g := NewGRE()
 
-	fv, _ := g.Layer.Get("flagsver")
+	fv, _ := g.Get("flagsver")
 	if fv.(uint16) != 0 {
 		t.Errorf("flagsver = %#x, want 0", fv)
 	}
@@ -44,7 +44,7 @@ func TestGREBuilder(t *testing.T) {
 func TestGRESerializeBase(t *testing.T) {
 	g := NewGRE().ProtocolType(0x0800)
 
-	got, err := g.Layer.SerializeFields()
+	got, err := g.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestGRESerializeBase(t *testing.T) {
 func TestGRESerializeWithKey(t *testing.T) {
 	g := NewGRE().ProtocolType(0x0800).Key(100)
 
-	got, err := g.Layer.SerializeFields()
+	got, err := g.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestGRESerializeWithKey(t *testing.T) {
 func TestGRESerializeWithSeq(t *testing.T) {
 	g := NewGRE().ProtocolType(0x0800).Seq(999)
 
-	got, err := g.Layer.SerializeFields()
+	got, err := g.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestGRESerializeWithSeq(t *testing.T) {
 func TestGRESerializeWithKeyAndSeq(t *testing.T) {
 	g := NewGRE().ProtocolType(0x0800).Key(100).Seq(42)
 
-	got, err := g.Layer.SerializeFields()
+	got, err := g.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestGRESerializeWithKeyAndSeq(t *testing.T) {
 func TestGRESerializeWithChecksum(t *testing.T) {
 	g := NewGRE().ProtocolType(0x0800).SetChecksum(0xABCD)
 
-	got, err := g.Layer.SerializeFields()
+	got, err := g.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestGREParseWithKeyAndSeq(t *testing.T) {
 func TestGRERoundTrip(t *testing.T) {
 	g := NewGRE().ProtocolType(0x6558).Key(0xDEADBEEF).Seq(0xCAFE)
 
-	raw, err := g.Layer.SerializeFields()
+	raw, err := g.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestGREProtocolType(t *testing.T) {
 	raw := []byte{0x00, 0x00, 0x65, 0x58}
 
 	layer := NewGRELayer()
-	layer.ParseFields(raw)
+	_, _ = layer.ParseFields(raw)
 	if GetProtocolType(layer) != ProtoEthernet {
 		t.Errorf("proto = %#x, want %#x", GetProtocolType(layer), ProtoEthernet)
 	}
@@ -240,8 +240,8 @@ func TestGREOverEtherIP(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	outerIP.Set("src", "10.0.0.1")
-	outerIP.Set("dst", "10.0.0.2")
+	_ = outerIP.Set("src", "10.0.0.1")
+	_ = outerIP.Set("dst", "10.0.0.2")
 
 	gre := NewGRE().ProtocolType(0x0800).Key(100)
 
@@ -257,13 +257,13 @@ func TestGREOverEtherIP(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	innerIP.Set("src", "192.168.1.1")
-	innerIP.Set("dst", "192.168.1.2")
+	_ = innerIP.Set("src", "192.168.1.1")
+	_ = innerIP.Set("dst", "192.168.1.2")
 
 	raw := packet.NewLayer("Raw", []fields.Field{
 		fields.NewStrField("load", ""),
 	})
-	raw.Set("load", []byte("test"))
+	_ = raw.Set("load", []byte("test"))
 
 	pkt := packet.NewFrom(outerIP, gre.Layer, innerIP, raw)
 	built, err := pkt.Build()

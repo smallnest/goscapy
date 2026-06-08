@@ -21,7 +21,7 @@ func (b *LLDPBuilder) Layer() *packet.Layer { return b.layer }
 
 // TLVData sets the raw TLV data bytes.
 func (b *LLDPBuilder) TLVData(data []byte) *LLDPBuilder {
-	b.layer.Set("tlv_data", data)
+	_ = b.layer.Set("tlv_data", data)
 	return b
 }
 
@@ -31,7 +31,7 @@ func (b *LLDPBuilder) LLDPDU(du *lldp.LLDPDU) *LLDPBuilder {
 	if err != nil {
 		return b
 	}
-	b.layer.Set("tlv_data", data)
+	_ = b.layer.Set("tlv_data", data)
 	return b
 }
 
@@ -49,19 +49,19 @@ func (b *OSPFBuilder) Layer() *packet.Layer { return b.layer }
 
 // RouterID sets the OSPF Router ID.
 func (b *OSPFBuilder) RouterID(ip string) *OSPFBuilder {
-	b.layer.Set("router_id", ip)
+	_ = b.layer.Set("router_id", ip)
 	return b
 }
 
 // AreaID sets the OSPF Area ID.
 func (b *OSPFBuilder) AreaID(ip string) *OSPFBuilder {
-	b.layer.Set("area_id", ip)
+	_ = b.layer.Set("area_id", ip)
 	return b
 }
 
 // Type sets the OSPF message type (Hello, DBD, LSR, LSU, LSAck).
 func (b *OSPFBuilder) Type(t uint8) *OSPFBuilder {
-	b.layer.Set("type", t)
+	_ = b.layer.Set("type", t)
 	return b
 }
 
@@ -85,7 +85,7 @@ func (b *BGPBuilder) Layer() *packet.Layer { return b.layer }
 
 // Type sets the BGP message type (OPEN, UPDATE, NOTIFICATION, KEEPALIVE).
 func (b *BGPBuilder) Type(t uint8) *BGPBuilder {
-	b.layer.Set("type", t)
+	_ = b.layer.Set("type", t)
 	return b
 }
 

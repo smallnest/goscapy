@@ -51,13 +51,13 @@ func main() {
 		DstMAC("00:aa:bb:cc:dd:ee").
 		SrcMAC("00:11:22:33:44:55").
 		Over(goscapy.NewIP().
-			SrcIP("10.0.0.1").                  // 隧道源端 IP
-			DstIP("10.0.0.2").                  // 隧道目标 IP
-			Proto(47)).                          // 协议号: GRE
+			SrcIP("10.0.0.1"). // 隧道源端 IP
+			DstIP("10.0.0.2"). // 隧道目标 IP
+			Proto(47)).        // 协议号: GRE
 		Over(goscapy.NewGRE().
-			ProtocolType(gre.ProtoIP).           // 内层协议: IPv4
-			Key(0x12345678).                     // GRE Key: 用于识别隧道
-			Seq(1))                              // 序列号: 用于排序
+			ProtocolType(gre.ProtoIP). // 内层协议: IPv4
+			Key(0x12345678).           // GRE Key: 用于识别隧道
+			Seq(1))                    // 序列号: 用于排序
 
 	greBytes, err := grePkt.Build()
 	if err != nil {
@@ -91,13 +91,13 @@ func main() {
 	}
 
 	greEtherBytes, err := goscapy.EtherIPGRE(
-		"00:11:22:33:44:55",     // 外层源 MAC
-		"00:aa:bb:cc:dd:ee",     // 外层目标 MAC
-		"10.0.0.1",               // 外层源 IP
-		"10.0.0.2",               // 外层目标 IP
-		gre.ProtoEthernet,        // 内层: Ethernet
-		0xABCD,                   // GRE Key
-		innerPayload,             // 内层 Ethernet + IP 数据
+		"00:11:22:33:44:55", // 外层源 MAC
+		"00:aa:bb:cc:dd:ee", // 外层目标 MAC
+		"10.0.0.1",          // 外层源 IP
+		"10.0.0.2",          // 外层目标 IP
+		gre.ProtoEthernet,   // 内层: Ethernet
+		0xABCD,              // GRE Key
+		innerPayload,        // 内层 Ethernet + IP 数据
 	)
 	if err != nil {
 		log.Fatalf("构建 GRE Ethernet 包失败: %v", err)
@@ -128,12 +128,12 @@ func main() {
 	}
 
 	vxlanBytes, err := goscapy.EtherIPUDPVXLAN(
-		"00:11:22:33:44:55",     // 外层源 MAC
-		"00:aa:bb:cc:dd:ee",     // 外层目标 MAC
-		"10.0.0.1",               // 外层源 IP
-		"10.0.0.2",               // 外层目标 IP
-		10001,                    // VNI: VXLAN 网络标识符
-		innerVXLANPayload,        // 内层 Ethernet 帧
+		"00:11:22:33:44:55", // 外层源 MAC
+		"00:aa:bb:cc:dd:ee", // 外层目标 MAC
+		"10.0.0.1",          // 外层源 IP
+		"10.0.0.2",          // 外层目标 IP
+		10001,               // VNI: VXLAN 网络标识符
+		innerVXLANPayload,   // 内层 Ethernet 帧
 	)
 	if err != nil {
 		log.Fatalf("构建 VXLAN 包失败: %v", err)
@@ -159,11 +159,11 @@ func main() {
 			DstIP("10.0.0.2").
 			Proto(17)).
 		Over(goscapy.NewUDP().
-			SrcPort(4789).                     // VXLAN 标准端口
+			SrcPort(4789). // VXLAN 标准端口
 			DstPort(4789)).
 		Over(goscapy.NewVXLAN().
-			VNI(100).                           // VNI: 100
-			Flags(0x08))                        // I flag (VNI 有效)
+			VNI(100).    // VNI: 100
+			Flags(0x08)) // I flag (VNI 有效)
 
 	vxlanBytes2, err := vxlanPkt.Build()
 	if err != nil {

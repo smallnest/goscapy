@@ -54,9 +54,9 @@ func main() {
 
 	// 构建 ICMP Echo Request 包
 	ip := layers.NewIP()
-	ip.Set("src", srcIP.String())
-	ip.Set("dst", *dst)
-	ip.Set("proto", layers.IPProtoICMP)
+	_ = ip.Set("src", srcIP.String())
+	_ = ip.Set("dst", *dst)
+	_ = ip.Set("proto", layers.IPProtoICMP)
 
 	icmp := layers.NewICMPEcho(0x1234, 0)
 
@@ -76,7 +76,7 @@ func main() {
 
 	for i := 0; *n == 0 || i < *n; i++ {
 		// 更新序列号
-		icmp.Set("seq", uint16(i&0xffff))
+		_ = icmp.Set("seq", uint16(i&0xffff))
 
 		pkt := packet.NewFrom(ip, icmp)
 

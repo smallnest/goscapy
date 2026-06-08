@@ -156,18 +156,18 @@ func demoDoSProtection() {
 // offset 是以 8 字节为单位的偏移量，moreFragments 设置 MF 标志位。
 func buildFragment(src, dst string, id uint16, proto uint8, offset uint16, moreFragments bool, payload []byte) *packet.Packet {
 	ip := layers.NewIP()
-	ip.Set("src", src)
-	ip.Set("dst", dst)
-	ip.Set("id", id)
-	ip.Set("proto", proto)
+	_ = ip.Set("src", src)
+	_ = ip.Set("dst", dst)
+	_ = ip.Set("id", id)
+	_ = ip.Set("proto", proto)
 
 	flags := uint16(0)
 	if moreFragments {
 		flags = 0x01 << 13 // MF flag
 	}
 	frag := flags | (offset & 0x1FFF)
-	ip.Set("frag", frag)
-	ip.Set("len", uint16(20+len(payload)))
+	_ = ip.Set("frag", frag)
+	_ = ip.Set("len", uint16(20+len(payload)))
 
 	raw := layers.NewRawWith(payload)
 	return packet.NewFrom(ip, raw)

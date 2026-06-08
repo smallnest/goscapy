@@ -4,7 +4,6 @@ package sendrecv
 
 import (
 	"fmt"
-	"runtime"
 
 	"github.com/smallnest/goscapy/pkg/packet"
 )
@@ -18,9 +17,7 @@ const (
 )
 
 // FanoutReceiver is not supported on this platform.
-type FanoutReceiver struct {
-	n int
-}
+type FanoutReceiver struct{}
 
 // FanoutOption configures a FanoutReceiver.
 type FanoutOption func(*FanoutReceiver)
@@ -37,9 +34,6 @@ func WithFanoutGroupID(id uint16) FanoutOption {
 
 // OpenFanoutReceiver is not supported on this platform.
 func OpenFanoutReceiver(iface string, n int, opts ...FanoutOption) (*FanoutReceiver, error) {
-	if n <= 0 {
-		n = runtime.NumCPU()
-	}
 	return nil, fmt.Errorf("sendrecv: PACKET_FANOUT is only supported on Linux")
 }
 

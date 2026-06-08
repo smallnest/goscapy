@@ -57,7 +57,7 @@ func writePcapFile(filename string, count int) {
 		fmt.Fprintf(os.Stderr, "创建文件失败: %v\n", err)
 		os.Exit(1)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// 创建 pcap writer (Ethernet 链路类型)
 	w, err := pcap.NewWriter(f, pcap.LinkTypeEthernet, 65535)
@@ -105,7 +105,7 @@ func readPcapFile(filename string) {
 		fmt.Fprintf(os.Stderr, "打开文件失败: %v\n", err)
 		os.Exit(1)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	r, err := pcap.NewReader(f)
 	if err != nil {
@@ -158,9 +158,9 @@ func readPcapFile(filename string) {
 func buildICMPPacket(seq int) *packet.Packet {
 	eth := layers.NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0x0800)
 	ip := layers.NewIP()
-	ip.Set("src", "192.168.1.100")
-	ip.Set("dst", "192.168.1.1")
-	ip.Set("proto", layers.IPProtoICMP)
+	_ = ip.Set("src", "192.168.1.100")
+	_ = ip.Set("dst", "192.168.1.1")
+	_ = ip.Set("proto", layers.IPProtoICMP)
 	icmp := layers.NewICMPEcho(0x1234, uint16(seq))
 	payload := layers.NewRawWith([]byte("goscapy pcap demo"))
 	return packet.NewFrom(eth, ip, icmp, payload)
@@ -169,24 +169,24 @@ func buildICMPPacket(seq int) *packet.Packet {
 func buildTCPPacket(seq int) *packet.Packet {
 	eth := layers.NewEthernetWith("aa:bb:cc:dd:ee:ff", "00:11:22:33:44:55", 0x0800)
 	ip := layers.NewIP()
-	ip.Set("src", "10.0.0.100")
-	ip.Set("dst", "10.0.0.1")
-	ip.Set("proto", layers.IPProtoTCP)
+	_ = ip.Set("src", "10.0.0.100")
+	_ = ip.Set("dst", "10.0.0.1")
+	_ = ip.Set("proto", layers.IPProtoTCP)
 	tcp := layers.NewTCPWith(uint16(40000+seq), 80, layers.TCPSyn|layers.TCPAck)
-	tcp.Set("seq", uint32(seq*1000))
-	tcp.Set("ack", uint32(1))
+	_ = tcp.Set("seq", uint32(seq*1000))
+	_ = tcp.Set("ack", uint32(1))
 	return packet.NewFrom(eth, ip, tcp)
 }
 
 func buildUDPPacket(seq int) *packet.Packet {
 	eth := layers.NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0x0800)
 	ip := layers.NewIP()
-	ip.Set("src", "172.16.0.50")
-	ip.Set("dst", "8.8.8.8")
-	ip.Set("proto", layers.IPProtoUDP)
+	_ = ip.Set("src", "172.16.0.50")
+	_ = ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("proto", layers.IPProtoUDP)
 	udp := layers.NewUDP()
-	udp.Set("sport", uint16(12345))
-	udp.Set("dport", uint16(53))
+	_ = udp.Set("sport", uint16(12345))
+	_ = udp.Set("dport", uint16(53))
 	payload := layers.NewRawWith([]byte{
 		0x00, 0x01, // Transaction ID
 		0x01, 0x00, // Standard query

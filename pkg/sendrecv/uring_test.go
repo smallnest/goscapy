@@ -20,6 +20,6 @@ func TestUringConnPlatformSupport(t *testing.T) {
 		t.Logf("DialUringRaw failed (expected if non-root or unsupported): %v", err)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	t.Log("Successfully opened io_uring raw connection")
 }

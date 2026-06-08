@@ -11,9 +11,9 @@ import (
 
 // NetflowV5 header constants.
 const (
-	NetflowV5Version uint16 = 5
-	NetflowV5HeaderLen      = 24
-	NetflowV5RecordLen      = 48
+	NetflowV5Version   uint16 = 5  //nolint:staticcheck // SA9004: HeaderLen and RecordLen are byte counts, not protocol versions
+	NetflowV5HeaderLen        = 24
+	NetflowV5RecordLen        = 48
 )
 
 // NewNetflowV5 creates a Netflow V5 header layer.
@@ -34,26 +34,26 @@ func NewNetflowV5() *packet.Layer {
 
 // NetflowV5Record represents a single Netflow V5 flow record (48 bytes).
 type NetflowV5Record struct {
-	SrcAddr   net.IP
-	DstAddr   net.IP
-	NextHop   net.IP
-	Input     uint16
-	Output    uint16
-	Packets   uint32
-	Bytes     uint32
-	First     uint32
-	Last      uint32
-	SrcPort   uint16
-	DstPort   uint16
-	Pad1      uint8
-	Flags     uint8
-	Proto     uint8
-	Tos       uint8
-	SrcAS     uint16
-	DstAS     uint16
-	SrcMask   uint8
-	DstMask   uint8
-	Pad2      uint16
+	SrcAddr net.IP
+	DstAddr net.IP
+	NextHop net.IP
+	Input   uint16
+	Output  uint16
+	Packets uint32
+	Bytes   uint32
+	First   uint32
+	Last    uint32
+	SrcPort uint16
+	DstPort uint16
+	Pad1    uint8
+	Flags   uint8
+	Proto   uint8
+	Tos     uint8
+	SrcAS   uint16
+	DstAS   uint16
+	SrcMask uint8
+	DstMask uint8
+	Pad2    uint16
 }
 
 // PackNetflowV5Record serializes a single V5 flow record to 48 bytes.

@@ -10,13 +10,13 @@ import (
 
 // RTCP packet types (RFC 3550).
 const (
-	RTCPSR      uint8 = 200 // Sender Report
-	RTCPRR      uint8 = 201 // Receiver Report
-	RTCPSDES    uint8 = 202 // Source Description
-	RTCPBYE     uint8 = 203
-	RTCPAPP     uint8 = 204
-	RTCPRTPFB   uint8 = 205 // Transport-wide FB
-	RTCPTCCFB   uint8 = 206 // Payload-specific FB
+	RTCPSR    uint8 = 200 // Sender Report
+	RTCPRR    uint8 = 201 // Receiver Report
+	RTCPSDES  uint8 = 202 // Source Description
+	RTCPBYE   uint8 = 203
+	RTCPAPP   uint8 = 204
+	RTCPRTPFB uint8 = 205 // Transport-wide FB
+	RTCPTCCFB uint8 = 206 // Payload-specific FB
 )
 
 const RTCPHeaderLen = 4 // common header: V/P/RC/PT/Length
@@ -46,8 +46,8 @@ type RTCPSenderReport struct {
 // RTCPReceiverReport is an RTCP Receiver Report.
 type RTCPReceiverReport struct {
 	RTCPPacket
-	SSRC     uint32
-	Reports  []RTCPReceiverBlock
+	SSRC    uint32
+	Reports []RTCPReceiverBlock
 }
 
 // RTCPReceiverBlock is a reception report block.

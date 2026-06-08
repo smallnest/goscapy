@@ -58,8 +58,8 @@ func TestBuildEthernetIPICMP(t *testing.T) {
 
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
 
 	icmp := NewICMPEcho(0x1234, 1)
 
@@ -122,11 +122,11 @@ func TestBuildEthernetIPTCPRaw(t *testing.T) {
 
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("seq", uint32(1000))
 
 	raw := NewRawWith([]byte("hello"))
 
@@ -194,8 +194,8 @@ func TestBuildEthernetIPUDPRaw(t *testing.T) {
 
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 
 	udp := NewUDPWith(12345, 53)
 	raw := NewRawWith([]byte("test"))
@@ -255,10 +255,10 @@ func TestBuildEthernetARP(t *testing.T) {
 
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "aa:bb:cc:dd:ee:ff", 0)
 	arp := NewARP()
-	arp.Set("hwsrc", "aa:bb:cc:dd:ee:ff")
-	arp.Set("psrc", "192.168.1.1")
-	arp.Set("hwdst", "00:00:00:00:00:00")
-	arp.Set("pdst", "192.168.1.100")
+	_ = arp.Set("hwsrc", "aa:bb:cc:dd:ee:ff")
+	_ = arp.Set("psrc", "192.168.1.1")
+	_ = arp.Set("hwdst", "00:00:00:00:00:00")
+	_ = arp.Set("pdst", "192.168.1.100")
 
 	pkt := eth.Over(arp)
 
@@ -276,8 +276,8 @@ func TestBuildFromSkipEthernet(t *testing.T) {
 	// Build from IP layer only (skip Ethernet).
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
 
 	icmp := NewICMPEcho(0x0001, 1)
 
@@ -314,8 +314,8 @@ func TestBuildFromSkipEthernet(t *testing.T) {
 func TestBuildIPOnly(t *testing.T) {
 	// Build a standalone IP layer with no upper layers.
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "10.0.0.1")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "10.0.0.1")
 
 	pkt := packet.NewFrom(ip)
 
@@ -371,10 +371,10 @@ func equalBytes(t *testing.T, got, want []byte) bool {
 func TestBuildIPv6TCPDirect(t *testing.T) {
 	// IPv6 + TCP (no extension headers) — TCP checksum uses IPv6 pseudo-header.
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6NextHdrTCP))
-	ipv6.Set("hl", uint8(64))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6NextHdrTCP))
+	_ = ipv6.Set("hl", uint8(64))
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
 
@@ -407,10 +407,10 @@ func TestBuildIPv6TCPDirect(t *testing.T) {
 func TestBuildIPv6UDPDirect(t *testing.T) {
 	// IPv6 + UDP (no extension headers) — UDP checksum uses IPv6 pseudo-header.
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6NextHdrUDP))
-	ipv6.Set("hl", uint8(64))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6NextHdrUDP))
+	_ = ipv6.Set("hl", uint8(64))
 
 	udp := NewUDPWith(12345, 53)
 	raw := NewRawWith([]byte("test"))
@@ -445,15 +445,15 @@ func TestBuildIPv6UDPDirect(t *testing.T) {
 func TestBuildIPv6HopByHopTCP(t *testing.T) {
 	// IPv6 + Hop-by-Hop extension header + TCP
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
-	ipv6.Set("hl", uint8(64))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
+	_ = ipv6.Set("hl", uint8(64))
 
 	hopByHop := NewIPv6HopByHop()
-	hopByHop.Set("nh", uint8(IPv6NextHdrTCP))
-	hopByHop.Set("len", uint8(0))
-	hopByHop.Set("options", string(make([]byte, 6))) // pad to 8 bytes: nh(1)+len(1)+options(6)
+	_ = hopByHop.Set("nh", uint8(IPv6NextHdrTCP))
+	_ = hopByHop.Set("len", uint8(0))
+	_ = hopByHop.Set("options", string(make([]byte, 6))) // pad to 8 bytes: nh(1)+len(1)+options(6)
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
 
@@ -493,10 +493,10 @@ func TestBuildEthernetIPv6HopByHopTCP(t *testing.T) {
 	// Full stack: Ethernet + IPv6 + Hop-by-Hop + TCP
 	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
-	ipv6.Set("hl", uint8(64))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
+	_ = ipv6.Set("hl", uint8(64))
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
 
@@ -505,9 +505,9 @@ func TestBuildEthernetIPv6HopByHopTCP(t *testing.T) {
 
 	// Insert Hop-by-Hop between IPv6 and TCP using InsertAfter.
 	hopByHop := NewIPv6HopByHop()
-	hopByHop.Set("nh", uint8(IPv6NextHdrTCP))
-	hopByHop.Set("len", uint8(0))
-	hopByHop.Set("options", string(make([]byte, 6))) // pad to 8 bytes
+	_ = hopByHop.Set("nh", uint8(IPv6NextHdrTCP))
+	_ = hopByHop.Set("len", uint8(0))
+	_ = hopByHop.Set("options", string(make([]byte, 6))) // pad to 8 bytes
 	pkt.InsertAfter("IPv6", hopByHop)
 
 	got, err := pkt.Build()
@@ -550,15 +550,15 @@ func TestBuildEthernetIPv6HopByHopTCP(t *testing.T) {
 func TestBuildIPv6DestOptsUDP(t *testing.T) {
 	// IPv6 + Destination Options extension header + UDP
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("fe80::1"))
-	ipv6.Set("dst", net.ParseIP("fe80::2"))
-	ipv6.Set("nh", uint8(IPv6ExtHdrDestOpts))
-	ipv6.Set("hl", uint8(64))
+	_ = ipv6.Set("src", net.ParseIP("fe80::1"))
+	_ = ipv6.Set("dst", net.ParseIP("fe80::2"))
+	_ = ipv6.Set("nh", uint8(IPv6ExtHdrDestOpts))
+	_ = ipv6.Set("hl", uint8(64))
 
 	destOpts := NewIPv6DestOpts()
-	destOpts.Set("nh", uint8(IPv6NextHdrUDP))
-	destOpts.Set("len", uint8(0))
-	destOpts.Set("options", string(make([]byte, 6))) // pad to 8 bytes
+	_ = destOpts.Set("nh", uint8(IPv6NextHdrUDP))
+	_ = destOpts.Set("len", uint8(0))
+	_ = destOpts.Set("options", string(make([]byte, 6))) // pad to 8 bytes
 
 	udp := NewUDPWith(54321, 53)
 	raw := NewRawWith([]byte("hello"))
@@ -588,8 +588,8 @@ func TestBuildEthernetIPv6UDPRawAutoBinding(t *testing.T) {
 	// Ethernet/IPv6/UDP/Raw with auto-binding — no manual nh or EtherType set.
 	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
 	// No manual ipv6.Set("nh", ...) — should be auto-set by binding.
 
 	udp := NewUDPWith(12345, 53)
@@ -634,10 +634,10 @@ func TestBuildEthernetIPv6UDPRawAutoBinding(t *testing.T) {
 func BenchmarkBuildEthernetIPTCP(b *testing.B) {
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("seq", uint32(1000))
 	raw := NewRawWith([]byte("hello"))
 	pkt := eth.Over(ip)
 	pkt.Push(tcp)
@@ -656,10 +656,10 @@ func BenchmarkBuildEthernetIPTCP(b *testing.B) {
 func BenchmarkBuildIntoEthernetIPTCP(b *testing.B) {
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("seq", uint32(1000))
 	raw := NewRawWith([]byte("hello"))
 	pkt := eth.Over(ip)
 	pkt.Push(tcp)

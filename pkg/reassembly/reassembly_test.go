@@ -13,20 +13,20 @@ import (
 // offset is in 8-byte units, moreFragments sets the MF flag.
 func buildFragment(src, dst string, id uint16, proto uint8, offset uint16, moreFragments bool, payload []byte) *packet.Packet {
 	ip := layers.NewIP()
-	ip.Set("src", src)
-	ip.Set("dst", dst)
-	ip.Set("id", id)
-	ip.Set("proto", proto)
+	_ = ip.Set("src", src)
+	_ = ip.Set("dst", dst)
+	_ = ip.Set("id", id)
+	_ = ip.Set("proto", proto)
 
 	flags := uint16(0)
 	if moreFragments {
 		flags = 0x01 << 13 // MF flag
 	}
 	frag := flags | (offset & 0x1FFF)
-	ip.Set("frag", frag)
+	_ = ip.Set("frag", frag)
 
 	// Manually set length to include payload.
-	ip.Set("len", uint16(20+len(payload)))
+	_ = ip.Set("len", uint16(20+len(payload)))
 
 	raw := layers.NewRawWith(payload)
 	return packet.NewFrom(ip, raw)
@@ -37,11 +37,11 @@ func TestNonFragmentedPassthrough(t *testing.T) {
 	defer r.Close()
 
 	ip := layers.NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
-	ip.Set("id", uint16(1))
-	ip.Set("proto", layers.IPProtoTCP)
-	ip.Set("frag", uint16(0)) // no flags, no offset
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("id", uint16(1))
+	_ = ip.Set("proto", layers.IPProtoTCP)
+	_ = ip.Set("frag", uint16(0)) // no flags, no offset
 
 	pkt := packet.NewFrom(ip)
 	result := r.Submit(pkt)

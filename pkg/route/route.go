@@ -84,7 +84,7 @@ func bestMatch(dst net.IP, routes []Route) (*Route, error) {
 
 // parseIPNet parses a destination IP and mask into a net.IPNet.
 // If dst is 0.0.0.0 and mask is 0.0.0.0, returns nil (default route).
-func parseIPNet(dst net.IP, mask net.IP) *net.IPNet {
+func parseIPNet(dst net.IP, mask net.IP) *net.IPNet { //nolint:unused
 	if dst.IsUnspecified() && mask.IsUnspecified() {
 		return nil
 	}
@@ -102,7 +102,7 @@ func parseHexIP(s string) (net.IP, error) {
 }
 
 // parseHexIPv6 parses a 32-char hex string into an IPv6 address (little-endian groups).
-func parseHexIPv6(s string) (net.IP, error) {
+func parseHexIPv6(s string) (net.IP, error) { //nolint:unused
 	if len(s) != 32 {
 		return nil, fmt.Errorf("route: invalid IPv6 hex length %d", len(s))
 	}
@@ -123,7 +123,7 @@ func parseHexIPv6(s string) (net.IP, error) {
 }
 
 // parseIPv6Mask creates a net.IPMask from a prefix length.
-func parseIPv6Mask(ones int) net.IPMask {
+func parseIPv6Mask(ones int) net.IPMask { //nolint:unused
 	if ones < 0 || ones > 128 {
 		return nil
 	}
@@ -142,6 +142,6 @@ func parseIPv6Mask(ones int) net.IPMask {
 
 // parseIfaceName extracts the interface name from a net.route message,
 // trimming null bytes.
-func parseIfaceName(raw string) string {
+func parseIfaceName(raw string) string { //nolint:unused
 	return strings.TrimRight(raw, "\x00")
 }

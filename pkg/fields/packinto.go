@@ -247,10 +247,12 @@ func (f *PacketField) PackInto(buf []byte, val any) (int, error) {
 }
 
 func (f *ConditionalField) PackInto(buf []byte, val any) (int, error) {
-	if pi, ok := f.Field.(interface{ PackInto([]byte, any) (int, error) }); ok {
+	if pi, ok := f.Field.(interface {
+		PackInto([]byte, any) (int, error)
+	}); ok {
 		return pi.PackInto(buf, val)
 	}
-	b, err := f.Field.Pack(val)
+	b, err := f.Pack(val)
 	if err != nil {
 		return 0, err
 	}

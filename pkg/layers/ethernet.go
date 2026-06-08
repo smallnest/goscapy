@@ -26,8 +26,8 @@ func NewEthernet() *packet.Layer {
 // NewEthernetWith creates an Ethernet frame with the given values.
 func NewEthernetWith(dst, src string, etype uint16) *packet.Layer {
 	l := NewEthernet()
-	l.Set("dst", dst)
-	l.Set("src", src)
-	l.Set("type", etype)
+	_ = l.Set("dst", dst)
+	_ = l.Set("src", src)
+	_ = l.Set("type", etype)
 	return l
 }

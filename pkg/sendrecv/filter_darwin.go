@@ -17,19 +17,19 @@ func openFilteredReceiver(iface string, instructions []BPFInstruction) (Receiver
 	}
 
 	if err := bindBPF(fd, iface); err != nil {
-		syscall.Close(fd)
+		_ = syscall.Close(fd)
 		return nil, err
 	}
 
 	if err := setImmediate(fd); err != nil {
-		syscall.Close(fd)
+		_ = syscall.Close(fd)
 		return nil, err
 	}
 
 	// Apply BPF filter before enabling promiscuous mode.
 	if len(instructions) > 0 {
 		if err := applyBpfFilter(fd, instructions); err != nil {
-			syscall.Close(fd)
+			_ = syscall.Close(fd)
 			return nil, fmt.Errorf("sendrecv: apply BPF filter: %w", err)
 		}
 	}

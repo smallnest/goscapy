@@ -15,9 +15,9 @@ func buildTestPkt(nfLayer *packet.Layer, rawBytes []byte) ([]byte, error) {
 		fields.NewMACField("src", nil),
 		fields.NewShortField("type", 0),
 	})
-	eth.Set("dst", "ff:ff:ff:ff:ff:ff")
-	eth.Set("src", "00:11:22:33:44:55")
-	eth.Set("type", uint16(0x0800))
+	_ = eth.Set("dst", "ff:ff:ff:ff:ff:ff")
+	_ = eth.Set("src", "00:11:22:33:44:55")
+	_ = eth.Set("type", uint16(0x0800))
 
 	ip := packet.NewLayer("IP", []fields.Field{
 		fields.NewByteField("verihl", 0x45),
@@ -31,8 +31,8 @@ func buildTestPkt(nfLayer *packet.Layer, rawBytes []byte) ([]byte, error) {
 		fields.NewIPField("src", nil),
 		fields.NewIPField("dst", nil),
 	})
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 
 	udp := packet.NewLayer("UDP", []fields.Field{
 		fields.NewShortField("sport", 0),
@@ -40,13 +40,13 @@ func buildTestPkt(nfLayer *packet.Layer, rawBytes []byte) ([]byte, error) {
 		fields.NewShortField("len", 8),
 		fields.NewShortField("chksum", 0),
 	})
-	udp.Set("sport", uint16(12345))
-	udp.Set("dport", uint16(2055))
+	_ = udp.Set("sport", uint16(12345))
+	_ = udp.Set("dport", uint16(2055))
 
 	raw := packet.NewLayer("Raw", []fields.Field{
 		fields.NewStrField("load", ""),
 	})
-	raw.Set("load", rawBytes)
+	_ = raw.Set("load", rawBytes)
 
 	pkt := eth.Over(ip)
 	pkt.Push(udp)
@@ -57,12 +57,12 @@ func buildTestPkt(nfLayer *packet.Layer, rawBytes []byte) ([]byte, error) {
 
 func TestNetflowV5BuildDissect(t *testing.T) {
 	nf := NewNetflowV5()
-	nf.Set("count", uint16(1))
-	nf.Set("sys_uptime", uint32(1000))
-	nf.Set("unix_secs", uint32(1700000000))
-	nf.Set("flow_sequence", uint32(42))
-	nf.Set("engine_type", uint8(0))
-	nf.Set("engine_id", uint8(1))
+	_ = nf.Set("count", uint16(1))
+	_ = nf.Set("sys_uptime", uint32(1000))
+	_ = nf.Set("unix_secs", uint32(1700000000))
+	_ = nf.Set("flow_sequence", uint32(42))
+	_ = nf.Set("engine_type", uint8(0))
+	_ = nf.Set("engine_id", uint8(1))
 
 	rec := NetflowV5Record{
 		SrcAddr: net.ParseIP("10.0.0.1").To4(),
@@ -379,11 +379,11 @@ func TestIPFIXVariableLengthLong(t *testing.T) {
 
 func TestNetflowV9BuildDissect(t *testing.T) {
 	nf := NewNetflowV9()
-	nf.Set("count", uint16(1))
-	nf.Set("sys_uptime", uint32(1000))
-	nf.Set("unix_secs", uint32(1700000000))
-	nf.Set("sequence", uint32(1))
-	nf.Set("source_id", uint32(0x12345678))
+	_ = nf.Set("count", uint16(1))
+	_ = nf.Set("sys_uptime", uint32(1000))
+	_ = nf.Set("unix_secs", uint32(1700000000))
+	_ = nf.Set("sequence", uint32(1))
+	_ = nf.Set("source_id", uint32(0x12345678))
 
 	tmpl := V9Template{
 		TemplateID: 256, FieldCount: 2,
@@ -424,9 +424,9 @@ func TestNetflowV9BuildDissect(t *testing.T) {
 
 func TestIPFIXBuildDissect(t *testing.T) {
 	ipfix := NewIPFIX()
-	ipfix.Set("export_time", uint32(1700000000))
-	ipfix.Set("sequence", uint32(1))
-	ipfix.Set("observation_domain_id", uint32(0xABCD))
+	_ = ipfix.Set("export_time", uint32(1700000000))
+	_ = ipfix.Set("sequence", uint32(1))
+	_ = ipfix.Set("observation_domain_id", uint32(0xABCD))
 
 	tmpl := IPFIXTemplate{
 		TemplateID: 256, FieldCount: 2,

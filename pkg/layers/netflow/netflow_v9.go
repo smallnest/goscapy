@@ -13,7 +13,7 @@ const (
 	NetflowV9Version uint16 = 9
 
 	// FlowSet IDs.
-	FlowSetTemplateID    uint16 = 0
+	FlowSetTemplateID       uint16 = 0
 	FlowSetOptionTemplateID uint16 = 1
 	// Data FlowSet IDs: 256-65535
 
@@ -34,15 +34,15 @@ func NewNetflowV9() *packet.Layer {
 
 // V9TemplateField defines a field in a V9 template.
 type V9TemplateField struct {
-	Type  uint16
-	Len   uint16
+	Type uint16
+	Len  uint16
 }
 
 // V9Template represents a Netflow V9 template flowset.
 type V9Template struct {
-	TemplateID   uint16
-	FieldCount   uint16
-	Fields       []V9TemplateField
+	TemplateID uint16
+	FieldCount uint16
+	Fields     []V9TemplateField
 }
 
 // V9FlowSet represents a generic flow set.

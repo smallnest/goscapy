@@ -201,9 +201,9 @@ func main() {
 		for probe := 0; probe < *nqueries; probe++ {
 			// 构建 IP + ICMP Echo Request 报文
 			ipLayer := layers.NewIP()
-			ipLayer.Set("src", srcIP)
-			ipLayer.Set("dst", dstIP)
-			ipLayer.Set("ttl", uint8(ttl))
+			_ = ipLayer.Set("src", srcIP)
+			_ = ipLayer.Set("dst", dstIP)
+			_ = ipLayer.Set("ttl", uint8(ttl))
 			icmpLayer := layers.NewICMPEcho(pid, uint16(ttl*1000+probe))
 			pkt := ipLayer.Over(icmpLayer)
 

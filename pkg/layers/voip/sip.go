@@ -12,30 +12,30 @@ import (
 
 // SIP methods (RFC 3261).
 const (
-	SIPInvite    = "INVITE"
-	SIPAck       = "ACK"
-	SIPBye       = "BYE"
-	SIPCancel    = "CANCEL"
-	SIPRegister  = "REGISTER"
-	SIPOptions   = "OPTIONS"
-	SIPInfo      = "INFO"
-	SIPRefer     = "REFER"
-	SIPNotify    = "NOTIFY"
-	SIPSubscribe = "SUBSCRIBE"
+	SIPInvite        = "INVITE"
+	SIPAck           = "ACK"
+	SIPBye           = "BYE"
+	SIPCancel        = "CANCEL"
+	SIPRegister      = "REGISTER"
+	SIPOptions       = "OPTIONS"
+	SIPInfo          = "INFO"
+	SIPRefer         = "REFER"
+	SIPNotify        = "NOTIFY"
+	SIPSubscribe     = "SUBSCRIBE"
 	SIPMethodMessage = "MESSAGE"
-	SIPPrack     = "PRACK"
-	SIPUpdate    = "UPDATE"
+	SIPPrack         = "PRACK"
+	SIPUpdate        = "UPDATE"
 )
 
 // SIPMessage represents a parsed SIP message.
 type SIPMessage struct {
-	Method      string // empty for responses
-	RequestURI  string // empty for responses
-	StatusCode  int    // 0 for requests
-	Reason      string // empty for requests
-	Version     string // e.g. "SIP/2.0"
-	Headers     []SIPHeader
-	Body        string
+	Method     string // empty for responses
+	RequestURI string // empty for responses
+	StatusCode int    // 0 for requests
+	Reason     string // empty for requests
+	Version    string // e.g. "SIP/2.0"
+	Headers    []SIPHeader
+	Body       string
 }
 
 // SIPHeader is a single SIP header (name: value).
@@ -113,19 +113,19 @@ func SerializeSIP(msg SIPMessage) string {
 		if uri == "" {
 			uri = "sip:user@example.com"
 		}
-		sb.WriteString(fmt.Sprintf("%s %s %s\r\n", msg.Method, uri, msg.Version))
+		fmt.Fprintf(&sb, "%s %s %s\r\n", msg.Method, uri, msg.Version)
 	} else {
 		// Response.
 		reason := msg.Reason
 		if reason == "" {
 			reason = statusText(msg.StatusCode)
 		}
-		sb.WriteString(fmt.Sprintf("%s %d %s\r\n", msg.Version, msg.StatusCode, reason))
+		fmt.Fprintf(&sb, "%s %d %s\r\n", msg.Version, msg.StatusCode, reason)
 	}
 
 	// Headers.
 	for _, h := range msg.Headers {
-		sb.WriteString(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value))
+		fmt.Fprintf(&sb, "%s: %s\r\n", h.Name, h.Value)
 	}
 
 	// Blank line + body.

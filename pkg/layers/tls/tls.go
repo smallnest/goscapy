@@ -46,29 +46,29 @@ const (
 
 // TLS Alert description constants.
 const (
-	AlertCloseNotify          uint8 = 0
-	AlertUnexpectedMessage    uint8 = 10
-	AlertBadRecordMAC         uint8 = 20
-	AlertHandshakeFailure     uint8 = 40
-	AlertBadCertificate       uint8 = 42
-	AlertCertificateRevoked   uint8 = 44
-	AlertCertificateExpired   uint8 = 45
-	AlertIllegalParameter     uint8 = 47
-	AlertDecodeError          uint8 = 50
-	AlertProtocolVersion      uint8 = 70
-	AlertInternalError        uint8 = 80
+	AlertCloseNotify           uint8 = 0
+	AlertUnexpectedMessage     uint8 = 10
+	AlertBadRecordMAC          uint8 = 20
+	AlertHandshakeFailure      uint8 = 40
+	AlertBadCertificate        uint8 = 42
+	AlertCertificateRevoked    uint8 = 44
+	AlertCertificateExpired    uint8 = 45
+	AlertIllegalParameter      uint8 = 47
+	AlertDecodeError           uint8 = 50
+	AlertProtocolVersion       uint8 = 70
+	AlertInternalError         uint8 = 80
 	AlertInappropriateFallback uint8 = 86
 	AlertNoApplicationProtocol uint8 = 120
 )
 
 // TLS Extension type constants.
 const (
-	ExtTypeServerName         uint16 = 0
-	ExtTypeSupportedGroups    uint16 = 10
+	ExtTypeServerName          uint16 = 0
+	ExtTypeSupportedGroups     uint16 = 10
 	ExtTypeSignatureAlgorithms uint16 = 13
-	ExtTypeALPN               uint16 = 16
-	ExtTypeKeyShare           uint16 = 51
-	ExtTypeSupportedVersions  uint16 = 43
+	ExtTypeALPN                uint16 = 16
+	ExtTypeKeyShare            uint16 = 51
+	ExtTypeSupportedVersions   uint16 = 43
 )
 
 // ---- TLS Record Layer ----
@@ -98,28 +98,28 @@ func NewTLSHandshake() *packet.Layer {
 
 // ClientHello represents a parsed TLS ClientHello message.
 type ClientHello struct {
-	Version         uint16
-	Random         []byte // 32 bytes
-	SessionID      []byte
-	CipherSuites   []uint16
-	Compression    []uint8
-	Extensions     []Extension
+	Version      uint16
+	Random       []byte // 32 bytes
+	SessionID    []byte
+	CipherSuites []uint16
+	Compression  []uint8
+	Extensions   []Extension
 }
 
 // ServerHello represents a parsed TLS ServerHello message.
 type ServerHello struct {
-	Version       uint16
-	Random       []byte // 32 bytes
-	SessionID    []byte
-	CipherSuite  uint16
-	Compression  uint8
-	Extensions   []Extension
+	Version     uint16
+	Random      []byte // 32 bytes
+	SessionID   []byte
+	CipherSuite uint16
+	Compression uint8
+	Extensions  []Extension
 }
 
 // Extension represents a TLS extension.
 type Extension struct {
-	Type   uint16
-	Data   []byte
+	Type uint16
+	Data []byte
 }
 
 // CertificateEntry represents a single certificate in the chain.

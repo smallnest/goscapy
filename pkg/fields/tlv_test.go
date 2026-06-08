@@ -30,7 +30,7 @@ func TestParseTLV_EndOfOptions(t *testing.T) {
 	// Type 0 terminates parsing.
 	data := []byte{
 		1, 2, 'a', 'b',
-		0, // End marker
+		0,         // End marker
 		3, 1, 'x', // Should be ignored
 	}
 	opts, err := ParseTLV(data)
@@ -117,8 +117,8 @@ func TestBuildTLV_EmptyList(t *testing.T) {
 
 func TestParseAndBuild_RoundTrip(t *testing.T) {
 	original := []TLVOption{
-		{Type: 53, Length: 1, Value: []byte{1}},    // DHCP Message Type: DISCOVER
-		{Type: 55, Length: 4, Value: []byte{1, 3, 6, 15}}, // Parameter Request List
+		{Type: 53, Length: 1, Value: []byte{1}},                // DHCP Message Type: DISCOVER
+		{Type: 55, Length: 4, Value: []byte{1, 3, 6, 15}},      // Parameter Request List
 		{Type: 50, Length: 4, Value: []byte{192, 168, 1, 100}}, // Requested IP
 	}
 	built := BuildTLV(original)

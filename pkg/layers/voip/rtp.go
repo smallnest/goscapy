@@ -16,8 +16,8 @@ const (
 
 // Payload type assignments (RFC 3551).
 const (
-	RTPPayloadPCMU   uint8 = 0  // G.711 PCM
-	RTPPayloadPCMA   uint8 = 8  // G.711 A-law
+	RTPPayloadPCMU   uint8 = 0 // G.711 PCM
+	RTPPayloadPCMA   uint8 = 8 // G.711 A-law
 	RTPPayloadG722   uint8 = 9
 	RTPPayloadG728   uint8 = 15
 	RTPPayloadG729   uint8 = 18
@@ -29,7 +29,7 @@ const (
 func NewRTP() *packet.Layer {
 	return packet.NewLayer("RTP", []fields.Field{
 		fields.NewByteField("byte0", 0x80), // V=2, P=0, X=0, CC=0
-		fields.NewByteField("byte1", 0),     // M=0, PT=0
+		fields.NewByteField("byte1", 0),    // M=0, PT=0
 		fields.NewShortField("seq", 0),
 		fields.NewIntField("timestamp", 0),
 		fields.NewIntField("ssrc", 0),
@@ -38,20 +38,20 @@ func NewRTP() *packet.Layer {
 
 // RTPHeader represents the parsed RTP header.
 type RTPHeader struct {
-	Version      uint8
-	Padding      bool
-	Extension    bool
-	CSRCCount    uint8
-	Marker       bool
-	PayloadType  uint8
-	Sequence     uint16
-	Timestamp    uint32
-	SSRC         uint32
-	CSRC         []uint32
-	ExtProfile   uint16
-	ExtLength    uint16
-	ExtData      []byte
-	Payload      []byte
+	Version     uint8
+	Padding     bool
+	Extension   bool
+	CSRCCount   uint8
+	Marker      bool
+	PayloadType uint8
+	Sequence    uint16
+	Timestamp   uint32
+	SSRC        uint32
+	CSRC        []uint32
+	ExtProfile  uint16
+	ExtLength   uint16
+	ExtData     []byte
+	Payload     []byte
 }
 
 // ParseRTP parses an RTP packet from raw bytes.

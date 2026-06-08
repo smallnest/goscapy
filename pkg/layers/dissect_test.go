@@ -475,8 +475,8 @@ func TestDissectRoundTripEthernetIPICMP(t *testing.T) {
 	// Build a packet, serialize it, then Dissect it back and verify field values match.
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
 	icmp := NewICMPEcho(0xABCD, 42)
 
 	pkt := eth.Over(ip)
@@ -526,23 +526,23 @@ func TestDissectRoundTripEthernetIPICMP(t *testing.T) {
 	verifyIP := NewIP()
 	ipSrc, _ := ipLayer.Get("src")
 	ipDst, _ := ipLayer.Get("dst")
-	verifyIP.Set("src", ipSrc)
-	verifyIP.Set("dst", ipDst)
+	_ = verifyIP.Set("src", ipSrc)
+	_ = verifyIP.Set("dst", ipDst)
 	verihl, _ := ipLayer.Get("verihl")
-	verifyIP.Set("verihl", verihl)
+	_ = verifyIP.Set("verihl", verihl)
 	tos, _ := ipLayer.Get("tos")
-	verifyIP.Set("tos", tos)
+	_ = verifyIP.Set("tos", tos)
 	ipLenField, _ := ipLayer.Get("len")
-	verifyIP.Set("len", ipLenField)
+	_ = verifyIP.Set("len", ipLenField)
 	id, _ := ipLayer.Get("id")
-	verifyIP.Set("id", id)
+	_ = verifyIP.Set("id", id)
 	frag, _ := ipLayer.Get("frag")
-	verifyIP.Set("frag", frag)
+	_ = verifyIP.Set("frag", frag)
 	ttlVal, _ := ipLayer.Get("ttl")
-	verifyIP.Set("ttl", ttlVal)
+	_ = verifyIP.Set("ttl", ttlVal)
 	protoVal, _ := ipLayer.Get("proto")
-	verifyIP.Set("proto", protoVal)
-	verifyIP.Set("chksum", uint16(0))
+	_ = verifyIP.Set("proto", protoVal)
+	_ = verifyIP.Set("chksum", uint16(0))
 	verifyHdr, _ := verifyIP.SerializeFields()
 	computed := IPChecksum(verifyHdr)
 	if computed != parsedChksum {
@@ -554,11 +554,11 @@ func TestDissectRoundTripEthernetIPTCPRaw(t *testing.T) {
 	// Build Ether/IP/TCP/Raw, serialize, dissect, verify.
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("seq", uint32(1000))
+	_ = tcp.Set("seq", uint32(1000))
 
 	raw := NewRawWith([]byte("hello"))
 
@@ -612,8 +612,8 @@ func TestDissectRoundTripEthernetIPUDPRaw(t *testing.T) {
 	// Build Ether/IP/UDP/Raw, serialize, dissect, verify.
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55", 0)
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "8.8.8.8")
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "8.8.8.8")
 
 	udp := NewUDPWith(12345, 53)
 	raw := NewRawWith([]byte("test"))
@@ -664,10 +664,10 @@ func TestDissectRoundTripEthernetARP(t *testing.T) {
 	// Build Ether/ARP, serialize, dissect, verify.
 	eth := NewEthernetWith("ff:ff:ff:ff:ff:ff", "aa:bb:cc:dd:ee:ff", 0)
 	arp := NewARP()
-	arp.Set("hwsrc", "aa:bb:cc:dd:ee:ff")
-	arp.Set("psrc", "192.168.1.1")
-	arp.Set("hwdst", "00:00:00:00:00:00")
-	arp.Set("pdst", "192.168.1.100")
+	_ = arp.Set("hwsrc", "aa:bb:cc:dd:ee:ff")
+	_ = arp.Set("psrc", "192.168.1.1")
+	_ = arp.Set("hwdst", "00:00:00:00:00:00")
+	_ = arp.Set("pdst", "192.168.1.100")
 
 	pkt := eth.Over(arp)
 
@@ -901,9 +901,9 @@ func TestDissectVXLAN(t *testing.T) {
 
 func TestDissectIPv6UDPRaw(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6NextHdrUDP))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6NextHdrUDP))
 
 	udp := NewUDPWith(12345, 53)
 	raw := NewRawWith([]byte("test"))
@@ -978,9 +978,9 @@ func TestDissectIPv6UDPRaw(t *testing.T) {
 func TestDissectEthernetIPv6UDPRaw(t *testing.T) {
 	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6NextHdrUDP))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6NextHdrUDP))
 
 	udp := NewUDPWith(12345, 53)
 	raw := NewRawWith([]byte("hello"))
@@ -1051,8 +1051,8 @@ func TestDissectEthernetIPv6UDPRaw(t *testing.T) {
 
 func TestDissectRoundTripIPv6UDPRaw(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("fe80::1"))
-	ipv6.Set("dst", net.ParseIP("fe80::2"))
+	_ = ipv6.Set("src", net.ParseIP("fe80::1"))
+	_ = ipv6.Set("dst", net.ParseIP("fe80::2"))
 
 	udp := NewUDPWith(54321, 53)
 	raw := NewRawWith([]byte("dns query"))
@@ -1114,8 +1114,8 @@ func TestDissectRoundTripIPv6UDPRaw(t *testing.T) {
 func TestDissectRoundTripEthernetIPv6UDPRaw(t *testing.T) {
 	eth := NewEthernetWith("00:aa:bb:cc:dd:ee", "00:11:22:33:44:55", 0)
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
 
 	udp := NewUDPWith(12345, 53)
 	raw := NewRawWith([]byte("test"))
@@ -1196,14 +1196,14 @@ func TestDissectRoundTripEthernetIPv6UDPRaw(t *testing.T) {
 
 func TestDissectIPv6ExtHdrUDPRaw(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
-	ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("nh", uint8(IPv6ExtHdrHopByHop))
 
 	hopByHop := NewIPv6HopByHop()
-	hopByHop.Set("nh", uint8(IPv6NextHdrUDP))
-	hopByHop.Set("len", uint8(0))
-	hopByHop.Set("options", string(make([]byte, 6)))
+	_ = hopByHop.Set("nh", uint8(IPv6NextHdrUDP))
+	_ = hopByHop.Set("len", uint8(0))
+	_ = hopByHop.Set("options", string(make([]byte, 6)))
 
 	udp := NewUDPWith(54321, 53)
 	raw := NewRawWith([]byte("data"))
@@ -1249,8 +1249,8 @@ func TestDissectIPv6ExtHdrUDPRaw(t *testing.T) {
 
 func TestDissectIPv6UDPEmptyPayload(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("::1"))
-	ipv6.Set("dst", net.ParseIP("::1"))
+	_ = ipv6.Set("src", net.ParseIP("::1"))
+	_ = ipv6.Set("dst", net.ParseIP("::1"))
 
 	udp := NewUDPWith(1234, 5678)
 
@@ -1283,8 +1283,8 @@ func TestDissectIPv6UDPEmptyPayload(t *testing.T) {
 func TestIPv6UDPChecksumMandatory(t *testing.T) {
 	// Verify that IPv6 UDP checksum is never 0 (unlike IPv4 where it's optional).
 	ipv6 := NewIPv6()
-	ipv6.Set("src", net.ParseIP("2001:db8::1"))
-	ipv6.Set("dst", net.ParseIP("2001:db8::2"))
+	_ = ipv6.Set("src", net.ParseIP("2001:db8::1"))
+	_ = ipv6.Set("dst", net.ParseIP("2001:db8::2"))
 
 	udp := NewUDPWith(12345, 53)
 

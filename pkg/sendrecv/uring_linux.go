@@ -72,24 +72,24 @@ type ioUringCqe struct {
 }
 
 type ioUring struct {
-	fd        int
-	sqMmap    []byte
-	sqesMmap  []byte
-	cqMmap    []byte
-	sqHead    *uint32
-	sqTail    *uint32
-	sqMask    uint32
-	sqEntries uint32
-	sqFlags   *uint32
-	sqDropped *uint32
-	sqArray   []uint32
-	sqes      []ioUringSqe
-	cqHead    *uint32
-	cqTail    *uint32
-	cqMask    uint32
-	cqEntries uint32
+	fd         int
+	sqMmap     []byte
+	sqesMmap   []byte
+	cqMmap     []byte
+	sqHead     *uint32
+	sqTail     *uint32
+	sqMask     uint32
+	sqEntries  uint32
+	sqFlags    *uint32
+	sqDropped  *uint32
+	sqArray    []uint32
+	sqes       []ioUringSqe
+	cqHead     *uint32
+	cqTail     *uint32
+	cqMask     uint32
+	cqEntries  uint32
 	cqOverflow *uint32
-	cqes      []ioUringCqe
+	cqes       []ioUringCqe
 }
 
 type sendState struct {
@@ -104,6 +104,7 @@ type recvState struct {
 	iov    syscall.Iovec
 	msg    syscall.Msghdr
 	buffer []byte
+	oobBuf []byte
 }
 
 // UringConn represents a raw socket connection utilizing io_uring.
@@ -559,6 +560,284 @@ func (c *UringConn) SendRecvBatch(msgs []BatchMsg) ([]BatchResult, error) {
 	}
 
 	results := make([]BatchResult, n)
+	for i, opID := range recvOpIDs {
+		results[i] = resultsMap[opID]
+	}
+
+	return results, nil
+}
+
+// RecvmsgOOBInto receives one packet with ancillary (OOB) data into
+// caller-provided buffers via io_uring. Returns the data bytes, OOB bytes,
+// source IP, and any error.
+//
+// This is the zero-allocation path — the caller owns both buffers.
+// Use ParseTimestamp(oob) to extract timestamps from the OOB data.
+func (c *UringConn) RecvmsgOOBInto(buf, oobBuf []byte, timeout time.Duration) ([]byte, []byte, string, error) {
+	state := &recvState{
+		buffer: buf,
+		oobBuf: oobBuf,
+	}
+
+	state.iov = syscall.Iovec{
+		Base: &state.buffer[0],
+		Len:  uint64(len(state.buffer)),
+	}
+
+	state.msg = syscall.Msghdr{
+		Name:    (*byte)(unsafe.Pointer(&state.sa)),
+		Namelen: uint32(unsafe.Sizeof(state.sa)),
+		Iov:     &state.iov,
+		Iovlen:  1,
+	}
+
+	if len(oobBuf) > 0 {
+		state.msg.Control = &oobBuf[0]
+		state.msg.SetControllen(len(oobBuf))
+	}
+
+	sqe := c.uring.getSqe()
+	if sqe == nil {
+		return nil, nil, "", fmt.Errorf("uring: submission queue full")
+	}
+
+	c.counter++
+	opID := c.counter
+
+	sqe.Opcode = 10 // IORING_OP_RECVMSG
+	sqe.Fd = int32(c.fd)
+	sqe.Addr = uint64(uintptr(unsafe.Pointer(&state.msg)))
+	sqe.Len = 1
+	sqe.UserData = opID
+
+	c.uring.submitSqe(sqe)
+
+	_, err := c.uring.enter(1, 0, 0)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("uring: enter: %w", err)
+	}
+
+	c.pendingRecvs[opID] = state
+	defer delete(c.pendingRecvs, opID)
+
+	deadline := time.Now().Add(timeout)
+	for {
+		cqe := c.uring.peekCqe()
+		if cqe != nil {
+			c.uring.advanceCq()
+			if cqe.UserData == opID {
+				if cqe.Res < 0 {
+					return nil, nil, "", fmt.Errorf("uring: recv failed: %w", syscall.Errno(-cqe.Res))
+				}
+				data := make([]byte, cqe.Res)
+				copy(data, state.buffer[:cqe.Res])
+				srcIP := net.IP(state.sa.Addr[:]).String()
+				oobn := int(state.msg.Controllen)
+				oob := make([]byte, oobn)
+				copy(oob, oobBuf[:oobn])
+				return data, oob, srcIP, nil
+			}
+			if _, exists := c.pendingSends[cqe.UserData]; exists {
+				delete(c.pendingSends, cqe.UserData)
+			}
+			continue
+		}
+
+		if time.Now().After(deadline) {
+			return nil, nil, "", ErrTimeout
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+}
+
+// RecvOOB receives one packet and its ancillary (OOB) data via io_uring.
+// It is the OOB-aware counterpart of Recv.
+// Use ParseTimestamp(oob) to extract timestamps from the OOB data.
+func (c *UringConn) RecvOOB(timeout time.Duration) ([]byte, []byte, string, error) {
+	oobBuf := getOOBBuf()
+	defer putOOBBuf(oobBuf)
+
+	data, oob, src, err := c.RecvmsgOOBInto(make([]byte, 65536), oobBuf, timeout)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return data, oob, src, nil
+}
+
+// SendRecvBatchOOB is the OOB-aware version of SendRecvBatch.
+// Each result includes ancillary data (timestamps, pktinfo, etc.).
+func (c *UringConn) SendRecvBatchOOB(msgs []BatchMsg) ([]BatchResultOOB, error) {
+	n := len(msgs)
+	if n == 0 {
+		return nil, nil
+	}
+
+	sendStates := make([]*sendState, n)
+	recvStates := make([]*recvState, n)
+	sendOpIDs := make([]uint64, n)
+	recvOpIDs := make([]uint64, n)
+
+	defer func() {
+		for i, opID := range recvOpIDs {
+			delete(c.pendingRecvs, opID)
+			if recvStates[i] != nil && recvStates[i].oobBuf != nil {
+				putOOBBuf(recvStates[i].oobBuf)
+			}
+		}
+		for _, opID := range sendOpIDs {
+			delete(c.pendingSends, opID)
+		}
+	}()
+
+	// 1. Submit all RECVMSG SQEs with OOB buffers.
+	for i := range n {
+		oobBuf := getOOBBuf()
+		state := &recvState{
+			buffer: make([]byte, 65536),
+			oobBuf: oobBuf,
+		}
+		state.iov = syscall.Iovec{
+			Base: &state.buffer[0],
+			Len:  uint64(len(state.buffer)),
+		}
+		state.msg = syscall.Msghdr{
+			Name:    (*byte)(unsafe.Pointer(&state.sa)),
+			Namelen: uint32(unsafe.Sizeof(state.sa)),
+			Iov:     &state.iov,
+			Iovlen:  1,
+		}
+		state.msg.Control = &oobBuf[0]
+		state.msg.SetControllen(len(oobBuf))
+
+		sqe := c.uring.getSqe()
+		if sqe == nil {
+			return nil, fmt.Errorf("uring: submission queue full")
+		}
+
+		c.counter++
+		opID := c.counter
+		recvOpIDs[i] = opID
+		recvStates[i] = state
+		c.pendingRecvs[opID] = state
+
+		sqe.Opcode = 10 // IORING_OP_RECVMSG
+		sqe.Fd = int32(c.fd)
+		sqe.Addr = uint64(uintptr(unsafe.Pointer(&state.msg)))
+		sqe.Len = 1
+		sqe.UserData = opID
+
+		c.uring.submitSqe(sqe)
+	}
+
+	// 2. Submit all SENDMSG SQEs.
+	for i := range n {
+		ip := net.ParseIP(msgs[i].Dst)
+		if ip == nil {
+			return nil, fmt.Errorf("uring: invalid IP: %s", msgs[i].Dst)
+		}
+		ip4 := ip.To4()
+		if ip4 == nil {
+			return nil, fmt.Errorf("uring: only IPv4 is supported")
+		}
+
+		var addr [4]byte
+		copy(addr[:], ip4)
+		sa := syscall.RawSockaddrInet4{
+			Family: syscall.AF_INET,
+			Addr:   addr,
+		}
+
+		state := &sendState{
+			sa:   sa,
+			data: make([]byte, len(msgs[i].Data)),
+		}
+		copy(state.data, msgs[i].Data)
+
+		state.iov = syscall.Iovec{
+			Base: &state.data[0],
+			Len:  uint64(len(state.data)),
+		}
+		state.msg = syscall.Msghdr{
+			Name:    (*byte)(unsafe.Pointer(&state.sa)),
+			Namelen: uint32(unsafe.Sizeof(state.sa)),
+			Iov:     &state.iov,
+			Iovlen:  1,
+		}
+
+		sqe := c.uring.getSqe()
+		if sqe == nil {
+			return nil, fmt.Errorf("uring: submission queue full")
+		}
+
+		c.counter++
+		opID := c.counter
+		sendOpIDs[i] = opID
+		sendStates[i] = state
+		c.pendingSends[opID] = state
+
+		sqe.Opcode = 9 // IORING_OP_SENDMSG
+		sqe.Fd = int32(c.fd)
+		sqe.Addr = uint64(uintptr(unsafe.Pointer(&state.msg)))
+		sqe.Len = 1
+		sqe.UserData = opID
+
+		c.uring.submitSqe(sqe)
+	}
+
+	_, err := c.uring.enter(uint32(2*n), 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("uring: enter batch failed: %w", err)
+	}
+
+	resultsMap := make(map[uint64]BatchResultOOB)
+	completedRecvs := 0
+
+	deadline := time.Now().Add(3 * time.Second)
+	for completedRecvs < n {
+		cqe := c.uring.peekCqe()
+		if cqe != nil {
+			c.uring.advanceCq()
+
+			isRecv := false
+			var matchingIdx int
+			for i, opID := range recvOpIDs {
+				if cqe.UserData == opID {
+					isRecv = true
+					matchingIdx = i
+					break
+				}
+			}
+
+			if isRecv {
+				if cqe.Res >= 0 {
+					matchingState := recvStates[matchingIdx]
+					data := make([]byte, cqe.Res)
+					copy(data, matchingState.buffer[:cqe.Res])
+					srcIP := net.IP(matchingState.sa.Addr[:]).String()
+					oobn := int(matchingState.msg.Controllen)
+					oob := make([]byte, oobn)
+					copy(oob, matchingState.oobBuf[:oobn])
+					resultsMap[cqe.UserData] = BatchResultOOB{
+						Data: data,
+						OOB:  oob,
+						Src:  srcIP,
+					}
+				}
+				completedRecvs++
+			} else {
+				delete(c.pendingSends, cqe.UserData)
+			}
+			continue
+		}
+
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	results := make([]BatchResultOOB, n)
 	for i, opID := range recvOpIDs {
 		results[i] = resultsMap[opID]
 	}

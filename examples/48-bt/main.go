@@ -58,10 +58,10 @@ func main() {
 	// 4. 解析 EIR (Extended Inquiry Response)
 	fmt.Println("--- 4. 解析 BLE 广播 EIR ---")
 	eirEntries := []bt.EIR{
-		{Type: bt.EIRTypeFlags, Data: []byte{0x06}},           // LE General Discoverable, BR/EDR Not Supported
+		{Type: bt.EIRTypeFlags, Data: []byte{0x06}}, // LE General Discoverable, BR/EDR Not Supported
 		{Type: bt.EIRTypeCompleteName, Data: []byte("MyBLE")},
-		{Type: bt.EIRTypeTxPowerLevel, Data: []byte{0x04}},    // +4 dBm
-		{Type: bt.EIRTypeAppearance, Data: []byte{0x80, 0x07}},// Generic Heart Rate Sensor
+		{Type: bt.EIRTypeTxPowerLevel, Data: []byte{0x04}},     // +4 dBm
+		{Type: bt.EIRTypeAppearance, Data: []byte{0x80, 0x07}}, // Generic Heart Rate Sensor
 	}
 	eirRaw := bt.BuildEIR(eirEntries)
 

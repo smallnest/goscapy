@@ -23,7 +23,7 @@ func TestDialRawPermission(t *testing.T) {
 
 	conn, err := DialRaw(1)
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 		t.Fatal("expected DialRaw to fail for non-root user")
 	}
 
@@ -42,7 +42,7 @@ func TestRawConnSendRecvICMP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial raw socket: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Build an ICMP Echo Request payload
 	icmp := layers.NewICMPEcho(0x9999, 1)
@@ -193,7 +193,7 @@ func TestRawConnAttachBPF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial raw socket: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	dropFilter := []BPFInstruction{
 		{Code: 0x06, K: 0},
@@ -213,7 +213,7 @@ func TestRawConnRecvInto(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial raw socket: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	icmp := layers.NewICMPEcho(0x7777, 1)
 	pkt := packet.NewFrom(icmp)
@@ -275,7 +275,7 @@ func TestDialRaw6Permission(t *testing.T) {
 
 	conn, err := DialRaw6(58) // ICMPv6
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 		t.Fatal("expected DialRaw6 to fail for non-root user")
 	}
 
@@ -293,17 +293,17 @@ func TestDialRaw6Root(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialRaw6 failed: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 }
 
 func TestSendL3v6Build(t *testing.T) {
 	// Test that hasIPv6Layer and extractIPv6Info work correctly
 	// without requiring root (just test the build/extract path).
 	ipv6 := layers.NewIPv6()
-	ipv6.Set("src", "::1")
-	ipv6.Set("dst", "::1")
-	ipv6.Set("nh", layers.IPv6NextHdrICMP)
-	ipv6.Set("hlim", uint8(64))
+	_ = ipv6.Set("src", "::1")
+	_ = ipv6.Set("dst", "::1")
+	_ = ipv6.Set("nh", layers.IPv6NextHdrICMP)
+	_ = ipv6.Set("hlim", uint8(64))
 
 	icmpv6 := layers.NewICMPv6()
 	icmpv6Echo := layers.NewICMPv6Echo(0x1234, 1)
@@ -331,4 +331,3 @@ func TestSendL3v6Build(t *testing.T) {
 		t.Errorf("hlim: expected 64, got %d", hlim)
 	}
 }
-

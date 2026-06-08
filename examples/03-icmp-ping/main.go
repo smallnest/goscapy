@@ -47,19 +47,19 @@ func main() {
 
 	// 从底层到顶层逐层叠加: Ethernet → IPv4 → ICMP
 	icmpPkt := goscapy.NewEthernet().
-		DstMAC("00:aa:bb:cc:dd:ee").      // 目标 MAC (网关或目标主机)
-		SrcMAC("00:11:22:33:44:55").       // 源 MAC
-		Type(layers.EtherTypeIPv4).        // 上层协议: IPv4
+		DstMAC("00:aa:bb:cc:dd:ee"). // 目标 MAC (网关或目标主机)
+		SrcMAC("00:11:22:33:44:55"). // 源 MAC
+		Type(layers.EtherTypeIPv4).  // 上层协议: IPv4
 		Over(goscapy.NewIP().
-			SrcIP("192.168.1.100").         // 源 IP
-			DstIP("8.8.8.8").               // 目标 IP (Google DNS)
-			TTL(64).                         // 生存时间
-			Proto(layers.IPProtoICMP)).      // 上层协议: ICMP (1)
+			SrcIP("192.168.1.100").     // 源 IP
+			DstIP("8.8.8.8").           // 目标 IP (Google DNS)
+			TTL(64).                    // 生存时间
+			Proto(layers.IPProtoICMP)). // 上层协议: ICMP (1)
 		Over(goscapy.NewICMP().
-			Type(layers.ICMPEchoRequest).    // ICMP 类型: Echo Request (8)
-			Code(0).                          // ICMP 代码: 0
-			ID(0x1234).                       // 标识符: 0x1234
-			Seq(1))                           // 序列号: 1
+			Type(layers.ICMPEchoRequest). // ICMP 类型: Echo Request (8)
+			Code(0).                      // ICMP 代码: 0
+			ID(0x1234).                   // 标识符: 0x1234
+			Seq(1))                       // 序列号: 1
 
 	icmpBytes, err := icmpPkt.Build()
 	if err != nil {
@@ -78,10 +78,10 @@ func main() {
 
 	// EtherIPICMP 是最快捷的方式，一行代码即可构建完整的 ICMP 包
 	shortcutBytes, err := goscapy.EtherIPICMP(
-		"00:aa:bb:cc:dd:ee",    // 目标 MAC
-		"8.8.8.8",               // 目标 IP
-		8,                        // ICMP Type: Echo Request
-		0,                        // ICMP Code: 0
+		"00:aa:bb:cc:dd:ee", // 目标 MAC
+		"8.8.8.8",           // 目标 IP
+		8,                   // ICMP Type: Echo Request
+		0,                   // ICMP Code: 0
 	)
 	if err != nil {
 		log.Fatalf("Shortcut 构建 ICMP 包失败: %v", err)
@@ -106,10 +106,10 @@ func main() {
 			TTL(64).
 			Proto(layers.IPProtoICMP)).
 		Over(goscapy.NewICMP().
-			Type(layers.ICMPEchoReply).     // ICMP 类型: Echo Reply (0)
+			Type(layers.ICMPEchoReply). // ICMP 类型: Echo Reply (0)
 			Code(0).
-			ID(0x1234).                       // 同一个标识符
-			Seq(1))                           // 同一个序列号
+			ID(0x1234). // 同一个标识符
+			Seq(1))     // 同一个序列号
 
 	replyBytes, err := echoReplyPkt.Build()
 	if err != nil {
@@ -127,10 +127,10 @@ func main() {
 
 	// 有些场景下不需要 Ethernet 头（比如通过 raw socket 发送 L3 包）
 	l3ICMPBytes, err := goscapy.IPICMP(
-		"192.168.1.100",  // 源 IP
-		"8.8.8.8",         // 目标 IP
-		8,                  // ICMP Type: Echo Request
-		0,                  // ICMP Code: 0
+		"192.168.1.100", // 源 IP
+		"8.8.8.8",       // 目标 IP
+		8,               // ICMP Type: Echo Request
+		0,               // ICMP Code: 0
 	)
 	if err != nil {
 		log.Fatalf("L3 ICMP 构建失败: %v", err)

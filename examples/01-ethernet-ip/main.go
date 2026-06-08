@@ -33,9 +33,9 @@ func main() {
 	// SrcMAC() 设置源 MAC 地址。
 	// Type() 设置 EtherType 字段，0x0800 表示上层是 IPv4。
 	ethernet := goscapy.NewEthernet().
-		DstMAC("ff:ff:ff:ff:ff:ff").    // 目标 MAC: 广播地址
-		SrcMAC("00:11:22:33:44:55").    // 源 MAC: 我们的网卡地址
-		Type(layers.EtherTypeIPv4)      // EtherType = IPv4 (0x0800)
+		DstMAC("ff:ff:ff:ff:ff:ff"). // 目标 MAC: 广播地址
+		SrcMAC("00:11:22:33:44:55"). // 源 MAC: 我们的网卡地址
+		Type(layers.EtherTypeIPv4)   // EtherType = IPv4 (0x0800)
 
 	// -----------------------------------------------------------------------
 	// 2. 使用 Builder API 构建 IPv4 头
@@ -47,11 +47,11 @@ func main() {
 	// Proto() 设置上层协议号（6=TCP, 17=UDP, 1=ICMP）。
 	// ID() 设置标识字段（用于分片重组）。
 	ip := goscapy.NewIP().
-		SrcIP("192.168.1.100").        // 源 IP: 我们的 IP
-		DstIP("192.168.1.1").           // 目标 IP: 网关
-		TTL(64).                         // 生存时间: 64 跳
-		Proto(layers.IPProtoTCP).        // 上层协议: TCP
-		ID(0x1234)                       // 标识: 0x1234
+		SrcIP("192.168.1.100").   // 源 IP: 我们的 IP
+		DstIP("192.168.1.1").     // 目标 IP: 网关
+		TTL(64).                  // 生存时间: 64 跳
+		Proto(layers.IPProtoTCP). // 上层协议: TCP
+		ID(0x1234)                // 标识: 0x1234
 
 	// -----------------------------------------------------------------------
 	// 3. 使用 Over() 方法将协议层叠加
@@ -127,4 +127,3 @@ func formatHexDump(data []byte) string {
 	}
 	return result
 }
-

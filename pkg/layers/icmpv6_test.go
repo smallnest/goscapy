@@ -26,9 +26,9 @@ func TestNewICMPv6Defaults(t *testing.T) {
 
 func TestICMPv6Serialize(t *testing.T) {
 	icmp := NewICMPv6()
-	icmp.Set("type", uint8(128))
-	icmp.Set("code", uint8(0))
-	icmp.Set("chksum", uint16(0))
+	_ = icmp.Set("type", uint8(128))
+	_ = icmp.Set("code", uint8(0))
+	_ = icmp.Set("chksum", uint16(0))
 
 	got, err := icmp.SerializeFields()
 	if err != nil {
@@ -96,7 +96,7 @@ func TestICMPv6ChecksumWithData(t *testing.T) {
 	srcIP := net.ParseIP("::1").To16()
 	dstIP := net.ParseIP("::1").To16()
 
-	hdr := []byte{0x80, 0x00, 0x00, 0x00} // type=128, code=0, chksum=0
+	hdr := []byte{0x80, 0x00, 0x00, 0x00}  // type=128, code=0, chksum=0
 	echo := []byte{0x12, 0x34, 0x00, 0x01} // id, seq
 	data := []byte("hello")
 	msg := append(append(hdr, echo...), data...)
@@ -113,15 +113,15 @@ func TestICMPv6ChecksumWithData(t *testing.T) {
 
 func TestICMPv6BuildHook(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", "::1")
-	ipv6.Set("dst", "::1")
+	_ = ipv6.Set("src", "::1")
+	_ = ipv6.Set("dst", "::1")
 
 	icmpBase := NewICMPv6()
-	icmpBase.Set("type", ICMPv6EchoRequest)
-	icmpBase.Set("code", uint8(0))
+	_ = icmpBase.Set("type", ICMPv6EchoRequest)
+	_ = icmpBase.Set("code", uint8(0))
 
 	echo := NewICMPv6Echo(0x1234, 1)
-	echo.Set("data", []byte("hello"))
+	_ = echo.Set("data", []byte("hello"))
 
 	pkt := packet.NewFrom(ipv6)
 	pkt.Push(icmpBase)
@@ -165,8 +165,8 @@ func TestICMPv6AllTypes(t *testing.T) {
 
 	for _, tt := range types {
 		icmp := NewICMPv6()
-		icmp.Set("type", tt.val)
-		icmp.Set("code", uint8(0))
+		_ = icmp.Set("type", tt.val)
+		_ = icmp.Set("code", uint8(0))
 
 		got, err := icmp.SerializeFields()
 		if err != nil {
@@ -190,7 +190,7 @@ func TestICMPv6ParseTruncated(t *testing.T) {
 
 func TestICMPv6EchoSerialize(t *testing.T) {
 	echo := NewICMPv6Echo(0x1234, 1)
-	echo.Set("data", []byte("hello"))
+	_ = echo.Set("data", []byte("hello"))
 
 	got, err := echo.SerializeFields()
 	if err != nil {
@@ -233,7 +233,7 @@ func TestICMPv6EchoParse(t *testing.T) {
 
 func TestICMPv6EchoRoundTrip(t *testing.T) {
 	echo := NewICMPv6Echo(0x1234, 1)
-	echo.Set("data", []byte("testdata"))
+	_ = echo.Set("data", []byte("testdata"))
 
 	ser, _ := echo.SerializeFields()
 	echo2 := NewICMPv6Echo(0, 0)
@@ -256,12 +256,12 @@ func TestICMPv6EchoRoundTrip(t *testing.T) {
 
 func TestICMPv6PackedBuild(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", "::1")
-	ipv6.Set("dst", "::1")
+	_ = ipv6.Set("src", "::1")
+	_ = ipv6.Set("dst", "::1")
 
 	icmpBase := NewICMPv6()
-	icmpBase.Set("type", ICMPv6EchoRequest)
-	icmpBase.Set("code", uint8(0))
+	_ = icmpBase.Set("type", ICMPv6EchoRequest)
+	_ = icmpBase.Set("code", uint8(0))
 
 	echo := NewICMPv6Echo(0x1234, 1)
 

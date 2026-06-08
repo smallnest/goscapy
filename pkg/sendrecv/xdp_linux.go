@@ -21,7 +21,7 @@ const (
 
 // Ring sizes (must be power of 2).
 const (
-	xdpDefaultRingSize = 2048
+	xdpDefaultRingSize  = 2048
 	xdpDefaultFrameSize = 4096
 )
 
@@ -34,22 +34,22 @@ type xdpDesc struct {
 
 // xdpRing represents a shared-memory ring (fill/completion/rx/tx).
 type xdpRing struct {
-	producer *uint32
-	consumer *uint32
-	descs    unsafe.Pointer // either *uint64 (fill/completion) or *xdpDesc (rx/tx)
-	mask     uint32
-	size     uint32
+	producer   *uint32
+	consumer   *uint32
+	descs      unsafe.Pointer // either *uint64 (fill/completion) or *xdpDesc (rx/tx)
+	mask       uint32
+	size       uint32
 	cachedProd uint32
 	cachedCons uint32
 }
 
 // XDPConn represents an AF_XDP socket connection with UMEM.
 type XDPConn struct {
-	fd       int
-	ifindex  int
-	queueID  int
-	umem     []byte // mmap'd UMEM region
-	umemFd   int
+	fd        int
+	ifindex   int
+	queueID   int
+	umem      []byte // mmap'd UMEM region
+	umemFd    int
 	frameSize uint32
 	numFrames uint32
 
@@ -320,10 +320,10 @@ func (c *XDPConn) setupRings(cfg *xdpConfig) error {
 
 func (c *XDPConn) bind(cfg *xdpConfig) error {
 	type xdpSockAddr struct {
-		Family  uint16
-		Flags   uint16
-		Ifindex uint32
-		QueueID uint32
+		Family       uint16
+		Flags        uint16
+		Ifindex      uint32
+		QueueID      uint32
 		SharedUmemFd uint32
 	}
 

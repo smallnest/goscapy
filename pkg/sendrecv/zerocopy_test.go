@@ -16,7 +16,7 @@ func TestZeroCopyNonRoot(t *testing.T) {
 
 	conn, err := DialRaw(1)
 	if err == nil {
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		t.Fatal("expected DialRaw to fail for non-root user")
 	}
 }
@@ -30,9 +30,10 @@ func TestZeroCopyPlatformSupport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		err = conn.SetZeroCopy(true)
 		if !errors.Is(err, ErrNotSupported) {
 			t.Errorf("expected ErrNotSupported on darwin, got %v", err)
@@ -42,7 +43,7 @@ func TestZeroCopyPlatformSupport(t *testing.T) {
 		if !errors.Is(err, ErrNotSupported) {
 			t.Errorf("expected ErrNotSupported on darwin, got %v", err)
 		}
-	} else if runtime.GOOS == "linux" {
+	case "linux":
 		err = conn.SetZeroCopy(true)
 		if err != nil {
 			t.Fatalf("expected SetZeroCopy(true) to succeed on Linux, got %v", err)

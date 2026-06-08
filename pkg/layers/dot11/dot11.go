@@ -46,23 +46,23 @@ const (
 
 // Reason codes.
 const (
-	ReasonUnspecified         uint16 = 1
-	ReasonAuthExpired         uint16 = 2
-	ReasonDeauthLeaving       uint16 = 3
-	ReasonInactivity          uint16 = 4
-	ReasonAPFull              uint16 = 5
-	ReasonClass2FromNonAuth   uint16 = 6
-	ReasonClass3FromNonAss    uint16 = 7
-	ReasonDisasLeaving        uint16 = 8
-	ReasonNotAuthenticated    uint16 = 9
+	ReasonUnspecified       uint16 = 1
+	ReasonAuthExpired       uint16 = 2
+	ReasonDeauthLeaving     uint16 = 3
+	ReasonInactivity        uint16 = 4
+	ReasonAPFull            uint16 = 5
+	ReasonClass2FromNonAuth uint16 = 6
+	ReasonClass3FromNonAss  uint16 = 7
+	ReasonDisasLeaving      uint16 = 8
+	ReasonNotAuthenticated  uint16 = 9
 )
 
 // Status codes.
 const (
-	StatusSuccess     uint16 = 0
-	StatusFailure     uint16 = 1
+	StatusSuccess      uint16 = 0
+	StatusFailure      uint16 = 1
 	StatusCapabilities uint16 = 10
-	StatusAssocDenied uint16 = 11
+	StatusAssocDenied  uint16 = 11
 )
 
 // Dot11Elt ID constants.
@@ -105,13 +105,13 @@ func SCFrag(sc uint16) uint8 { return uint8(sc & 0x0F) }
 // Default: type=0 (management), subtype=8 (beacon), flags=0, addr1=broadcast.
 func NewDot11() *packet.Layer {
 	return packet.NewLayer("Dot11", []fields.Field{
-		fields.NewByteField("fc0", 0x80),               // subtype=8, type=0, proto=0
-		fields.NewByteField("fc1", 0),                   // flags
-		fields.NewLEShortField("duration", 0),           // duration/ID
-		fields.NewMACField("addr1", broadcastMAC()),     // receiver
-		fields.NewMACField("addr2", zeroMAC()),          // transmitter
-		fields.NewMACField("addr3", zeroMAC()),          // BSSID / filter
-		fields.NewLEShortField("sc", 0),                 // sequence control
+		fields.NewByteField("fc0", 0x80),            // subtype=8, type=0, proto=0
+		fields.NewByteField("fc1", 0),               // flags
+		fields.NewLEShortField("duration", 0),       // duration/ID
+		fields.NewMACField("addr1", broadcastMAC()), // receiver
+		fields.NewMACField("addr2", zeroMAC()),      // transmitter
+		fields.NewMACField("addr3", zeroMAC()),      // BSSID / filter
+		fields.NewLEShortField("sc", 0),             // sequence control
 	})
 }
 
@@ -155,7 +155,7 @@ func NewDot11ProbeResp() *packet.Layer {
 // NewDot11Auth creates an Authentication frame body layer.
 func NewDot11Auth() *packet.Layer {
 	return packet.NewLayer("Dot11Auth", []fields.Field{
-		fields.NewLEShortField("algo", 0),    // 0=open, 1=shared key
+		fields.NewLEShortField("algo", 0), // 0=open, 1=shared key
 		fields.NewLEShortField("seqnum", 0),
 		fields.NewLEShortField("status", 0),
 	})
@@ -255,14 +255,14 @@ func SSIDFromIE(elts []IE) string {
 
 // RadioTapPresentFlags defines presence bitmap bit indices.
 const (
-	RTFlagTSFT        = 0
-	RTFlagFlags       = 1
-	RTFlagRate        = 2
-	RTFlagChannel     = 3
+	RTFlagTSFT         = 0
+	RTFlagFlags        = 1
+	RTFlagRate         = 2
+	RTFlagChannel      = 3
 	RTFlagDBmAntSignal = 5
-	RTFlagDBmAntNoise = 6
-	RTFlagAntenna     = 11
-	RTFlagRXFlags     = 14
+	RTFlagDBmAntNoise  = 6
+	RTFlagAntenna      = 11
+	RTFlagRXFlags      = 14
 )
 
 // ParseRadioTapData parses variable-length RadioTap field data based on the presence bitmap.
@@ -328,7 +328,6 @@ func ParseRadioTapData(data []byte, present uint32) map[string]any {
 		pos = align2(pos)
 		if pos+2 <= len(data) {
 			result["rxflags"] = binary.LittleEndian.Uint16(data[pos : pos+2])
-			pos += 2
 		}
 	}
 
@@ -340,7 +339,7 @@ func ParseRadioTapData(data []byte, present uint32) map[string]any {
 func radiotapBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
 	totalLen := 8 + len(upperBytes)
-	layer.Set("len", uint16(totalLen))
+	_ = layer.Set("len", uint16(totalLen))
 	return layer.SerializeInto(buf)
 }
 

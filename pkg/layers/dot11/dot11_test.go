@@ -47,12 +47,12 @@ func TestNewDot11(t *testing.T) {
 func TestDot11SerializeParse(t *testing.T) {
 	layer := NewDot11()
 	fc := SetFC(TypeManagement, SubtypeBeacon, 0)
-	layer.Set("fc0", fc[0])
-	layer.Set("fc1", fc[1])
-	layer.Set("addr1", []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
-	layer.Set("addr2", []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55})
-	layer.Set("addr3", []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55})
-	layer.Set("sc", uint16(0x0100)) // seq=16, frag=0
+	_ = layer.Set("fc0", fc[0])
+	_ = layer.Set("fc1", fc[1])
+	_ = layer.Set("addr1", []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+	_ = layer.Set("addr2", []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55})
+	_ = layer.Set("addr3", []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55})
+	_ = layer.Set("sc", uint16(0x0100)) // seq=16, frag=0
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -84,9 +84,9 @@ func TestDot11SerializeParse(t *testing.T) {
 
 func TestDot11BeaconRoundTrip(t *testing.T) {
 	layer := NewDot11Beacon()
-	layer.Set("timestamp", uint64(12345678))
-	layer.Set("beacon_interval", uint16(100))
-	layer.Set("cap", uint16(0x0411)) // ESS + privacy + short-slot
+	_ = layer.Set("timestamp", uint64(12345678))
+	_ = layer.Set("beacon_interval", uint16(100))
+	_ = layer.Set("cap", uint16(0x0411)) // ESS + privacy + short-slot
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -115,9 +115,9 @@ func TestDot11BeaconRoundTrip(t *testing.T) {
 
 func TestDot11AuthRoundTrip(t *testing.T) {
 	layer := NewDot11Auth()
-	layer.Set("algo", uint16(0))    // open
-	layer.Set("seqnum", uint16(1))
-	layer.Set("status", uint16(0))  // success
+	_ = layer.Set("algo", uint16(0)) // open
+	_ = layer.Set("seqnum", uint16(1))
+	_ = layer.Set("status", uint16(0)) // success
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -145,7 +145,7 @@ func TestDot11AuthRoundTrip(t *testing.T) {
 
 func TestDot11DeauthRoundTrip(t *testing.T) {
 	layer := NewDot11Deauth()
-	layer.Set("reason", uint16(ReasonDeauthLeaving))
+	_ = layer.Set("reason", uint16(ReasonDeauthLeaving))
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -169,8 +169,8 @@ func TestDot11DeauthRoundTrip(t *testing.T) {
 
 func TestDot11QoSRoundTrip(t *testing.T) {
 	layer := NewDot11QoS()
-	layer.Set("qos0", uint8(0x07)) // TID=0, Ack Policy=normal
-	layer.Set("qos1", uint8(0))
+	_ = layer.Set("qos0", uint8(0x07)) // TID=0, Ack Policy=normal
+	_ = layer.Set("qos1", uint8(0))
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -183,9 +183,9 @@ func TestDot11QoSRoundTrip(t *testing.T) {
 
 func TestDot11EltRoundTrip(t *testing.T) {
 	layer := NewDot11Elt()
-	layer.Set("id", uint8(EltIDSSID))
-	layer.Set("len", uint8(4))
-	layer.Set("info", []byte("test"))
+	_ = layer.Set("id", uint8(EltIDSSID))
+	_ = layer.Set("len", uint8(4))
+	_ = layer.Set("info", []byte("test"))
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -251,8 +251,8 @@ func TestParseDot11EltsTruncated(t *testing.T) {
 
 func TestRadioTapSerializeParse(t *testing.T) {
 	layer := NewRadioTap()
-	layer.Set("version", uint8(0))
-	layer.Set("len", uint16(8))
+	_ = layer.Set("version", uint8(0))
+	_ = layer.Set("len", uint16(8))
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -283,13 +283,13 @@ func TestRadioTapWithFields(t *testing.T) {
 	// dBm_AntSignal (bit 5): 1 byte → offset 9
 	var fieldData []byte
 	fieldData = append(fieldData, []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}...) // TSFT
-	fieldData = append(fieldData, 0x12)   // Rate = 18 → 9 Mbps
-	fieldData = append(fieldData, 0xC5)   // dBm signal = -59
+	fieldData = append(fieldData, 0x12)                                                      // Rate = 18 → 9 Mbps
+	fieldData = append(fieldData, 0xC5)                                                      // dBm signal = -59
 
 	present := uint32(1<<RTFlagTSFT | 1<<RTFlagRate | 1<<RTFlagDBmAntSignal)
-	layer.Set("present", present)
-	layer.Set("data", fieldData)
-	layer.Set("len", uint16(8+len(fieldData))) // 8 fixed + 10 variable = 18
+	_ = layer.Set("present", present)
+	_ = layer.Set("data", fieldData)
+	_ = layer.Set("len", uint16(8+len(fieldData))) // 8 fixed + 10 variable = 18
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -337,7 +337,7 @@ func TestRadioTapWithFields(t *testing.T) {
 
 func TestDot11ProbeReqRoundTrip(t *testing.T) {
 	layer := NewDot11ProbeReq()
-	layer.Set("data", BuildDot11Elts([]IE{
+	_ = layer.Set("data", BuildDot11Elts([]IE{
 		{ID: EltIDSSID, Info: []byte("")},
 	}))
 
@@ -355,9 +355,9 @@ func TestDot11ProbeReqRoundTrip(t *testing.T) {
 
 func TestDot11ProbeRespRoundTrip(t *testing.T) {
 	layer := NewDot11ProbeResp()
-	layer.Set("timestamp", uint64(99999))
-	layer.Set("beacon_interval", uint16(100))
-	layer.Set("cap", uint16(0x0411))
+	_ = layer.Set("timestamp", uint64(99999))
+	_ = layer.Set("beacon_interval", uint16(100))
+	_ = layer.Set("cap", uint16(0x0411))
 
 	data, err := layer.SerializeFields()
 	if err != nil {

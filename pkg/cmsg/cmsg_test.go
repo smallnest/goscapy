@@ -280,4 +280,3 @@ func TestParsePktInfo_TruncatedIPv6(t *testing.T) {
 		t.Error("expected error for truncated ipv6 pktinfo")
 	}
 }
-

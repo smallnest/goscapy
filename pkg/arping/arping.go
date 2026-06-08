@@ -15,9 +15,9 @@ import (
 
 // Host represents a discovered host from ARP scanning.
 type Host struct {
-	IP    string
-	MAC   string
-	RTT   time.Duration
+	IP  string
+	MAC string
+	RTT time.Duration
 }
 
 // ArpingResult holds the results of an ARP scan.

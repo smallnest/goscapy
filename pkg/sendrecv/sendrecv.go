@@ -92,7 +92,7 @@ func Recv(iface string, timeout time.Duration) (*packet.Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rx.Close()
+	defer func() { _ = rx.Close() }()
 
 	return rx.Recv(timeout)
 }
@@ -152,7 +152,7 @@ func sendAndCollect(pkt *packet.Packet, sendL2 bool, iface string, timeout time.
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	defer rx.Close()
+	defer func() { _ = rx.Close() }()
 
 	if sendL2 {
 		if err := Sendp(pkt, iface); err != nil {
