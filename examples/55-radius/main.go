@@ -19,7 +19,11 @@ func main() {
 		radius.NewFramedIPAVP("10.0.0.100"),
 	}
 
-	wire := radius.BuildRADIUSAVPs(avps)
+	wire, err := radius.BuildRADIUSAVPs(avps)
+	if err != nil {
+		fmt.Printf("Build error: %v\n", err)
+		return
+	}
 	fmt.Printf("RADIUS AVPs wire format (%d bytes):\n  %x\n\n", len(wire), wire)
 
 	// Parse AVPs from wire.

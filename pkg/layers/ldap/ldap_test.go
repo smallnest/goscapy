@@ -197,6 +197,31 @@ func TestSearchResultDoneRoundTrip(t *testing.T) {
 	}
 }
 
+func TestParseLDAPMessageErrors(t *testing.T) {
+	_, err := ParseLDAPMessage(nil)
+	if err == nil {
+		t.Error("expected error for nil input")
+	}
+
+	_, err = ParseLDAPMessage([]byte{0x05, 0x00}) // NULL instead of SEQUENCE
+	if err == nil {
+		t.Error("expected error for wrong outer tag")
+	}
+
+	// Truncated: SEQUENCE tag but not enough data.
+	_, err = ParseLDAPMessage([]byte{0x30, 0x05, 0x02, 0x01, 0x01})
+	if err == nil {
+		t.Error("expected error for truncated LDAP message")
+	}
+}
+
+func TestParseLDAPResultErrors(t *testing.T) {
+	_, _, _, err := ParseLDAPResult(nil)
+	if err == nil {
+		t.Error("expected error for nil input")
+	}
+}
+
 func TestBuildLDAPMessageDirect(t *testing.T) {
 	msg := &LDAPMessage{
 		MessageID: 42,

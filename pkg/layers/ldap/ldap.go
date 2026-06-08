@@ -224,7 +224,7 @@ func ParseLDAPMessage(data []byte) (*LDAPMessage, error) {
 		MessageID: msgID,
 		ProtocolOp: LDAPOp{
 			Tag:   opTag,
-			Value: value[pos : pos+opConsumed], // include tag+length+value
+			Value: append([]byte(nil), value[pos:pos+opConsumed]...),
 		},
 	}
 
@@ -232,7 +232,7 @@ func ParseLDAPMessage(data []byte) (*LDAPMessage, error) {
 
 	// Controls (optional, context-specific tag 0).
 	if pos < len(value) {
-		msg.Controls = value[pos:]
+		msg.Controls = append([]byte(nil), value[pos:]...)
 	}
 
 	return msg, nil

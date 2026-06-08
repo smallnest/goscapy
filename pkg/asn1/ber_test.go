@@ -224,6 +224,65 @@ func TestBEREncodeGeneralizedTime(t *testing.T) {
 	}
 }
 
+func TestBERDecodeOIDMalformed(t *testing.T) {
+	// Unterminated OID sub-identifier: all bytes have continuation bit set.
+	// Should not panic or loop forever; decodeOIDSubID caps at 5 iterations.
+	got := BERDecodeOID([]byte{0x2B, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01})
+	// Should still produce a result without panic.
+	if got == "" {
+		t.Error("expected non-empty OID from malformed input")
+	}
+}
+
+func TestBERDecodeTLVErrors(t *testing.T) {
+	_, _, _, err := BERDecodeTLV(nil)
+	if err == nil {
+		t.Error("expected error for nil input")
+	}
+
+	_, _, _, err = BERDecodeTLV([]byte{})
+	if err == nil {
+		t.Error("expected error for empty input")
+	}
+
+	// Truncated TLV: tag + length says 5 bytes but only 2 available.
+	_, _, _, err = BERDecodeTLV([]byte{0x02, 0x05, 0x01, 0x02})
+	if err == nil {
+		t.Error("expected error for truncated TLV")
+	}
+}
+
+func TestBERDecodeIntegerEmpty(t *testing.T) {
+	_, err := BERDecodeInteger(nil)
+	if err == nil {
+		t.Error("expected error for empty integer")
+	}
+}
+
+func TestBERDecodeBitStringErrors(t *testing.T) {
+	_, _, err := BERDecodeBitString(nil)
+	if err == nil {
+		t.Error("expected error for nil bit string")
+	}
+
+	_, _, err = BERDecodeBitString([]byte{0x08}) // unused bits > 7
+	if err == nil {
+		t.Error("expected error for invalid unused bits")
+	}
+}
+
+func TestBERDecodeLengthErrors(t *testing.T) {
+	_, _, err := BERDecodeLength(nil)
+	if err == nil {
+		t.Error("expected error for nil length")
+	}
+
+	_, _, err = BERDecodeLength([]byte{0x80}) // indefinite form
+	if err == nil {
+		t.Error("expected error for indefinite length")
+	}
+}
+
 func equalBytes(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false

@@ -31,7 +31,10 @@ func TestParseAndBuildAVPs(t *testing.T) {
 		NewNASPortAVP(1234),
 	}
 
-	wire := BuildRADIUSAVPs(avps)
+	wire, buildErr := BuildRADIUSAVPs(avps)
+	if buildErr != nil {
+		t.Fatalf("BuildRADIUSAVPs: %v", buildErr)
+	}
 	parsed, err := ParseRADIUSAVPs(wire)
 	if err != nil {
 		t.Fatalf("ParseRADIUSAVPs: %v", err)
@@ -77,7 +80,10 @@ func TestRADIUSAVPRoundTrip(t *testing.T) {
 		NewVendorSpecificAVP(9, []byte{0x01, 0x02}),
 	}
 
-	wire := BuildRADIUSAVPs(original)
+	wire, buildErr := BuildRADIUSAVPs(original)
+	if buildErr != nil {
+		t.Fatalf("BuildRADIUSAVPs: %v", buildErr)
+	}
 	parsed, err := ParseRADIUSAVPs(wire)
 	if err != nil {
 		t.Fatalf("ParseRADIUSAVPs: %v", err)
@@ -105,10 +111,10 @@ func TestRADIUSAVPTruncated(t *testing.T) {
 }
 
 func TestRADIUSAVPInvalidLength(t *testing.T) {
-	// Type=1, Length=1 (invalid, minimum is 2)
-	_, err := ParseRADIUSAVPs([]byte{0x01, 0x01})
+	// Type=1, Length=2 (invalid, minimum is 3 per RFC 2865)
+	_, err := ParseRADIUSAVPs([]byte{0x01, 0x02})
 	if err == nil {
-		t.Error("expected error for AVP with length < 2")
+		t.Error("expected error for AVP with length < 3")
 	}
 }
 
@@ -117,7 +123,10 @@ func TestBuildRADIUSAVPsWireFormat(t *testing.T) {
 	avps := []fields.TLVOption{
 		{Type: 1, Value: []byte("abc")}, // User-Name, 3 bytes value
 	}
-	wire := BuildRADIUSAVPs(avps)
+	wire, err := BuildRADIUSAVPs(avps)
+	if err != nil {
+		t.Fatalf("BuildRADIUSAVPs: %v", err)
+	}
 	// Expected: Type(1) + Length(1+1+3=5) + Value("abc")
 	want := []byte{1, 5, 'a', 'b', 'c'}
 	if len(wire) != len(want) || string(wire) != string(want) {
@@ -133,5 +142,36 @@ func TestNewServiceTypeAVP(t *testing.T) {
 	port := uint32(avp.Value[0])<<24 | uint32(avp.Value[1])<<16 | uint32(avp.Value[2])<<8 | uint32(avp.Value[3])
 	if port != 2 {
 		t.Errorf("value = %d, want 2", port)
+	}
+}
+
+func TestBuildRADIUSAVPsOverlong(t *testing.T) {
+	avps := []fields.TLVOption{
+		{Type: 1, Value: make([]byte, 254)}, // exceeds max of 253
+	}
+	_, err := BuildRADIUSAVPs(avps)
+	if err == nil {
+		t.Error("expected error for AVP value > 253 bytes")
+	}
+}
+
+func TestNewNASIPAVPBadInput(t *testing.T) {
+	avp := NewNASIPAVP("not-an-ip")
+	if avp.Type != AVPNASIP {
+		t.Errorf("type = %d, want %d", avp.Type, AVPNASIP)
+	}
+	// Should fall back to 0.0.0.0, not panic.
+	if len(avp.Value) != 4 {
+		t.Errorf("value len = %d, want 4", len(avp.Value))
+	}
+}
+
+func TestNewFramedIPAVPBadInput(t *testing.T) {
+	avp := NewFramedIPAVP("not-an-ip")
+	if avp.Type != AVPFramedIP {
+		t.Errorf("type = %d, want %d", avp.Type, AVPFramedIP)
+	}
+	if len(avp.Value) != 4 {
+		t.Errorf("value len = %d, want 4", len(avp.Value))
 	}
 }

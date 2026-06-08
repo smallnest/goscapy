@@ -245,13 +245,17 @@ func encodeOIDSubID(v uint32) []byte {
 
 func decodeOIDSubID(data []byte) (uint32, int) {
 	var val uint32
-	for i := 0; i < len(data); i++ {
+	maxIter := len(data)
+	if maxIter > 5 {
+		maxIter = 5
+	}
+	for i := 0; i < maxIter; i++ {
 		val = (val << 7) | uint32(data[i]&0x7f)
 		if data[i]&0x80 == 0 {
 			return val, i + 1
 		}
 	}
-	return val, len(data)
+	return val, maxIter
 }
 
 func parseOID(s string) []int {
