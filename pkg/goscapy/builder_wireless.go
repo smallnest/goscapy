@@ -3,6 +3,8 @@ package goscapy
 import (
 	"github.com/smallnest/goscapy/pkg/layers/bt"
 	"github.com/smallnest/goscapy/pkg/layers/dot11"
+	"github.com/smallnest/goscapy/pkg/layers/lorawan"
+	"github.com/smallnest/goscapy/pkg/layers/zigbee"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -195,4 +197,186 @@ func (b *ATTBuilder) Params(data []byte) *ATTBuilder {
 func (b *ATTBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- ZigbeeNWK Builder ----
+
+// ZigbeeNWKBuilder builds Zigbee Network Layer frames.
+type ZigbeeNWKBuilder struct {
+	layer *packet.Layer
+}
+
+// NewZigbeeNWK creates a ZigbeeNWK builder.
+func NewZigbeeNWK() *ZigbeeNWKBuilder {
+	return &ZigbeeNWKBuilder{layer: zigbee.NewZigbeeNWK()}
+}
+
+func (b *ZigbeeNWKBuilder) Layer() *packet.Layer { return b.layer }
+
+// FrameControl sets the NWK frame control field.
+func (b *ZigbeeNWKBuilder) FrameControl(fc uint16) *ZigbeeNWKBuilder {
+	_ = b.layer.Set("frame_control", fc)
+	return b
+}
+
+// SeqNum sets the NWK sequence number.
+func (b *ZigbeeNWKBuilder) SeqNum(seq uint8) *ZigbeeNWKBuilder {
+	_ = b.layer.Set("seqnum", seq)
+	return b
+}
+
+// Dst sets the NWK destination address.
+func (b *ZigbeeNWKBuilder) Dst(addr uint16) *ZigbeeNWKBuilder {
+	_ = b.layer.Set("dst", addr)
+	return b
+}
+
+// Src sets the NWK source address.
+func (b *ZigbeeNWKBuilder) Src(addr uint16) *ZigbeeNWKBuilder {
+	_ = b.layer.Set("src", addr)
+	return b
+}
+
+// Radius sets the broadcast radius.
+func (b *ZigbeeNWKBuilder) Radius(r uint8) *ZigbeeNWKBuilder {
+	_ = b.layer.Set("radius", r)
+	return b
+}
+
+// Over stacks an upper layer on top of this ZigbeeNWK layer.
+func (b *ZigbeeNWKBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- ZigbeeAPS Builder ----
+
+// ZigbeeAPSBuilder builds Zigbee Application Support Sub-layer frames.
+type ZigbeeAPSBuilder struct {
+	layer *packet.Layer
+}
+
+// NewZigbeeAPS creates a ZigbeeAPS builder.
+func NewZigbeeAPS() *ZigbeeAPSBuilder {
+	return &ZigbeeAPSBuilder{layer: zigbee.NewZigbeeAPS()}
+}
+
+func (b *ZigbeeAPSBuilder) Layer() *packet.Layer { return b.layer }
+
+// FrameControl sets the APS frame control byte.
+func (b *ZigbeeAPSBuilder) FrameControl(fc uint8) *ZigbeeAPSBuilder {
+	_ = b.layer.Set("frame_control", fc)
+	return b
+}
+
+// Cluster sets the cluster ID.
+func (b *ZigbeeAPSBuilder) Cluster(cid uint16) *ZigbeeAPSBuilder {
+	_ = b.layer.Set("cluster", cid)
+	return b
+}
+
+// Profile sets the profile ID.
+func (b *ZigbeeAPSBuilder) Profile(pid uint16) *ZigbeeAPSBuilder {
+	_ = b.layer.Set("profile", pid)
+	return b
+}
+
+// DstEndpoint sets the destination endpoint.
+func (b *ZigbeeAPSBuilder) DstEndpoint(ep uint8) *ZigbeeAPSBuilder {
+	_ = b.layer.Set("dst_endpoint", ep)
+	return b
+}
+
+// SrcEndpoint sets the source endpoint.
+func (b *ZigbeeAPSBuilder) SrcEndpoint(ep uint8) *ZigbeeAPSBuilder {
+	_ = b.layer.Set("src_endpoint", ep)
+	return b
+}
+
+// Over stacks an upper layer on top of this ZigbeeAPS layer.
+func (b *ZigbeeAPSBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- ZigbeeCluster Builder ----
+
+// ZigbeeClusterBuilder builds Zigbee Cluster Library (ZCL) frames.
+type ZigbeeClusterBuilder struct {
+	layer *packet.Layer
+}
+
+// NewZigbeeCluster creates a ZigbeeCluster builder.
+func NewZigbeeCluster() *ZigbeeClusterBuilder {
+	return &ZigbeeClusterBuilder{layer: zigbee.NewZigbeeCluster()}
+}
+
+func (b *ZigbeeClusterBuilder) Layer() *packet.Layer { return b.layer }
+
+// FrameControl sets the ZCL frame control byte.
+func (b *ZigbeeClusterBuilder) FrameControl(fc uint8) *ZigbeeClusterBuilder {
+	_ = b.layer.Set("frame_control", fc)
+	return b
+}
+
+// Command sets the ZCL command identifier.
+func (b *ZigbeeClusterBuilder) Command(cmd uint8) *ZigbeeClusterBuilder {
+	_ = b.layer.Set("command", cmd)
+	return b
+}
+
+// Payload sets the ZCL payload.
+func (b *ZigbeeClusterBuilder) Payload(data []byte) *ZigbeeClusterBuilder {
+	_ = b.layer.Set("payload", data)
+	return b
+}
+
+// Over stacks an upper layer on top of this ZigbeeCluster layer.
+func (b *ZigbeeClusterBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// ---- LoRaWAN Builder ----
+
+// LoRaWANBuilder builds LoRaWAN data frames.
+type LoRaWANBuilder struct {
+	layer *packet.Layer
+}
+
+// NewLoRaWAN creates a LoRaWAN builder.
+func NewLoRaWAN() *LoRaWANBuilder {
+	return &LoRaWANBuilder{layer: lorawan.NewLoRaWAN()}
+}
+
+func (b *LoRaWANBuilder) Layer() *packet.Layer { return b.layer }
+
+// MHDR sets the MAC header byte.
+func (b *LoRaWANBuilder) MHDR(mhdr uint8) *LoRaWANBuilder {
+	_ = b.layer.Set("mhdr", mhdr)
+	return b
+}
+
+// DevAddr sets the device address.
+func (b *LoRaWANBuilder) DevAddr(addr uint32) *LoRaWANBuilder {
+	_ = b.layer.Set("dev_addr", addr)
+	return b
+}
+
+// FCtrl sets the frame control byte.
+func (b *LoRaWANBuilder) FCtrl(fc uint8) *LoRaWANBuilder {
+	_ = b.layer.Set("fctrl", fc)
+	return b
+}
+
+// FCnt sets the frame counter.
+func (b *LoRaWANBuilder) FCnt(cnt uint16) *LoRaWANBuilder {
+	_ = b.layer.Set("fcnt", cnt)
+	return b
+}
+
+// Data sets the variable data field (FOpts + FPort + Payload + MIC).
+func (b *LoRaWANBuilder) Data(data []byte) *LoRaWANBuilder {
+	_ = b.layer.Set("data", data)
+	return b
 }
