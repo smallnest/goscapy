@@ -12,6 +12,14 @@ type BatchResult struct {
 	Src  string
 }
 
+// BatchResultOOB represents a received message with OOB ancillary data in a
+// batch receive operation.
+type BatchResultOOB struct {
+	Data []byte
+	OOB  []byte
+	Src  string
+}
+
 // BatchConn wraps a RawConn and adds high-performance batch send/receive methods.
 type BatchConn struct {
 	*RawConn
