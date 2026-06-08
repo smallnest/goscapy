@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/smallnest/goscapy/pkg/asn1"
 	"github.com/smallnest/goscapy/pkg/layers/snmp"
 )
 
@@ -105,12 +106,12 @@ func main() {
 	// 6. BER 编码演示
 	fmt.Println("--- 5. BER 编码演示 ---")
 	oid := ".1.3.6.1.2.1.1.1.0"
-	encoded := snmp.BEREncodeOID(oid)
+	encoded := asn1.BEREncodeOID(oid)
 	fmt.Printf("  OID %s → %d bytes BER\n", oid, len(encoded))
 
-	intVal := snmp.BEREncodeInteger(42)
+	intVal := asn1.BEREncodeInteger(42)
 	fmt.Printf("  Integer 42 → %d bytes BER\n", len(intVal))
 
-	ip := snmp.BEREncodeIP(net.ParseIP("10.0.0.1"))
+	ip := asn1.BEREncodeIP(net.ParseIP("10.0.0.1"))
 	fmt.Printf("  IP 10.0.0.1 → %d bytes BER\n", len(ip))
 }

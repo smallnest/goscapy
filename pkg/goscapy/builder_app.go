@@ -5,7 +5,10 @@ import (
 	"github.com/smallnest/goscapy/pkg/layers/dhcp"
 	"github.com/smallnest/goscapy/pkg/layers/dns"
 	layershttp "github.com/smallnest/goscapy/pkg/layers/http"
+	"github.com/smallnest/goscapy/pkg/layers/kerberos"
+	"github.com/smallnest/goscapy/pkg/layers/ldap"
 	"github.com/smallnest/goscapy/pkg/layers/ntp"
+	"github.com/smallnest/goscapy/pkg/layers/radius"
 	layerstls "github.com/smallnest/goscapy/pkg/layers/tls"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
@@ -341,6 +344,114 @@ func (b *TLSBuilder) Alert(level, desc uint8) *TLSBuilder {
 
 // Over stacks an upper layer on top of this TLS layer.
 func (b *TLSBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// RADIUSBuilder builds RADIUS protocol layers.
+type RADIUSBuilder struct {
+	layer *packet.Layer
+}
+
+// NewRADIUS creates a RADIUS layer builder with Access-Request defaults.
+func NewRADIUS() *RADIUSBuilder {
+	return &RADIUSBuilder{layer: radius.NewRADIUS()}
+}
+
+func (b *RADIUSBuilder) Layer() *packet.Layer { return b.layer }
+
+// Code sets the RADIUS message code (1=Access-Request, 2=Access-Accept, etc.).
+func (b *RADIUSBuilder) Code(code uint8) *RADIUSBuilder {
+	_ = b.layer.Set("code", code)
+	return b
+}
+
+// ID sets the RADIUS identifier.
+func (b *RADIUSBuilder) ID(id uint8) *RADIUSBuilder {
+	_ = b.layer.Set("id", id)
+	return b
+}
+
+// Authenticator sets the 16-byte authenticator.
+func (b *RADIUSBuilder) Authenticator(auth []byte) *RADIUSBuilder {
+	_ = b.layer.Set("authenticator", auth)
+	return b
+}
+
+// AVPs sets the raw AVP bytes.
+func (b *RADIUSBuilder) AVPs(data []byte) *RADIUSBuilder {
+	_ = b.layer.Set("avps", data)
+	return b
+}
+
+// Over stacks an upper layer on top of this RADIUS layer.
+func (b *RADIUSBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// LDAPBuilder builds LDAP protocol layers.
+type LDAPBuilder struct {
+	layer *packet.Layer
+}
+
+// NewLDAP creates an LDAP layer builder.
+func NewLDAP() *LDAPBuilder {
+	return &LDAPBuilder{layer: ldap.NewLDAP()}
+}
+
+func (b *LDAPBuilder) Layer() *packet.Layer { return b.layer }
+
+// Payload sets the raw BER-encoded LDAP message payload.
+func (b *LDAPBuilder) Payload(data []byte) *LDAPBuilder {
+	_ = b.layer.Set("payload", data)
+	return b
+}
+
+// BindRequest builds a BindRequest and sets it as the payload.
+func (b *LDAPBuilder) BindRequest(msgID int, name, password string) *LDAPBuilder {
+	_ = b.layer.Set("payload", ldap.BuildBindRequest(msgID, name, password))
+	return b
+}
+
+// SearchRequest builds a SearchRequest and sets it as the payload.
+func (b *LDAPBuilder) SearchRequest(msgID int, baseDN string, scope, derefAliases, sizeLimit, timeLimit int, typesOnly bool, filter []byte, attributes []string) *LDAPBuilder {
+	_ = b.layer.Set("payload", ldap.BuildSearchRequest(msgID, baseDN, scope, derefAliases, sizeLimit, timeLimit, typesOnly, filter, attributes))
+	return b
+}
+
+// Over stacks an upper layer on top of this LDAP layer.
+func (b *LDAPBuilder) Over(upper LayerBuilder) *PacketBuilder {
+	pkt := b.layer.Over(upper.Layer())
+	return &PacketBuilder{pkt: pkt}
+}
+
+// KerberosBuilder builds Kerberos protocol layers.
+type KerberosBuilder struct {
+	layer *packet.Layer
+}
+
+// NewKerberos creates a Kerberos layer builder.
+func NewKerberos() *KerberosBuilder {
+	return &KerberosBuilder{layer: kerberos.NewKerberos()}
+}
+
+func (b *KerberosBuilder) Layer() *packet.Layer { return b.layer }
+
+// Payload sets the raw BER-encoded Kerberos message payload.
+func (b *KerberosBuilder) Payload(data []byte) *KerberosBuilder {
+	_ = b.layer.Set("payload", data)
+	return b
+}
+
+// ASREQ builds an AS-REQ and sets it as the payload.
+func (b *KerberosBuilder) ASREQ(realm string, cname, sname kerberos.PrincipalName) *KerberosBuilder {
+	_ = b.layer.Set("payload", kerberos.BuildASREQ(realm, cname, sname))
+	return b
+}
+
+// Over stacks an upper layer on top of this Kerberos layer.
+func (b *KerberosBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }
