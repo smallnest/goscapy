@@ -225,15 +225,15 @@ ans.<span class="fn">show</span>()</pre>
                                 </div>
                                 <div class="code-body">
                                     <pre><span class="cmt">// Build + send + receive first reply</span>
-pkt, _ := goscapy.<span class="fn">NewIP</span>().
+pkt := goscapy.<span class="fn">NewIP</span>().
     <span class="fn">DstIP</span>(<span class="str">"8.8.8.8"</span>).
     <span class="fn">Over</span>(goscapy.<span class="fn">NewICMP</span>().
         <span class="fn">Type</span>(<span class="num">8</span>).<span class="fn">Code</span>(<span class="num">0</span>)).
     <span class="fn">Packet</span>()
 
 _, resp, _ := sendrecv.<span class="fn">SendRecv1</span>(
-    pkt, <span class="str">"eth0"</span>, <span class="num">3</span>*time.Second)
-fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
+    pkt, <span class="str">"en0"</span>, <span class="num">3</span>*time.Second)
+fmt.<span class="fn">Println</span>(resp.<span class="fn">Summary</span>())</pre>
                                 </div>
                             </div>
                         </div>

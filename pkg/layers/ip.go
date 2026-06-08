@@ -1,6 +1,8 @@
 package layers
 
 import (
+	"net"
+
 	"github.com/smallnest/goscapy/pkg/fields"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
@@ -45,6 +47,13 @@ func IPFragOffset(frag uint16) uint16 { return frag & 0x1FFF }
 // It auto-computes the total length and header checksum, writing directly into buf.
 func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
+
+	// Default src to 0.0.0.0 if unset so the kernel fills in the real source.
+	if v, _ := layer.Get("src"); v == nil {
+		_ = layer.Set("src", "0.0.0.0")
+	} else if ip, ok := v.(net.IP); ok && len(ip) == 0 {
+		_ = layer.Set("src", "0.0.0.0")
+	}
 
 	// Compute total length: header size + upper layer bytes.
 	verihl, _ := layer.Get("verihl")

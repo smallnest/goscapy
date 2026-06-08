@@ -1,6 +1,8 @@
 package layers
 
 import (
+	"net"
+
 	"github.com/smallnest/goscapy/pkg/fields"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
@@ -52,6 +54,14 @@ func MakeIPv6VerTCFL(tc uint8, fl uint32) uint32 {
 // It auto-computes the payload length from upper layer bytes, writing directly into buf.
 func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte) (int, error) {
 	layer := pkt.Layers()[layerIdx]
+
+	// Default src to :: if unset so the kernel fills in the real source.
+	if v, _ := layer.Get("src"); v == nil {
+		_ = layer.Set("src", "::")
+	} else if ip, ok := v.(net.IP); ok && len(ip) == 0 {
+		_ = layer.Set("src", "::")
+	}
+
 	_ = layer.Set("plen", uint16(len(upperBytes)))
 	return layer.SerializeInto(buf)
 }

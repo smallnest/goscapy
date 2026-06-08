@@ -16,7 +16,7 @@ func main() {
 			Type(8).Code(0)).
 		Packet()
 
-	_, resp, err := sendrecv.SendRecv1(
+	_, resp, _ := sendrecv.SendRecv1(
 		pkt, "en0", 3*time.Second)
 	fmt.Println(resp.Summary())
 }
