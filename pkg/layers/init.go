@@ -41,6 +41,12 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/netflow"
 	// Register RTP/RTCP/SIP (VoIP) layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/voip"
+	// Register RADIUS layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/radius"
+	// Register LDAP layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/ldap"
+	// Register Kerberos layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/kerberos"
 )
 
 func init() {
@@ -239,6 +245,22 @@ func init() {
 	packet.RegisterHeuristic("UDP", "sport", uint16(161), "SNMP")
 	packet.RegisterHeuristic("UDP", "dport", uint16(162), "SNMP")
 	packet.RegisterHeuristic("UDP", "sport", uint16(162), "SNMP")
+
+	// RADIUS: UDP port 1812 (authentication) and 1813 (accounting).
+	packet.RegisterHeuristic("UDP", "dport", uint16(1812), "RADIUS")
+	packet.RegisterHeuristic("UDP", "sport", uint16(1812), "RADIUS")
+	packet.RegisterHeuristic("UDP", "dport", uint16(1813), "RADIUS")
+	packet.RegisterHeuristic("UDP", "sport", uint16(1813), "RADIUS")
+
+	// Kerberos: TCP/UDP port 88.
+	packet.RegisterHeuristic("TCP", "dport", uint16(88), "Kerberos")
+	packet.RegisterHeuristic("TCP", "sport", uint16(88), "Kerberos")
+	packet.RegisterHeuristic("UDP", "dport", uint16(88), "Kerberos")
+	packet.RegisterHeuristic("UDP", "sport", uint16(88), "Kerberos")
+
+	// LDAP: TCP port 389.
+	packet.RegisterHeuristic("TCP", "dport", uint16(389), "LDAP")
+	packet.RegisterHeuristic("TCP", "sport", uint16(389), "LDAP")
 
 	// ---- Tunnel payload registrations ----
 

@@ -3,6 +3,8 @@ package snmp
 import (
 	"net"
 	"testing"
+
+	"github.com/smallnest/goscapy/pkg/asn1"
 )
 
 func TestBERLength(t *testing.T) {
@@ -17,7 +19,7 @@ func TestBERLength(t *testing.T) {
 		{256, []byte{0x82, 0x01, 0x00}},
 	}
 	for _, tt := range tests {
-		got := BERLength(tt.length)
+		got := asn1.BERLength(tt.length)
 		if !equalBytes(got, tt.want) {
 			t.Errorf("BERLength(%d) = %v, want %v", tt.length, got, tt.want)
 		}
@@ -35,7 +37,7 @@ func TestBERDecodeLength(t *testing.T) {
 		{[]byte{0x82, 0x01, 0x00}, 256, 3},
 	}
 	for _, tt := range tests {
-		l, c, err := BERDecodeLength(tt.data)
+		l, c, err := asn1.BERDecodeLength(tt.data)
 		if err != nil {
 			t.Fatalf("BERDecodeLength(%v): %v", tt.data, err)
 		}
@@ -48,15 +50,15 @@ func TestBERDecodeLength(t *testing.T) {
 func TestBERInteger(t *testing.T) {
 	tests := []int{0, 1, 127, 128, -1, -128, 256, 65535}
 	for _, val := range tests {
-		encoded := BEREncodeInteger(val)
-		tag, data, _, err := BERDecodeTLV(encoded)
+		encoded := asn1.BEREncodeInteger(val)
+		tag, data, _, err := asn1.BERDecodeTLV(encoded)
 		if err != nil {
 			t.Fatalf("decode %d: %v", val, err)
 		}
-		if tag != TagInteger {
+		if tag != asn1.TagInteger {
 			t.Errorf("tag = 0x%02x", tag)
 		}
-		decoded, err := BERDecodeInteger(data)
+		decoded, err := asn1.BERDecodeInteger(data)
 		if err != nil {
 			t.Fatalf("parse %d: %v", val, err)
 		}
@@ -68,12 +70,12 @@ func TestBERInteger(t *testing.T) {
 
 func TestBEROctetString(t *testing.T) {
 	val := []byte("hello")
-	encoded := BEREncodeOctetString(val)
-	tag, data, _, err := BERDecodeTLV(encoded)
+	encoded := asn1.BEREncodeOctetString(val)
+	tag, data, _, err := asn1.BERDecodeTLV(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tag != TagOctetString || string(data) != "hello" {
+	if tag != asn1.TagOctetString || string(data) != "hello" {
 		t.Errorf("got tag=0x%02x data=%q", tag, data)
 	}
 }
@@ -86,15 +88,15 @@ func TestBEROID(t *testing.T) {
 		".1.3.6.1.6.3.1.1.4.1.0", // snmpTrapOID
 	}
 	for _, oid := range tests {
-		encoded := BEREncodeOID(oid)
-		tag, data, _, err := BERDecodeTLV(encoded)
+		encoded := asn1.BEREncodeOID(oid)
+		tag, data, _, err := asn1.BERDecodeTLV(encoded)
 		if err != nil {
 			t.Fatalf("decode %s: %v", oid, err)
 		}
-		if tag != TagOID {
+		if tag != asn1.TagOID {
 			t.Errorf("tag = 0x%02x", tag)
 		}
-		decoded := BERDecodeOID(data)
+		decoded := asn1.BERDecodeOID(data)
 		if decoded != oid {
 			t.Errorf("round-trip: got %q, want %q", decoded, oid)
 		}
@@ -300,38 +302,38 @@ func TestPDUTypeName(t *testing.T) {
 }
 
 func TestBERNull(t *testing.T) {
-	null := BEREncodeNull()
-	if len(null) != 2 || null[0] != TagNull || null[1] != 0 {
+	null := asn1.BEREncodeNull()
+	if len(null) != 2 || null[0] != asn1.TagNull || null[1] != 0 {
 		t.Errorf("null = %v", null)
 	}
 }
 
 func TestBERIP(t *testing.T) {
 	ip := net.ParseIP("10.0.0.1")
-	encoded := BEREncodeIP(ip)
-	tag, val, _, err := BERDecodeTLV(encoded)
+	encoded := asn1.BEREncodeIP(ip)
+	tag, val, _, err := asn1.BERDecodeTLV(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tag != TagIPAddress {
+	if tag != asn1.TagIPAddress {
 		t.Errorf("tag = 0x%02x", tag)
 	}
-	parsed := BERDecodeIP(val)
+	parsed := asn1.BERDecodeIP(val)
 	if !parsed.Equal(ip) {
 		t.Errorf("IP = %v, want %v", parsed, ip)
 	}
 }
 
 func TestBERCounter32(t *testing.T) {
-	encoded := BEREncodeCounter32(12345)
-	tag, val, _, err := BERDecodeTLV(encoded)
+	encoded := asn1.BEREncodeCounter32(12345)
+	tag, val, _, err := asn1.BERDecodeTLV(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tag != TagCounter32 {
+	if tag != asn1.TagCounter32 {
 		t.Errorf("tag = 0x%02x", tag)
 	}
-	n, err := BERDecodeInteger(val)
+	n, err := asn1.BERDecodeInteger(val)
 	if err != nil || n != 12345 {
 		t.Errorf("value = %d, err = %v", n, err)
 	}
