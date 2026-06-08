@@ -7,40 +7,11 @@ import (
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
-// ipVersion indicates whether an address is IPv4 or IPv6 for checksum computation.
-type ipVersion int
-
-const (
-	ipV4 ipVersion = iota
-	ipV6
-)
-
 // ipAddr holds resolved IP addresses along with the version.
 type ipAddr struct {
-	src   []byte
-	dst   []byte
-	isV6  bool
-}
-
-// findIPAddresses searches downward from layerIdx to find the nearest IP layer
-// and returns its src and dst IP addresses as 4-byte slices.
-func findIPAddresses(pkt *packet.Packet, layerIdx int) (srcIP, dstIP []byte, err error) {
-	for i := layerIdx - 1; i >= 0; i-- {
-		if pkt.Layers()[i].Proto() == "IP" {
-			ipLayer := pkt.Layers()[i]
-			src, _ := ipLayer.Get("src")
-			dst, _ := ipLayer.Get("dst")
-
-			srcIP = ipToBytes(src)
-			dstIP = ipToBytes(dst)
-
-			if len(srcIP) != 4 || len(dstIP) != 4 {
-				return nil, nil, fmt.Errorf("layers: IP addresses not set for checksum computation")
-			}
-			return srcIP, dstIP, nil
-		}
-	}
-	return nil, nil, fmt.Errorf("layers: no IP layer found below layer %d for checksum computation", layerIdx)
+	src  []byte
+	dst  []byte
+	isV6 bool
 }
 
 // findIPAddressesAny searches downward from layerIdx to find the nearest IP or

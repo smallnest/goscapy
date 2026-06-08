@@ -248,23 +248,23 @@ func (r *Reassembler) buildReassembled(key fragKey, payload []byte) *packet.Pack
 	if err != nil {
 		// Can't dissect upper layer — return IP + raw payload as single-layer packet.
 		ip := layers.NewIP()
-		ip.Set("src", net.IP(key.src[:]).To4())
-		ip.Set("dst", net.IP(key.dst[:]).To4())
-		ip.Set("id", key.id)
-		ip.Set("proto", key.proto)
-		ip.Set("frag", uint16(0))
-		ip.Set("len", uint16(20+len(payload)))
+		_ = ip.Set("src", net.IP(key.src[:]).To4())
+		_ = ip.Set("dst", net.IP(key.dst[:]).To4())
+		_ = ip.Set("id", key.id)
+		_ = ip.Set("proto", key.proto)
+		_ = ip.Set("frag", uint16(0))
+		_ = ip.Set("len", uint16(20+len(payload)))
 		return packet.NewFrom(ip)
 	}
 
 	// Build a synthetic IP header for the reassembled packet.
 	ip := layers.NewIP()
-	ip.Set("src", net.IP(key.src[:]).To4())
-	ip.Set("dst", net.IP(key.dst[:]).To4())
-	ip.Set("id", key.id)
-	ip.Set("proto", key.proto)
-	ip.Set("frag", uint16(0))
-	ip.Set("len", uint16(20+len(payload)))
+	_ = ip.Set("src", net.IP(key.src[:]).To4())
+	_ = ip.Set("dst", net.IP(key.dst[:]).To4())
+	_ = ip.Set("id", key.id)
+	_ = ip.Set("proto", key.proto)
+	_ = ip.Set("frag", uint16(0))
+	_ = ip.Set("len", uint16(20+len(payload)))
 
 	allLayers := append([]*packet.Layer{ip}, upperPkt.Layers()...)
 	return packet.NewFrom(allLayers...)

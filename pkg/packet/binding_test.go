@@ -58,13 +58,6 @@ func makeARP() *Layer {
 	})
 }
 
-func makeICMP() *Layer {
-	return NewLayer("ICMP", []fields.Field{
-		fields.NewByteField("type", 8),
-		fields.NewByteField("code", 0),
-	})
-}
-
 func TestLayerOverStacking(t *testing.T) {
 	eth := makeEth()
 	ip := makeIP()
@@ -176,7 +169,7 @@ func TestOverReturnsNewPacket(t *testing.T) {
 	pkt2 := eth2.Over(ip2)
 
 	// Modify eth2 type directly — should not affect pkt1
-	eth2.Set("type", uint16(0x9999))
+	_ = eth2.Set("type", uint16(0x9999))
 	eth1Type, _ := eth1.Get("type")
 	if eth1Type.(uint16) != 0x0800 {
 		t.Errorf("eth1.type should still be 0x0800, got %#x", eth1Type)

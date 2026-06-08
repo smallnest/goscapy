@@ -21,19 +21,19 @@ func (b *QUICBuilder) Layer() *packet.Layer { return b.layer }
 
 // Version sets the QUIC version.
 func (b *QUICBuilder) Version(v uint32) *QUICBuilder {
-	b.layer.Set("version", v)
+	_ = b.layer.Set("version", v)
 	return b
 }
 
 // DCID sets the Destination Connection ID.
 func (b *QUICBuilder) DCID(cid []byte) *QUICBuilder {
-	b.layer.Set("dcid", cid)
+	_ = b.layer.Set("dcid", cid)
 	return b
 }
 
 // SCID sets the Source Connection ID.
 func (b *QUICBuilder) SCID(cid []byte) *QUICBuilder {
-	b.layer.Set("scid", cid)
+	_ = b.layer.Set("scid", cid)
 	return b
 }
 
@@ -56,33 +56,33 @@ func NewNetflowV5() *NetflowV5Builder {
 func (b *NetflowV5Builder) Layer() *packet.Layer { return b.layer }
 
 func (b *NetflowV5Builder) Count(n uint16) *NetflowV5Builder {
-	b.layer.Set("count", n)
+	_ = b.layer.Set("count", n)
 	return b
 }
 
 func (b *NetflowV5Builder) SysUptime(ms uint32) *NetflowV5Builder {
-	b.layer.Set("sys_uptime", ms)
+	_ = b.layer.Set("sys_uptime", ms)
 	return b
 }
 
 func (b *NetflowV5Builder) UnixSecs(s uint32) *NetflowV5Builder {
-	b.layer.Set("unix_secs", s)
+	_ = b.layer.Set("unix_secs", s)
 	return b
 }
 
 func (b *NetflowV5Builder) FlowSequence(seq uint32) *NetflowV5Builder {
-	b.layer.Set("flow_sequence", seq)
+	_ = b.layer.Set("flow_sequence", seq)
 	return b
 }
 
 func (b *NetflowV5Builder) Engine(typ, id uint8) *NetflowV5Builder {
-	b.layer.Set("engine_type", typ)
-	b.layer.Set("engine_id", id)
+	_ = b.layer.Set("engine_type", typ)
+	_ = b.layer.Set("engine_id", id)
 	return b
 }
 
 func (b *NetflowV5Builder) Sampling(interval uint16) *NetflowV5Builder {
-	b.layer.Set("sampling_interval", interval)
+	_ = b.layer.Set("sampling_interval", interval)
 	return b
 }
 
@@ -104,27 +104,27 @@ func NewNetflowV9() *NetflowV9Builder {
 func (b *NetflowV9Builder) Layer() *packet.Layer { return b.layer }
 
 func (b *NetflowV9Builder) Count(n uint16) *NetflowV9Builder {
-	b.layer.Set("count", n)
+	_ = b.layer.Set("count", n)
 	return b
 }
 
 func (b *NetflowV9Builder) SysUptime(ms uint32) *NetflowV9Builder {
-	b.layer.Set("sys_uptime", ms)
+	_ = b.layer.Set("sys_uptime", ms)
 	return b
 }
 
 func (b *NetflowV9Builder) UnixSecs(s uint32) *NetflowV9Builder {
-	b.layer.Set("unix_secs", s)
+	_ = b.layer.Set("unix_secs", s)
 	return b
 }
 
 func (b *NetflowV9Builder) Sequence(seq uint32) *NetflowV9Builder {
-	b.layer.Set("sequence", seq)
+	_ = b.layer.Set("sequence", seq)
 	return b
 }
 
 func (b *NetflowV9Builder) SourceID(id uint32) *NetflowV9Builder {
-	b.layer.Set("source_id", id)
+	_ = b.layer.Set("source_id", id)
 	return b
 }
 
@@ -146,22 +146,22 @@ func NewIPFIX() *IPFIXBuilder {
 func (b *IPFIXBuilder) Layer() *packet.Layer { return b.layer }
 
 func (b *IPFIXBuilder) Length(n uint16) *IPFIXBuilder {
-	b.layer.Set("length", n)
+	_ = b.layer.Set("length", n)
 	return b
 }
 
 func (b *IPFIXBuilder) ExportTime(t uint32) *IPFIXBuilder {
-	b.layer.Set("export_time", t)
+	_ = b.layer.Set("export_time", t)
 	return b
 }
 
 func (b *IPFIXBuilder) Sequence(seq uint32) *IPFIXBuilder {
-	b.layer.Set("sequence", seq)
+	_ = b.layer.Set("sequence", seq)
 	return b
 }
 
 func (b *IPFIXBuilder) ObservationDomainID(id uint32) *IPFIXBuilder {
-	b.layer.Set("observation_domain_id", id)
+	_ = b.layer.Set("observation_domain_id", id)
 	return b
 }
 
@@ -183,38 +183,38 @@ func (b *RTPBuilder) Layer() *packet.Layer { return b.layer }
 
 func (b *RTPBuilder) Version(v uint8) *RTPBuilder {
 	b0, _ := b.layer.Get("byte0")
-	b.layer.Set("byte0", (b0.(uint8)&0x3F)|(v<<6))
+	_ = b.layer.Set("byte0", (b0.(uint8)&0x3F)|(v<<6))
 	return b
 }
 
 func (b *RTPBuilder) PayloadType(pt uint8) *RTPBuilder {
 	b1, _ := b.layer.Get("byte1")
-	b.layer.Set("byte1", (b1.(uint8)&0x80)|(pt&0x7F))
+	_ = b.layer.Set("byte1", (b1.(uint8)&0x80)|(pt&0x7F))
 	return b
 }
 
 func (b *RTPBuilder) Marker(m bool) *RTPBuilder {
 	b1, _ := b.layer.Get("byte1")
 	if m {
-		b.layer.Set("byte1", b1.(uint8)|0x80)
+		_ = b.layer.Set("byte1", b1.(uint8)|0x80)
 	} else {
-		b.layer.Set("byte1", b1.(uint8)&0x7F)
+		_ = b.layer.Set("byte1", b1.(uint8)&0x7F)
 	}
 	return b
 }
 
 func (b *RTPBuilder) Seq(n uint16) *RTPBuilder {
-	b.layer.Set("seq", n)
+	_ = b.layer.Set("seq", n)
 	return b
 }
 
 func (b *RTPBuilder) Timestamp(t uint32) *RTPBuilder {
-	b.layer.Set("timestamp", t)
+	_ = b.layer.Set("timestamp", t)
 	return b
 }
 
 func (b *RTPBuilder) SSRC(s uint32) *RTPBuilder {
-	b.layer.Set("ssrc", s)
+	_ = b.layer.Set("ssrc", s)
 	return b
 }
 
@@ -235,7 +235,7 @@ func NewRTCP() *RTCPBuilder {
 func (b *RTCPBuilder) Layer() *packet.Layer { return b.layer }
 
 func (b *RTCPBuilder) Type(t uint8) *RTCPBuilder {
-	b.layer.Set("type", t)
+	_ = b.layer.Set("type", t)
 	return b
 }
 
@@ -256,7 +256,7 @@ func NewSIP() *SIPBuilder {
 func (b *SIPBuilder) Layer() *packet.Layer { return b.layer }
 
 func (b *SIPBuilder) Raw(text string) *SIPBuilder {
-	b.layer.Set("raw", text)
+	_ = b.layer.Set("raw", text)
 	return b
 }
 

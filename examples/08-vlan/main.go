@@ -48,14 +48,14 @@ func main() {
 	vlanPkt := goscapy.NewEthernet().
 		DstMAC("00:aa:bb:cc:dd:ee").
 		SrcMAC("00:11:22:33:44:55").
-		Type(0x8100).                         // TPID: 802.1Q
+		Type(0x8100). // TPID: 802.1Q
 		Over(goscapy.NewDot1Q().
-			VID(100).                          // VLAN ID: 100
-			PCP(5).                            // 优先级: 5 (高优先级)
-			DEI(false).                        // 不可丢弃
-			Type(layers.EtherTypeIPv4)).       // 内层 EtherType: IPv4
+			VID(100).                    // VLAN ID: 100
+			PCP(5).                      // 优先级: 5 (高优先级)
+			DEI(false).                  // 不可丢弃
+			Type(layers.EtherTypeIPv4)). // 内层 EtherType: IPv4
 		Over(goscapy.NewIP().
-			SrcIP("192.168.100.10").           // VLAN 100 内的 IP
+			SrcIP("192.168.100.10"). // VLAN 100 内的 IP
 			DstIP("192.168.100.20").
 			TTL(64).
 			Proto(layers.IPProtoTCP)).
@@ -83,11 +83,11 @@ func main() {
 
 	// 使用 Shortcut 函数快速创建带 VLAN 的包
 	vlan1Bytes, err := goscapy.EtherDot1QIP(
-		"00:11:22:33:44:55",   // 源 MAC
-		"00:aa:bb:cc:dd:ee",   // 目标 MAC
-		"192.168.10.1",         // 源 IP
-		"192.168.10.2",         // 目标 IP
-		10,                     // VLAN ID: 10
+		"00:11:22:33:44:55", // 源 MAC
+		"00:aa:bb:cc:dd:ee", // 目标 MAC
+		"192.168.10.1",      // 源 IP
+		"192.168.10.2",      // 目标 IP
+		10,                  // VLAN ID: 10
 	)
 	if err != nil {
 		log.Fatalf("构建 VLAN 10 包失败: %v", err)
@@ -98,7 +98,7 @@ func main() {
 		"00:aa:bb:cc:dd:ee",
 		"192.168.20.1",
 		"192.168.20.2",
-		20,                     // VLAN ID: 20
+		20, // VLAN ID: 20
 	)
 	if err != nil {
 		log.Fatalf("构建 VLAN 20 包失败: %v", err)

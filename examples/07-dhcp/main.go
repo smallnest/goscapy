@@ -52,20 +52,20 @@ func main() {
 
 	// 构建 DHCP Discover 包
 	discoverPkt := goscapy.NewEthernet().
-		DstMAC("ff:ff:ff:ff:ff:ff").         // 广播
+		DstMAC("ff:ff:ff:ff:ff:ff"). // 广播
 		SrcMAC("00:11:22:33:44:55").
 		Over(goscapy.NewIP().
-			SrcIP("0.0.0.0").                  // 客户端还没有 IP
-			DstIP("255.255.255.255").           // 广播
-			Proto(17)).                         // UDP
+			SrcIP("0.0.0.0").         // 客户端还没有 IP
+			DstIP("255.255.255.255"). // 广播
+			Proto(17)).               // UDP
 		Over(goscapy.NewUDP().
-			SrcPort(68).                         // DHCP 客户端端口
-			DstPort(67)).                        // DHCP 服务器端口
+			SrcPort(68).  // DHCP 客户端端口
+			DstPort(67)). // DHCP 服务器端口
 		Over(goscapy.NewDHCP().
-			Op(dhcp.BOOTREQUEST).                // BOOTP 操作: 请求
-			XID(0x12345678).                     // 事务 ID (随机)
-			CHAddr(clientMAC).                   // 客户端 MAC
-			MessageType(dhcp.DHCPDISCOVER))      // Option 53: Discover
+			Op(dhcp.BOOTREQUEST).           // BOOTP 操作: 请求
+			XID(0x12345678).                // 事务 ID (随机)
+			CHAddr(clientMAC).              // 客户端 MAC
+			MessageType(dhcp.DHCPDISCOVER)) // Option 53: Discover
 
 	discoverBytes, err := discoverPkt.Build()
 	if err != nil {
@@ -98,9 +98,9 @@ func main() {
 			DstPort(67)).
 		Over(goscapy.NewDHCP().
 			Op(dhcp.BOOTREQUEST).
-			XID(0x12345678).                     // 同一个事务 ID
+			XID(0x12345678). // 同一个事务 ID
 			CHAddr(clientMAC).
-			MessageType(dhcp.DHCPREQUEST))        // Option 53: Request
+			MessageType(dhcp.DHCPREQUEST)) // Option 53: Request
 
 	requestBytes, err := requestPkt.Build()
 	if err != nil {
@@ -117,22 +117,22 @@ func main() {
 	fmt.Println()
 
 	offerPkt := goscapy.NewEthernet().
-		DstMAC("00:11:22:33:44:55").         // 发给客户端
-		SrcMAC("aa:bb:cc:dd:ee:ff").          // 服务器 MAC
+		DstMAC("00:11:22:33:44:55"). // 发给客户端
+		SrcMAC("aa:bb:cc:dd:ee:ff"). // 服务器 MAC
 		Over(goscapy.NewIP().
-			SrcIP("192.168.1.1").               // 服务器 IP
+			SrcIP("192.168.1.1"). // 服务器 IP
 			DstIP("255.255.255.255").
 			Proto(17)).
 		Over(goscapy.NewUDP().
 			SrcPort(67).
 			DstPort(68)).
 		Over(goscapy.NewDHCP().
-			Op(dhcp.BOOTREPLY).                 // BOOTP 操作: 应答
+			Op(dhcp.BOOTREPLY). // BOOTP 操作: 应答
 			XID(0x12345678).
-			YIAddr("192.168.1.100").             // 提供给客户端的 IP
-			SIAddr("192.168.1.1").               // 服务器 IP
+			YIAddr("192.168.1.100"). // 提供给客户端的 IP
+			SIAddr("192.168.1.1").   // 服务器 IP
 			CHAddr(clientMAC).
-			MessageType(dhcp.DHCPOFFER))         // Option 53: Offer
+			MessageType(dhcp.DHCPOFFER)) // Option 53: Offer
 
 	offerBytes, err := offerPkt.Build()
 	if err != nil {
@@ -164,7 +164,7 @@ func main() {
 			YIAddr("192.168.1.100").
 			SIAddr("192.168.1.1").
 			CHAddr(clientMAC).
-			MessageType(dhcp.DHCPACK))           // Option 53: ACK
+			MessageType(dhcp.DHCPACK)) // Option 53: ACK
 
 	ackBytes, err := ackPkt.Build()
 	if err != nil {
@@ -181,10 +181,10 @@ func main() {
 	fmt.Println()
 
 	shortcutBytes, err := goscapy.EtherIPUDPDHCP(
-		"00:11:22:33:44:55",    // 源 MAC (客户端)
-		"ff:ff:ff:ff:ff:ff",    // 目标 MAC (广播)
-		0x12345678,              // 事务 ID
-		dhcp.DHCPDISCOVER,       // 消息类型
+		"00:11:22:33:44:55", // 源 MAC (客户端)
+		"ff:ff:ff:ff:ff:ff", // 目标 MAC (广播)
+		0x12345678,          // 事务 ID
+		dhcp.DHCPDISCOVER,   // 消息类型
 	)
 	if err != nil {
 		log.Fatalf("Shortcut DHCP 构建失败: %v", err)

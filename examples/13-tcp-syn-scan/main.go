@@ -102,10 +102,10 @@ func scanPort(iface, targetIP string, port uint16) string {
 			TTL(64).
 			Proto(layers.IPProtoTCP)).
 		Over(goscapy.NewTCP().
-			SrcPort(54321).                   // 源端口
-			DstPort(port).                    // 目标端口
-			Seq(1000).                        // 序列号
-			Flags(layers.TCPSyn).             // SYN 标志
+			SrcPort(54321).       // 源端口
+			DstPort(port).        // 目标端口
+			Seq(1000).            // 序列号
+			Flags(layers.TCPSyn). // SYN 标志
 			Window(65535)).
 		Packet()
 

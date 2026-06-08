@@ -72,24 +72,24 @@ type ioUringCqe struct {
 }
 
 type ioUring struct {
-	fd        int
-	sqMmap    []byte
-	sqesMmap  []byte
-	cqMmap    []byte
-	sqHead    *uint32
-	sqTail    *uint32
-	sqMask    uint32
-	sqEntries uint32
-	sqFlags   *uint32
-	sqDropped *uint32
-	sqArray   []uint32
-	sqes      []ioUringSqe
-	cqHead    *uint32
-	cqTail    *uint32
-	cqMask    uint32
-	cqEntries uint32
+	fd         int
+	sqMmap     []byte
+	sqesMmap   []byte
+	cqMmap     []byte
+	sqHead     *uint32
+	sqTail     *uint32
+	sqMask     uint32
+	sqEntries  uint32
+	sqFlags    *uint32
+	sqDropped  *uint32
+	sqArray    []uint32
+	sqes       []ioUringSqe
+	cqHead     *uint32
+	cqTail     *uint32
+	cqMask     uint32
+	cqEntries  uint32
 	cqOverflow *uint32
-	cqes      []ioUringCqe
+	cqes       []ioUringCqe
 }
 
 type sendState struct {

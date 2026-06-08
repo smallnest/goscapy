@@ -17,7 +17,7 @@ import (
 const (
 	defaultStreamTimeout = 120 * time.Second
 	defaultMaxStreams    = 4096
-	maxStreamBytes      = 16 * 1024 * 1024 // 16 MB per direction
+	maxStreamBytes       = 16 * 1024 * 1024 // 16 MB per direction
 )
 
 // StreamKey identifies one half of a TCP conversation (one direction).

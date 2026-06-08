@@ -93,8 +93,8 @@ func main() {
 		Community:   "public",
 		PDUType:     snmp.PDUGetBulk,
 		RequestID:   10,
-		ErrorStatus: 0,   // non-repeaters
-		ErrorIndex:  10,  // max-repetitions
+		ErrorStatus: 0,  // non-repeaters
+		ErrorIndex:  10, // max-repetitions
 		VarBinds: []snmp.VarBind{
 			snmp.NewVarBind(".1.3.6.1.2.1.2.2.1.2"), // ifDescr
 		},

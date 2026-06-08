@@ -132,7 +132,7 @@ func TestBestMatch(t *testing.T) {
 
 func TestParseHexIP(t *testing.T) {
 	tests := []struct {
-		hex string
+		hex  string
 		want string
 	}{
 		{"00000000", "0.0.0.0"},

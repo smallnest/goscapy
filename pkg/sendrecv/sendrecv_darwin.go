@@ -62,7 +62,7 @@ func newSender() (Sender, error) {
 	}
 
 	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
-		syscall.Close(fd)
+		_ = syscall.Close(fd)
 		return nil, fmt.Errorf("sendrecv: sender IP_HDRINCL: %w", err)
 	}
 
@@ -138,7 +138,7 @@ func sendL3v4(pkt *packet.Packet, iface string) error {
 	if err != nil {
 		return fmt.Errorf("sendrecv: socket: %w", err)
 	}
-	defer syscall.Close(fd)
+	defer func() { _ = syscall.Close(fd) }()
 
 	// Enable IP_HDRINCL so we provide the full IP header.
 	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
@@ -180,7 +180,7 @@ func sendL3v6(pkt *packet.Packet, iface string) error {
 	if err != nil {
 		return fmt.Errorf("sendrecv: AF_INET6 socket: %w", err)
 	}
-	defer syscall.Close(fd)
+	defer func() { _ = syscall.Close(fd) }()
 
 	// Set hop limit.
 	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, int(hopLimit)); err != nil {
@@ -208,7 +208,7 @@ func sendL2(pkt *packet.Packet, iface string) error {
 	if err != nil {
 		return err
 	}
-	defer syscall.Close(fd)
+	defer func() { _ = syscall.Close(fd) }()
 
 	if err := bindBPF(fd, iface); err != nil {
 		return err
@@ -239,13 +239,13 @@ func openReceiver(iface string) (Receiver, error) {
 	}
 
 	if err := bindBPF(fd, iface); err != nil {
-		syscall.Close(fd)
+		_ = syscall.Close(fd)
 		return nil, err
 	}
 
 	// Set immediate mode so reads return right away when a packet is available.
 	if err := setImmediate(fd); err != nil {
-		syscall.Close(fd)
+		_ = syscall.Close(fd)
 		return nil, err
 	}
 
@@ -336,11 +336,12 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 		if r.dlt == 0 { // DLT_NULL (loopback)
 			if len(raw) >= 4 {
 				family := *(*uint32)(unsafe.Pointer(&raw[0]))
-				if family == 2 { // PF_INET (IPv4)
+				switch family {
+				case 2: // PF_INET (IPv4)
 					pkt, err = packet.Dissect(raw[4:], ipStartFn)
-				} else if family == 30 { // PF_INET6 (IPv6)
+				case 30: // PF_INET6 (IPv6)
 					pkt, err = packet.Dissect(raw[4:], ip6StartFn)
-				} else {
+				default:
 					data = data[alignedLen:]
 					continue
 				}
@@ -443,11 +444,12 @@ func (r *bpfReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packe
 		if r.dlt == 0 { // DLT_NULL (loopback)
 			if len(raw) >= 4 {
 				family := *(*uint32)(unsafe.Pointer(&raw[0]))
-				if family == 2 {
+				switch family {
+				case 2:
 					pkt, err = packet.Dissect(raw[4:], ipStartFn)
-				} else if family == 30 {
+				case 30:
 					pkt, err = packet.Dissect(raw[4:], ip6StartFn)
-				} else {
+				default:
 					data = data[alignedLen:]
 					continue
 				}
@@ -495,7 +497,7 @@ func openBPFDevice() (int, uint32, error) {
 
 		// Set buffer length.
 		if err := setBlen(fd, bufSize); err != nil {
-			syscall.Close(fd)
+			_ = syscall.Close(fd)
 			continue
 		}
 

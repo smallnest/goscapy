@@ -44,10 +44,10 @@ func main() {
 	// 2. 手动构建 NTP 层
 	fmt.Println("--- 2. 手动构建 NTP 层 ---")
 	ntpLayer := ntp.NewNTP()
-	ntpLayer.Set("lvm", ntp.SetLVM(ntp.LINoWarning, 4, ntp.ModeClient))
-	ntpLayer.Set("stratum", uint8(0))
-	ntpLayer.Set("poll", uint8(4))
-	ntpLayer.Set("xtimestamp", timeToNTP(time.Now()))
+	_ = ntpLayer.Set("lvm", ntp.SetLVM(ntp.LINoWarning, 4, ntp.ModeClient))
+	_ = ntpLayer.Set("stratum", uint8(0))
+	_ = ntpLayer.Set("poll", uint8(4))
+	_ = ntpLayer.Set("xtimestamp", timeToNTP(time.Now()))
 
 	data, err := ntpLayer.SerializeFields()
 	if err != nil {
@@ -64,17 +64,17 @@ func main() {
 	fmt.Println("--- 3. 模拟解析 NTP 服务器响应 ---")
 	resp := make([]byte, 48)
 	resp[0] = ntp.SetLVM(ntp.LINoWarning, 4, ntp.ModeServer)
-	resp[1] = 2 // stratum 2
-	resp[2] = 4 // poll
-	resp[3] = 0xEC // precision = -20
+	resp[1] = 2                                         // stratum 2
+	resp[2] = 4                                         // poll
+	resp[3] = 0xEC                                      // precision = -20
 	binary.BigEndian.PutUint32(resp[4:8], 0x00010000)   // root delay = 1s
 	binary.BigEndian.PutUint32(resp[8:12], 0x00008000)  // root dispersion
 	binary.BigEndian.PutUint32(resp[12:16], 0x475A4953) // refid "GZIS"
 	now := timeToNTP(time.Now())
-	binary.BigEndian.PutUint64(resp[16:24], now)         // ref timestamp
-	binary.BigEndian.PutUint64(resp[24:32], now)         // orig timestamp
-	binary.BigEndian.PutUint64(resp[32:40], now)         // recv timestamp
-	binary.BigEndian.PutUint64(resp[40:48], now)         // xmit timestamp
+	binary.BigEndian.PutUint64(resp[16:24], now) // ref timestamp
+	binary.BigEndian.PutUint64(resp[24:32], now) // orig timestamp
+	binary.BigEndian.PutUint64(resp[32:40], now) // recv timestamp
+	binary.BigEndian.PutUint64(resp[40:48], now) // xmit timestamp
 
 	parsed := ntp.NewNTP()
 	consumed, err := parsed.ParseFields(resp)
@@ -103,15 +103,15 @@ func main() {
 	// 4. 构建 IP+UDP+NTP 并解剖
 	fmt.Println("--- 4. 构建 IP+UDP+NTP 并解剖 ---")
 	ip := layers.NewIP()
-	ip.Set("src", mustParseIP("10.0.0.1"))
-	ip.Set("dst", mustParseIP("10.0.0.2"))
+	_ = ip.Set("src", mustParseIP("10.0.0.1"))
+	_ = ip.Set("dst", mustParseIP("10.0.0.2"))
 	udp := layers.NewUDP()
-	udp.Set("sport", uint16(12345))
-	udp.Set("dport", uint16(123))
+	_ = udp.Set("sport", uint16(12345))
+	_ = udp.Set("dport", uint16(123))
 
 	fullPkt := ip.Over(udp)
 	ntpL := ntp.NewNTP()
-	ntpL.Set("lvm", ntp.SetLVM(ntp.LINoWarning, 4, ntp.ModeClient))
+	_ = ntpL.Set("lvm", ntp.SetLVM(ntp.LINoWarning, 4, ntp.ModeClient))
 	fullPkt.Push(ntpL)
 
 	raw, err = fullPkt.Build()

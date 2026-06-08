@@ -23,8 +23,8 @@ func skipIfNotRoot(t *testing.T) {
 func sendICMPLoopback(t *testing.T, seq uint8) {
 	t.Helper()
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("127.0.0.1"))
-	ip.Set("src", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("127.0.0.1"))
+	_ = ip.Set("src", net.ParseIP("127.0.0.1"))
 	icmp := layers.NewICMPEcho(uint16(seq), uint16(seq))
 	pkt := ip.Over(icmp)
 

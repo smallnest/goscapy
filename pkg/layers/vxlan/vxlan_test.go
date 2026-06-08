@@ -12,7 +12,7 @@ import (
 func TestNewVXLANDefaults(t *testing.T) {
 	v := NewVXLAN()
 
-	flags, _ := v.Layer.Get("flags")
+	flags, _ := v.Get("flags")
 	if flags.(uint8) != FlagI {
 		t.Errorf("flags = %#x, want %#x", flags, FlagI)
 	}
@@ -35,17 +35,17 @@ func TestVXLANBuilder(t *testing.T) {
 func TestVXLANSerialize(t *testing.T) {
 	v := NewVXLAN().VNI(5000)
 
-	got, err := v.Layer.SerializeFields()
+	got, err := v.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// VXLAN header: flags(0x08) + reserved1(3 bytes zeros) + VNI(0x001388) + reserved2(0x00)
 	want := []byte{
-		0x08,                   // flags (I=1)
-		0x00, 0x00, 0x00,       // reserved1
-		0x00, 0x13, 0x88,       // VNI = 5000 = 0x001388
-		0x00,                   // reserved2
+		0x08,             // flags (I=1)
+		0x00, 0x00, 0x00, // reserved1
+		0x00, 0x13, 0x88, // VNI = 5000 = 0x001388
+		0x00, // reserved2
 	}
 
 	if !bytes.Equal(got, want) {
@@ -55,10 +55,10 @@ func TestVXLANSerialize(t *testing.T) {
 
 func TestVXLANParse(t *testing.T) {
 	raw := []byte{
-		0x08,                   // flags (I=1)
-		0x00, 0x00, 0x00,       // reserved1
-		0x00, 0x13, 0x88,       // VNI = 5000
-		0x00,                   // reserved2
+		0x08,             // flags (I=1)
+		0x00, 0x00, 0x00, // reserved1
+		0x00, 0x13, 0x88, // VNI = 5000
+		0x00, // reserved2
 	}
 
 	layer := NewVXLANLayer()
@@ -81,7 +81,7 @@ func TestVXLANParse(t *testing.T) {
 func TestVXLANRoundTrip(t *testing.T) {
 	v := NewVXLAN().VNI(0xABCDEF).Flags(0x08)
 
-	raw, err := v.Layer.SerializeFields()
+	raw, err := v.SerializeFields()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,6 @@ func TestVXLANFlags(t *testing.T) {
 	}
 }
 
-
 func TestVXLANTunnel(t *testing.T) {
 	// Full stack: Ether/IP/UDP/VXLAN/VNI=5000/inner Eth/inner IP/inner ICMP
 	vxlan := NewVXLAN().VNI(5000)
@@ -149,8 +148,8 @@ func TestVXLANTunnel(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	outerIP.Set("src", "10.0.0.1")
-	outerIP.Set("dst", "10.0.0.2")
+	_ = outerIP.Set("src", "10.0.0.1")
+	_ = outerIP.Set("dst", "10.0.0.2")
 
 	outerUDP := packet.NewLayer("UDP", []fields.Field{
 		fields.NewShortField("sport", 0),
@@ -158,8 +157,8 @@ func TestVXLANTunnel(t *testing.T) {
 		fields.NewShortField("len", 8),
 		fields.NewShortField("chksum", 0),
 	})
-	outerUDP.Set("sport", uint16(1234))
-	outerUDP.Set("dport", uint16(4789))
+	_ = outerUDP.Set("sport", uint16(1234))
+	_ = outerUDP.Set("dport", uint16(4789))
 
 	// Inner headers.
 	innerEth := packet.NewLayer("Ethernet", []fields.Field{
@@ -179,8 +178,8 @@ func TestVXLANTunnel(t *testing.T) {
 		fields.NewIPField("src", net.IPv4zero),
 		fields.NewIPField("dst", net.IPv4zero),
 	})
-	innerIP.Set("src", "192.168.1.1")
-	innerIP.Set("dst", "192.168.1.2")
+	_ = innerIP.Set("src", "192.168.1.1")
+	_ = innerIP.Set("dst", "192.168.1.2")
 
 	innerICMP := packet.NewLayer("ICMP", []fields.Field{
 		fields.NewByteField("type", 8),

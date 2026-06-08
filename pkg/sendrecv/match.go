@@ -137,8 +137,8 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 	}
 
 	var (
-		hasARP     bool
-		sentARPOp  uint16
+		hasARP      bool
+		sentARPOp   uint16
 		sentARPPsrc net.IP
 		sentARPPdst net.IP
 	)
@@ -156,7 +156,7 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 	}
 
 	var (
-		hasDHCP    bool
+		hasDHCP     bool
 		sentDHCPOp  uint8
 		sentDHCPXid uint32
 	)

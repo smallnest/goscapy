@@ -51,13 +51,13 @@ func main() {
 	for seq := uint16(1); seq <= uint16(*count); seq++ {
 		// 构造 IPv6 / ICMPv6 Echo Request 报文
 		ipv6 := layers.NewIPv6()
-		ipv6.Set("src", srcIP)
-		ipv6.Set("dst", *dst)
-		ipv6.Set("nh", layers.IPv6NextHdrICMP)
-		ipv6.Set("hlim", uint8(64))
+		_ = ipv6.Set("src", srcIP)
+		_ = ipv6.Set("dst", *dst)
+		_ = ipv6.Set("nh", layers.IPv6NextHdrICMP)
+		_ = ipv6.Set("hlim", uint8(64))
 
 		icmpHdr := layers.NewICMPv6()
-		icmpHdr.Set("type", layers.ICMPv6EchoRequest)
+		_ = icmpHdr.Set("type", layers.ICMPv6EchoRequest)
 
 		icmpBody := layers.NewICMPv6Echo(id, seq)
 
@@ -72,7 +72,7 @@ func main() {
 
 		sendTime := time.Now()
 		if err := sendrecv.Send(pkt, ifaceVal); err != nil {
-			rx.Close()
+			_ = rx.Close()
 			fmt.Fprintf(os.Stderr, "发送失败: %v\n", err)
 			continue
 		}
@@ -136,7 +136,7 @@ func main() {
 			break
 		}
 
-		rx.Close()
+		_ = rx.Close()
 
 		if !matched {
 			fmt.Printf("Request timeout for icmp_seq %d\n", seq)

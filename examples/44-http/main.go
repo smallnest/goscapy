@@ -104,16 +104,16 @@ func main() {
 	// 7. 手动构建 TCP+HTTP 并解析
 	fmt.Println("--- 7. 手动解析 HTTP over TCP ---")
 	ip := layers.NewIP()
-	ip.Set("src", net.ParseIP("10.0.0.1"))
-	ip.Set("dst", net.ParseIP("10.0.0.2"))
+	_ = ip.Set("src", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.2"))
 	tcp := layers.NewTCP()
-	tcp.Set("sport", uint16(12345))
-	tcp.Set("dport", uint16(80))
-	tcp.Set("flags", uint8(layers.TCPSyn|layers.TCPAck))
+	_ = tcp.Set("sport", uint16(12345))
+	_ = tcp.Set("dport", uint16(80))
+	_ = tcp.Set("flags", uint8(layers.TCPSyn|layers.TCPAck))
 
 	httpPkt := ip.Over(tcp)
 	httpLayer := layershttp.NewHTTP()
-	httpLayer.Set("raw", respRaw)
+	_ = httpLayer.Set("raw", respRaw)
 	httpPkt.Push(httpLayer)
 
 	raw, err = httpPkt.Build()

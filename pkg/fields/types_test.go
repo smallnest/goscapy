@@ -264,7 +264,7 @@ func TestMACField(t *testing.T) {
 	}
 
 	// pack []byte
-	b, err = f.Pack([]byte{1, 2, 3, 4, 5, 6})
+	_, err = f.Pack([]byte{1, 2, 3, 4, 5, 6})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestIPField(t *testing.T) {
 	}
 
 	// pack string
-	b, err = f.Pack("10.0.0.1")
+	_, err = f.Pack("10.0.0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,7 +335,7 @@ func TestStrField(t *testing.T) {
 	}
 
 	// pack []byte
-	b, err = f.Pack([]byte{1, 2, 3})
+	_, err = f.Pack([]byte{1, 2, 3})
 	if err != nil {
 		t.Fatal(err)
 	}

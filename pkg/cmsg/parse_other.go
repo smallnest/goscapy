@@ -2,8 +2,6 @@
 
 package cmsg
 
-import "errors"
-
 // ParseTimestamping is not supported on this platform.
 func ParseTimestamping(oob []byte) (Timestamp, error) {
 	return Timestamp{}, ErrNotSupported

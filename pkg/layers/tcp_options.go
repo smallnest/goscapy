@@ -130,9 +130,9 @@ func newTCPOptionsField() *tcpOptionsField {
 	}
 }
 
-func (f *tcpOptionsField) Name() string      { return "options" }
-func (f *tcpOptionsField) FixedSize() int     { return 0 }
-func (f *tcpOptionsField) DefaultVal() any    { return []TCPOption(nil) }
+func (f *tcpOptionsField) Name() string    { return "options" }
+func (f *tcpOptionsField) FixedSize() int  { return 0 }
+func (f *tcpOptionsField) DefaultVal() any { return []TCPOption(nil) }
 
 func (f *tcpOptionsField) Pack(val any) ([]byte, error) {
 	if val == nil {
@@ -166,6 +166,6 @@ func (f *tcpOptionsField) PackInto(buf []byte, val any) (int, error) {
 // fields (20 bytes) and the actual header size (from dataofs).
 func tcpPostParseHook(layer *packet.Layer, extra []byte) error {
 	opts := ParseTCPOptions(extra)
-	layer.Set("options", opts)
+	_ = layer.Set("options", opts)
 	return nil
 }

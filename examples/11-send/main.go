@@ -61,7 +61,7 @@ func main() {
 		SrcMAC("00:11:22:33:44:55").
 		Over(goscapy.NewIP().
 			SrcIP("192.168.1.100").
-			DstIP("127.0.0.1").              // 发送到回环地址
+			DstIP("127.0.0.1"). // 发送到回环地址
 			TTL(64).
 			Proto(layers.IPProtoICMP)).
 		Over(goscapy.NewICMP().

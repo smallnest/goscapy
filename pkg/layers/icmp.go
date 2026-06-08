@@ -27,10 +27,10 @@ func NewICMP() *packet.Layer {
 // NewICMPEcho creates an ICMP Echo Request message with the given id and seq.
 func NewICMPEcho(id, seq uint16) *packet.Layer {
 	l := NewICMP()
-	l.Set("type", ICMPEchoRequest)
-	l.Set("code", uint8(0))
-	l.Set("id", id)
-	l.Set("seq", seq)
+	_ = l.Set("type", ICMPEchoRequest)
+	_ = l.Set("code", uint8(0))
+	_ = l.Set("id", id)
+	_ = l.Set("seq", seq)
 	return l
 }
 
@@ -41,7 +41,7 @@ func icmpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []by
 	layer := pkt.Layers()[layerIdx]
 
 	// Serialize header with zero checksum into buf.
-	layer.Set("chksum", uint16(0))
+	_ = layer.Set("chksum", uint16(0))
 	n, err := layer.SerializeInto(buf)
 	if err != nil {
 		return 0, err
@@ -52,7 +52,7 @@ func icmpBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []by
 	sum += checksumSum(upperBytes)
 	csum := foldChecksum(sum)
 
-	layer.Set("chksum", csum)
+	_ = layer.Set("chksum", csum)
 	buf[2] = byte(csum >> 8)
 	buf[3] = byte(csum)
 	return n, nil

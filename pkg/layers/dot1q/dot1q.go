@@ -39,44 +39,44 @@ func NewDot1QLayer() *packet.Layer {
 
 // VID sets the VLAN ID (12 bits, 0-4095) and returns the builder for chaining.
 func (d *Dot1Q) VID(vid uint16) *Dot1Q {
-	tci, _ := d.Layer.Get("tci")
+	tci, _ := d.Get("tci")
 	val := tci.(uint16)
 	val = (val & 0xF000) | (vid & 0x0FFF)
-	d.Layer.Set("tci", val)
+	_ = d.Set("tci", val)
 	return d
 }
 
 // PCP sets the Priority Code Point (3 bits, 0-7) and returns the builder for chaining.
 func (d *Dot1Q) PCP(pcp uint8) *Dot1Q {
-	tci, _ := d.Layer.Get("tci")
+	tci, _ := d.Get("tci")
 	val := tci.(uint16)
 	val = (val & 0x1FFF) | (uint16(pcp&0x7) << 13)
-	d.Layer.Set("tci", val)
+	_ = d.Set("tci", val)
 	return d
 }
 
 // DEI sets the Drop Eligible Indicator (1 bit) and returns the builder for chaining.
 func (d *Dot1Q) DEI(dei bool) *Dot1Q {
-	tci, _ := d.Layer.Get("tci")
+	tci, _ := d.Get("tci")
 	val := tci.(uint16)
 	if dei {
 		val |= 0x1000
 	} else {
 		val &^= 0x1000
 	}
-	d.Layer.Set("tci", val)
+	_ = d.Set("tci", val)
 	return d
 }
 
 // Type sets the inner EtherType and returns the builder for chaining.
 func (d *Dot1Q) Type(etype uint16) *Dot1Q {
-	d.Layer.Set("type", etype)
+	_ = d.Set("type", etype)
 	return d
 }
 
 // TPID sets the Tag Protocol Identifier and returns the builder for chaining.
 func (d *Dot1Q) TPID(tpid uint16) *Dot1Q {
-	d.Layer.Set("tpid", tpid)
+	_ = d.Set("tpid", tpid)
 	return d
 }
 

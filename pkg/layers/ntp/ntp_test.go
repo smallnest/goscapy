@@ -46,8 +46,8 @@ func TestNTPLayerSetGet(t *testing.T) {
 	layer := NewNTP()
 
 	// Set client mode.
-	layer.Set("lvm", SetLVM(LINoWarning, 4, ModeClient))
-	layer.Set("stratum", uint8(2))
+	_ = layer.Set("lvm", SetLVM(LINoWarning, 4, ModeClient))
+	_ = layer.Set("stratum", uint8(2))
 
 	lvm, _ := layer.Get("lvm")
 	if lvm.(uint8) != 0x23 {
@@ -62,7 +62,7 @@ func TestNTPLayerSetGet(t *testing.T) {
 
 func TestNTPSerialize(t *testing.T) {
 	layer := NewNTP()
-	layer.Set("lvm", SetLVM(LINoWarning, 4, ModeClient))
+	_ = layer.Set("lvm", SetLVM(LINoWarning, 4, ModeClient))
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -110,13 +110,13 @@ func TestNTPParse(t *testing.T) {
 
 func TestNTPRoundTrip(t *testing.T) {
 	layer := NewNTP()
-	layer.Set("lvm", SetLVM(LINoWarning, 4, ModeClient))
-	layer.Set("stratum", uint8(1))
-	layer.Set("poll", uint8(6))
-	layer.Set("precision", uint8(0xEC)) // -20 as uint8
-	layer.Set("rootdelay", uint32(0x00010000)) // 1 second in 16.16 fixed-point
-	layer.Set("rootdispersion", uint32(0x00008000))
-	layer.Set("refid", uint32(0x475A4953)) // "GZIS"
+	_ = layer.Set("lvm", SetLVM(LINoWarning, 4, ModeClient))
+	_ = layer.Set("stratum", uint8(1))
+	_ = layer.Set("poll", uint8(6))
+	_ = layer.Set("precision", uint8(0xEC))        // -20 as uint8
+	_ = layer.Set("rootdelay", uint32(0x00010000)) // 1 second in 16.16 fixed-point
+	_ = layer.Set("rootdispersion", uint32(0x00008000))
+	_ = layer.Set("refid", uint32(0x475A4953)) // "GZIS"
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -181,9 +181,9 @@ func TestNTPIPv4RefID(t *testing.T) {
 	// For stratum 1, refid is a 4-char ASCII string.
 	// For stratum 2+, refid is the server's IPv4 address.
 	layer := NewNTP()
-	layer.Set("lvm", SetLVM(LINoWarning, 4, ModeServer))
-	layer.Set("stratum", uint8(1))
-	layer.Set("refid", uint32(0x474D524F)) // "GMRO" (GPS)
+	_ = layer.Set("lvm", SetLVM(LINoWarning, 4, ModeServer))
+	_ = layer.Set("stratum", uint8(1))
+	_ = layer.Set("refid", uint32(0x474D524F)) // "GMRO" (GPS)
 
 	data, err := layer.SerializeFields()
 	if err != nil {

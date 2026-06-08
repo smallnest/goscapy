@@ -16,6 +16,6 @@ func NewRaw() *packet.Layer {
 // NewRawWith creates a Raw payload layer with the given data.
 func NewRawWith(data []byte) *packet.Layer {
 	l := NewRaw()
-	l.Set("load", data)
+	_ = l.Set("load", data)
 	return l
 }

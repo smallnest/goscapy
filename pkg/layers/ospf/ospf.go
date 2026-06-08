@@ -68,14 +68,14 @@ const HeaderSize = 24
 //	checksum(2) | auth_type(2) | auth_data(8)
 func NewOSPF() *packet.Layer {
 	return packet.NewLayer("OSPF", []fields.Field{
-		fields.NewByteField("version", 2),                   // OSPF version 2
-		fields.NewByteField("type", TypeHello),               // Message type
-		fields.NewShortField("len", HeaderSize),              // Total OSPF packet length
-		fields.NewIPField("router_id", nil),                  // Router ID
-		fields.NewIPField("area_id", nil),                    // Area ID
-		fields.NewShortField("chksum", 0),                    // Checksum
-		fields.NewShortField("auth_type", AuthNone),          // Authentication type
-		fields.NewLongField("auth_data", 0),                  // Authentication data (8 bytes)
+		fields.NewByteField("version", 2),           // OSPF version 2
+		fields.NewByteField("type", TypeHello),      // Message type
+		fields.NewShortField("len", HeaderSize),     // Total OSPF packet length
+		fields.NewIPField("router_id", nil),         // Router ID
+		fields.NewIPField("area_id", nil),           // Area ID
+		fields.NewShortField("chksum", 0),           // Checksum
+		fields.NewShortField("auth_type", AuthNone), // Authentication type
+		fields.NewLongField("auth_data", 0),         // Authentication data (8 bytes)
 	})
 }
 
@@ -86,14 +86,14 @@ func NewOSPF() *packet.Layer {
 //	dead_interval(4) | dr(4) | bdr(4) | neighbors[](4 each)
 func NewOSPFHello() *packet.Layer {
 	return packet.NewLayer("OSPF Hello", []fields.Field{
-		fields.NewIPField("mask", nil),                       // Network mask
-		fields.NewShortField("hello_interval", 10),           // Hello interval (seconds)
-		fields.NewByteField("options", OptE),                  // Options
-		fields.NewByteField("prio", 1),                        // Router priority
-		fields.NewIntField("dead_interval", 40),               // Dead interval (seconds)
-		fields.NewIPField("dr", nil),                          // Designated Router
-		fields.NewIPField("bdr", nil),                         // Backup Designated Router
-		fields.NewStrField("neighbors", ""),                   // Neighbor list (4 bytes each)
+		fields.NewIPField("mask", nil),             // Network mask
+		fields.NewShortField("hello_interval", 10), // Hello interval (seconds)
+		fields.NewByteField("options", OptE),       // Options
+		fields.NewByteField("prio", 1),             // Router priority
+		fields.NewIntField("dead_interval", 40),    // Dead interval (seconds)
+		fields.NewIPField("dr", nil),               // Designated Router
+		fields.NewIPField("bdr", nil),              // Backup Designated Router
+		fields.NewStrField("neighbors", ""),        // Neighbor list (4 bytes each)
 	})
 }
 
@@ -103,11 +103,11 @@ func NewOSPFHello() *packet.Layer {
 //	mtu(2) | options(1) | flags(1) | dd_seq(4) | lsa_headers[]
 func NewOSPFDBD() *packet.Layer {
 	return packet.NewLayer("OSPF DBD", []fields.Field{
-		fields.NewShortField("mtu", 1500),                    // Interface MTU
-		fields.NewByteField("options", OptE),                  // Options
+		fields.NewShortField("mtu", 1500),                         // Interface MTU
+		fields.NewByteField("options", OptE),                      // Options
 		fields.NewByteField("flags", DBDFlagMS|DBDFlagM|DBDFlagI), // DBD flags
-		fields.NewIntField("dd_seq", 1),                       // DD sequence number
-		fields.NewStrField("lsa_headers", ""),                 // LSA headers
+		fields.NewIntField("dd_seq", 1),                           // DD sequence number
+		fields.NewStrField("lsa_headers", ""),                     // LSA headers
 	})
 }
 
@@ -117,7 +117,7 @@ func NewOSPFDBD() *packet.Layer {
 //	ls_type(4) | ls_id(4) | adv_router(4)
 func NewOSPFLSR() *packet.Layer {
 	return packet.NewLayer("OSPF LSR", []fields.Field{
-		fields.NewStrField("requests", ""),                    // Raw request entries
+		fields.NewStrField("requests", ""), // Raw request entries
 	})
 }
 
@@ -127,8 +127,8 @@ func NewOSPFLSR() *packet.Layer {
 //	count(4) | lsas[]
 func NewOSPFLSU() *packet.Layer {
 	return packet.NewLayer("OSPF LSU", []fields.Field{
-		fields.NewIntField("count", 0),                        // Number of LSAs
-		fields.NewStrField("lsas", ""),                        // Raw LSA data
+		fields.NewIntField("count", 0), // Number of LSAs
+		fields.NewStrField("lsas", ""), // Raw LSA data
 	})
 }
 
@@ -136,7 +136,7 @@ func NewOSPFLSU() *packet.Layer {
 // Contains a list of LSA headers.
 func NewOSPFLSAck() *packet.Layer {
 	return packet.NewLayer("OSPF LSAck", []fields.Field{
-		fields.NewStrField("lsa_headers", ""),                 // LSA headers
+		fields.NewStrField("lsa_headers", ""), // LSA headers
 	})
 }
 

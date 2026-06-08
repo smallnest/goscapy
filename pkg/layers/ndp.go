@@ -10,35 +10,35 @@ import (
 
 // NDP message types (ICMPv6 sub-types).
 const (
-	NDPRouterSolicitation   uint8 = 133
-	NDPRouterAdvertisement  uint8 = 134
-	NDPNeighborSolicitation uint8 = 135
+	NDPRouterSolicitation    uint8 = 133
+	NDPRouterAdvertisement   uint8 = 134
+	NDPNeighborSolicitation  uint8 = 135
 	NDPNeighborAdvertisement uint8 = 136
-	NDPRedirect             uint8 = 137
+	NDPRedirect              uint8 = 137
 )
 
 // NDP option type constants.
 const (
-	NDPOptSourceLinkLayer  uint8 = 1
-	NDPOptTargetLinkLayer  uint8 = 2
-	NDPOptPrefixInfo       uint8 = 3
-	NDPOptMTU              uint8 = 5
+	NDPOptSourceLinkLayer uint8 = 1
+	NDPOptTargetLinkLayer uint8 = 2
+	NDPOptPrefixInfo      uint8 = 3
+	NDPOptMTU             uint8 = 5
 )
 
 // Router Advertisement flags.
 const (
-	NDPRAManaged     uint8 = 0x80
-	NDPRAOther       uint8 = 0x40
-	NDPRAHomeAgent   uint8 = 0x20
-	NDPRAPreference  uint8 = 0x18 // 2 bits, shifted
-	NDPRAProxy       uint8 = 0x04
+	NDPRAManaged    uint8 = 0x80
+	NDPRAOther      uint8 = 0x40
+	NDPRAHomeAgent  uint8 = 0x20
+	NDPRAPreference uint8 = 0x18 // 2 bits, shifted
+	NDPRAProxy      uint8 = 0x04
 )
 
 // Neighbor Advertisement flags.
 const (
-	NDPNARouter     uint8 = 0x80
-	NDPNASolicited  uint8 = 0x40
-	NDPNAOverride   uint8 = 0x20
+	NDPNARouter    uint8 = 0x80
+	NDPNASolicited uint8 = 0x40
+	NDPNAOverride  uint8 = 0x20
 )
 
 // NDPOption represents a single NDP option.

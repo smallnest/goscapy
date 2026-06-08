@@ -42,7 +42,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "DialRaw: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Enable kernel software timestamps.
 	// On Linux this uses SO_TIMESTAMPNS (nanosecond resolution).

@@ -49,15 +49,15 @@ func main() {
 	// ARP 请求需要发送到广播地址 ff:ff:ff:ff:ff:ff
 	// 这样局域网中的所有主机都能收到
 	arpRequest := goscapy.NewEthernet().
-		DstMAC("ff:ff:ff:ff:ff:ff").      // 广播地址: 发送给所有人
-		SrcMAC("00:11:22:33:44:55").       // 发送方 MAC
-		Type(layers.EtherTypeARP).         // EtherType: ARP (0x0806)
+		DstMAC("ff:ff:ff:ff:ff:ff"). // 广播地址: 发送给所有人
+		SrcMAC("00:11:22:33:44:55"). // 发送方 MAC
+		Type(layers.EtherTypeARP).   // EtherType: ARP (0x0806)
 		Over(goscapy.NewARP().
-			Op(layers.ARPWhoHas).            // 操作码: 1 (请求/Who-has)
-			SrcMAC("00:11:22:33:44:55").     // 发送方 MAC
-			SrcIP("192.168.1.100").          // 发送方 IP
-			DstMAC("00:00:00:00:00:00").     // 目标 MAC: 未知（全 0）
-			DstIP("192.168.1.1"))            // 目标 IP: 我想知道谁的 MAC
+			Op(layers.ARPWhoHas).        // 操作码: 1 (请求/Who-has)
+			SrcMAC("00:11:22:33:44:55"). // 发送方 MAC
+			SrcIP("192.168.1.100").      // 发送方 IP
+			DstMAC("00:00:00:00:00:00"). // 目标 MAC: 未知（全 0）
+			DstIP("192.168.1.1"))        // 目标 IP: 我想知道谁的 MAC
 
 	arpReqBytes, err := arpRequest.Build()
 	if err != nil {
@@ -77,15 +77,15 @@ func main() {
 
 	// ARP 应答是单播的，直接回复给请求方
 	arpReply := goscapy.NewEthernet().
-		DstMAC("00:11:22:33:44:55").       // 发送给请求方
-		SrcMAC("aa:bb:cc:dd:ee:ff").        // 回复方 MAC
+		DstMAC("00:11:22:33:44:55"). // 发送给请求方
+		SrcMAC("aa:bb:cc:dd:ee:ff"). // 回复方 MAC
 		Type(layers.EtherTypeARP).
 		Over(goscapy.NewARP().
-			Op(layers.ARPIsAt).               // 操作码: 2 (应答/Is-at)
-			SrcMAC("aa:bb:cc:dd:ee:ff").      // 回复方 MAC
-			SrcIP("192.168.1.1").             // 回复方 IP
-			DstMAC("00:11:22:33:44:55").      // 请求方 MAC
-			DstIP("192.168.1.100"))           // 请求方 IP
+			Op(layers.ARPIsAt).          // 操作码: 2 (应答/Is-at)
+			SrcMAC("aa:bb:cc:dd:ee:ff"). // 回复方 MAC
+			SrcIP("192.168.1.1").        // 回复方 IP
+			DstMAC("00:11:22:33:44:55"). // 请求方 MAC
+			DstIP("192.168.1.100"))      // 请求方 IP
 
 	arpReplyBytes, err := arpReply.Build()
 	if err != nil {
@@ -105,11 +105,11 @@ func main() {
 
 	// EtherARP 一行构建完整的 ARP 包
 	shortcutBytes, err := goscapy.EtherARP(
-		"00:11:22:33:44:55",    // 源 MAC / 发送方 MAC
-		"ff:ff:ff:ff:ff:ff",    // 目标 MAC / 广播
-		"192.168.1.100",         // 发送方 IP (psrc)
-		"192.168.1.1",           // 目标 IP (pdst)
-		layers.ARPWhoHas,        // 操作码: 请求
+		"00:11:22:33:44:55", // 源 MAC / 发送方 MAC
+		"ff:ff:ff:ff:ff:ff", // 目标 MAC / 广播
+		"192.168.1.100",     // 发送方 IP (psrc)
+		"192.168.1.1",       // 目标 IP (pdst)
+		layers.ARPWhoHas,    // 操作码: 请求
 	)
 	if err != nil {
 		log.Fatalf("Shortcut ARP 构建失败: %v", err)

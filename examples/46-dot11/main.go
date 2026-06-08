@@ -17,12 +17,12 @@ func main() {
 	fmt.Println("--- 1. 构建 Beacon 帧 ---")
 	dot11Frame := dot11.NewDot11()
 	fc := dot11.SetFC(dot11.TypeManagement, dot11.SubtypeBeacon, 0)
-	dot11Frame.Set("fc0", fc[0])
-	dot11Frame.Set("fc1", fc[1])
-	dot11Frame.Set("addr1", "ff:ff:ff:ff:ff:ff")               // broadcast
-	dot11Frame.Set("addr2", "00:11:22:33:44:55")                // AP MAC
-	dot11Frame.Set("addr3", "00:11:22:33:44:55")                // BSSID
-	dot11Frame.Set("sc", uint16(0x0100))                        // seq=16
+	_ = dot11Frame.Set("fc0", fc[0])
+	_ = dot11Frame.Set("fc1", fc[1])
+	_ = dot11Frame.Set("addr1", "ff:ff:ff:ff:ff:ff") // broadcast
+	_ = dot11Frame.Set("addr2", "00:11:22:33:44:55") // AP MAC
+	_ = dot11Frame.Set("addr3", "00:11:22:33:44:55") // BSSID
+	_ = dot11Frame.Set("sc", uint16(0x0100))         // seq=16
 
 	frameData, err := dot11Frame.SerializeFields()
 	if err != nil {
@@ -37,9 +37,9 @@ func main() {
 	// 2. 构建 Beacon Body
 	fmt.Println("--- 2. 构建 Beacon Body ---")
 	beacon := dot11.NewDot11Beacon()
-	beacon.Set("timestamp", uint64(12345678))
-	beacon.Set("beacon_interval", uint16(100))
-	beacon.Set("cap", uint16(0x0411)) // ESS + privacy + short-slot
+	_ = beacon.Set("timestamp", uint64(12345678))
+	_ = beacon.Set("beacon_interval", uint16(100))
+	_ = beacon.Set("cap", uint16(0x0411)) // ESS + privacy + short-slot
 
 	beaconData, err := beacon.SerializeFields()
 	if err != nil {
@@ -53,7 +53,7 @@ func main() {
 	elts := []dot11.IE{
 		{ID: dot11.EltIDSSID, Info: []byte("MyNetwork")},
 		{ID: dot11.EltIDSupportedRates, Info: []byte{0x82, 0x84, 0x8b, 0x96, 0x0c, 0x12, 0x18, 0x24}},
-		{ID: dot11.EltIDDSSS, Info: []byte{6}},  // channel 6
+		{ID: dot11.EltIDDSSS, Info: []byte{6}}, // channel 6
 	}
 	ieData := dot11.BuildDot11Elts(elts)
 	fmt.Printf("  IEs: %d bytes (SSID=%q)\n", len(ieData), "MyNetwork")
@@ -82,14 +82,14 @@ func main() {
 	fmt.Println("--- 6. 构建 Deauth 帧 ---")
 	deauthFrame := dot11.NewDot11()
 	fcDeauth := dot11.SetFC(dot11.TypeManagement, dot11.SubtypeDeauth, 0)
-	deauthFrame.Set("fc0", fcDeauth[0])
-	deauthFrame.Set("fc1", fcDeauth[1])
-	deauthFrame.Set("addr1", "aa:bb:cc:dd:ee:ff")
-	deauthFrame.Set("addr2", "00:11:22:33:44:55")
-	deauthFrame.Set("addr3", "00:11:22:33:44:55")
+	_ = deauthFrame.Set("fc0", fcDeauth[0])
+	_ = deauthFrame.Set("fc1", fcDeauth[1])
+	_ = deauthFrame.Set("addr1", "aa:bb:cc:dd:ee:ff")
+	_ = deauthFrame.Set("addr2", "00:11:22:33:44:55")
+	_ = deauthFrame.Set("addr3", "00:11:22:33:44:55")
 
 	deauthBody := dot11.NewDot11Deauth()
-	deauthBody.Set("reason", uint16(dot11.ReasonDeauthLeaving))
+	_ = deauthBody.Set("reason", uint16(dot11.ReasonDeauthLeaving))
 
 	headerData, _ := deauthFrame.SerializeFields()
 	bodyData, _ := deauthBody.SerializeFields()
@@ -99,8 +99,8 @@ func main() {
 	// 7. 构建 RadioTap + Dot11
 	fmt.Println("--- 7. 构建 RadioTap + Dot11 ---")
 	rt := dot11.NewRadioTap()
-	rt.Set("present", uint32(1<<dot11.RTFlagRate|1<<dot11.RTFlagDBmAntSignal))
-	rt.Set("data", []byte{0x12, 0xC5}) // rate=18, signal=-59 dBm
+	_ = rt.Set("present", uint32(1<<dot11.RTFlagRate|1<<dot11.RTFlagDBmAntSignal))
+	_ = rt.Set("data", []byte{0x12, 0xC5}) // rate=18, signal=-59 dBm
 
 	rtData, err := rt.SerializeFields()
 	if err != nil {

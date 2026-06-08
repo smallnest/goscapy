@@ -21,7 +21,7 @@ func (b *Dot1QBuilder) Layer() *packet.Layer { return b.layer }
 func (b *Dot1QBuilder) VID(vid uint16) *Dot1QBuilder {
 	tci, _ := b.layer.Get("tci")
 	val := (tci.(uint16) & 0xF000) | (vid & 0x0FFF)
-	b.layer.Set("tci", val)
+	_ = b.layer.Set("tci", val)
 	return b
 }
 
@@ -29,7 +29,7 @@ func (b *Dot1QBuilder) VID(vid uint16) *Dot1QBuilder {
 func (b *Dot1QBuilder) PCP(pcp uint8) *Dot1QBuilder {
 	tci, _ := b.layer.Get("tci")
 	val := (tci.(uint16) & 0x1FFF) | (uint16(pcp&0x7) << 13)
-	b.layer.Set("tci", val)
+	_ = b.layer.Set("tci", val)
 	return b
 }
 
@@ -42,19 +42,19 @@ func (b *Dot1QBuilder) DEI(dei bool) *Dot1QBuilder {
 	} else {
 		val &^= 0x1000
 	}
-	b.layer.Set("tci", val)
+	_ = b.layer.Set("tci", val)
 	return b
 }
 
 // Type sets the inner EtherType.
 func (b *Dot1QBuilder) Type(etype uint16) *Dot1QBuilder {
-	b.layer.Set("type", etype)
+	_ = b.layer.Set("type", etype)
 	return b
 }
 
 // TPID sets the Tag Protocol Identifier (default 0x8100, or 0x88A8 for QinQ).
 func (b *Dot1QBuilder) TPID(tpid uint16) *Dot1QBuilder {
-	b.layer.Set("tpid", tpid)
+	_ = b.layer.Set("tpid", tpid)
 	return b
 }
 

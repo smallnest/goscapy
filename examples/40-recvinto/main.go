@@ -43,7 +43,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "提示: 需要 root 权限 (sudo)")
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	fmt.Println("Raw socket 已创建，开始接收...")
 	fmt.Println()

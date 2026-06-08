@@ -62,7 +62,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
 		os.Exit(1)
 	}
-	defer fr.Close()
+	defer func() { _ = fr.Close() }()
 
 	fmt.Printf("已创建 %d 个 fanout socket\n\n", fr.NumSockets())
 
@@ -99,11 +99,11 @@ func main() {
 		select {
 		case <-sig:
 			fmt.Println("\n收到中断信号，停止抓包...")
-			fr.Close()
+			_ = fr.Close()
 			goto done_label
 		case <-timer.C:
 			fmt.Println("\n抓包时间到，停止...")
-			fr.Close()
+			_ = fr.Close()
 			goto done_label
 		case <-ticker.C:
 			currentPkts := atomic.LoadInt64(&totalPkts)

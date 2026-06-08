@@ -22,7 +22,6 @@ type XDPOption func(*xdpConfig)
 type xdpConfig struct {
 	ringSize  uint32
 	frameSize uint32
-	numFrames uint32
 	queueID   int
 	flags     uint16
 }

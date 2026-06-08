@@ -14,9 +14,9 @@ func TestNewHCI(t *testing.T) {
 
 func TestHCISerializeParse(t *testing.T) {
 	layer := NewHCI()
-	layer.Set("type", uint8(HCICommand))
-	layer.Set("opcode", uint16(0x0406)) // HCI_Reset
-	layer.Set("param_len", uint8(0))
+	_ = layer.Set("type", uint8(HCICommand))
+	_ = layer.Set("opcode", uint16(0x0406)) // HCI_Reset
+	_ = layer.Set("param_len", uint8(0))
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -47,10 +47,10 @@ func TestHCISerializeParse(t *testing.T) {
 
 func TestHCIEventRoundTrip(t *testing.T) {
 	layer := NewHCI()
-	layer.Set("type", uint8(HCIEvent))
-	layer.Set("opcode", uint16(0x0E)) // Command Complete
-	layer.Set("param_len", uint8(3))
-	layer.Set("params", []byte{0x01, 0x03, 0x0C})
+	_ = layer.Set("type", uint8(HCIEvent))
+	_ = layer.Set("opcode", uint16(0x0E)) // Command Complete
+	_ = layer.Set("param_len", uint8(3))
+	_ = layer.Set("params", []byte{0x01, 0x03, 0x0C})
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -79,9 +79,9 @@ func TestNewL2CAP(t *testing.T) {
 
 func TestL2CAPRoundTrip(t *testing.T) {
 	layer := NewL2CAP()
-	layer.Set("length", uint16(5))
-	layer.Set("cid", uint16(L2CAPCIDATT))
-	layer.Set("data", []byte{0x0A, 0x00, 0x01, 0x00, 0x00})
+	_ = layer.Set("length", uint16(5))
+	_ = layer.Set("cid", uint16(L2CAPCIDATT))
+	_ = layer.Set("data", []byte{0x0A, 0x00, 0x01, 0x00, 0x00})
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -109,8 +109,8 @@ func TestL2CAPRoundTrip(t *testing.T) {
 
 func TestATTRoundTrip(t *testing.T) {
 	layer := NewATT()
-	layer.Set("opcode", uint8(ATTOpcodeReadReq))
-	layer.Set("params", []byte{0x01, 0x00}) // handle = 0x0001
+	_ = layer.Set("opcode", uint8(ATTOpcodeReadReq))
+	_ = layer.Set("params", []byte{0x01, 0x00}) // handle = 0x0001
 
 	data, err := layer.SerializeFields()
 	if err != nil {
@@ -138,8 +138,8 @@ func TestATTRoundTrip(t *testing.T) {
 
 func TestSMRoundTrip(t *testing.T) {
 	layer := NewSM()
-	layer.Set("opcode", uint8(SMOpcodePairingReq))
-	layer.Set("data", []byte{0x03, 0x00, 0x01, 0x10, 0x07, 0x07})
+	_ = layer.Set("opcode", uint8(SMOpcodePairingReq))
+	_ = layer.Set("data", []byte{0x03, 0x00, 0x01, 0x10, 0x07, 0x07})
 
 	data, err := layer.SerializeFields()
 	if err != nil {

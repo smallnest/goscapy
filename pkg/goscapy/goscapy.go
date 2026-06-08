@@ -65,19 +65,19 @@ func (b *EthernetBuilder) Layer() *packet.Layer { return b.layer }
 
 // DstMAC sets the destination MAC address (e.g. "ff:ff:ff:ff:ff:ff").
 func (b *EthernetBuilder) DstMAC(mac string) *EthernetBuilder {
-	b.layer.Set("dst", mac)
+	_ = b.layer.Set("dst", mac)
 	return b
 }
 
 // SrcMAC sets the source MAC address.
 func (b *EthernetBuilder) SrcMAC(mac string) *EthernetBuilder {
-	b.layer.Set("src", mac)
+	_ = b.layer.Set("src", mac)
 	return b
 }
 
 // Type sets the EtherType field (e.g. layers.EtherTypeIPv4).
 func (b *EthernetBuilder) Type(t uint16) *EthernetBuilder {
-	b.layer.Set("type", t)
+	_ = b.layer.Set("type", t)
 	return b
 }
 
@@ -86,4 +86,3 @@ func (b *EthernetBuilder) Over(upper LayerBuilder) *PacketBuilder {
 	pkt := b.layer.Over(upper.Layer())
 	return &PacketBuilder{pkt: pkt}
 }
-

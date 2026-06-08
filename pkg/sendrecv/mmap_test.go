@@ -19,6 +19,6 @@ func TestPacketMMAPPlatformSupport(t *testing.T) {
 		t.Logf("NewPacketMMAP failed (expected if non-root or interface absent): %v", err)
 		return
 	}
-	defer m.Close()
+	defer func() { _ = m.Close() }()
 	t.Log("Successfully setup PacketMMAP interface")
 }

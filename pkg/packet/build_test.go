@@ -23,7 +23,7 @@ func TestRegisterBuildHook(t *testing.T) {
 	}
 
 	// Call it to verify it's the right hook.
-	h(nil, 0, nil, nil)
+	_, _ = h(nil, 0, nil, nil)
 	if !called {
 		t.Error("BuildHook: not called")
 	}
@@ -43,8 +43,8 @@ func TestSerializeFieldsBasic(t *testing.T) {
 		fields.NewShortField("b", 0),
 	})
 
-	l.Set("a", uint8(0x42))
-	l.Set("b", uint16(0x1234))
+	_ = l.Set("a", uint8(0x42))
+	_ = l.Set("b", uint16(0x1234))
 
 	got, err := l.SerializeFields()
 	if err != nil {
@@ -84,7 +84,7 @@ func TestSerializeFieldsConditionalActive(t *testing.T) {
 	}
 
 	// Active: opt should be serialized.
-	l.Set("hasOpt", uint8(1))
+	_ = l.Set("hasOpt", uint8(1))
 	// Note: NewLayer skips conditional field defaults when inactive.
 	// We need to manually add the value when activating.
 	l.values["opt"] = uint8(0xFF)
@@ -196,9 +196,9 @@ func TestSerializeInto(t *testing.T) {
 		fields.NewShortField("b", 0),
 		fields.NewIntField("c", 0),
 	})
-	l.Set("a", uint8(0x42))
-	l.Set("b", uint16(0x1234))
-	l.Set("c", uint32(0xAABBCCDD))
+	_ = l.Set("a", uint8(0x42))
+	_ = l.Set("b", uint16(0x1234))
+	_ = l.Set("c", uint32(0xAABBCCDD))
 
 	buf := make([]byte, 7)
 	n, err := l.SerializeInto(buf)
@@ -274,8 +274,8 @@ func TestBuildIntoMatchesBuild(t *testing.T) {
 		fields.NewByteField("a", 0),
 		fields.NewShortField("b", 0),
 	})
-	l1.Set("a", uint8(0xAB))
-	l1.Set("b", uint16(0x1234))
+	_ = l1.Set("a", uint8(0xAB))
+	_ = l1.Set("b", uint16(0x1234))
 
 	p := NewFrom(l1)
 

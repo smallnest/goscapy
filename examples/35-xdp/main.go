@@ -72,7 +72,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	fmt.Printf("XDP socket 已创建 (fd=%d), 可用帧: %d\n\n", conn.Fd(), conn.FreeFrames())
 
@@ -134,11 +134,11 @@ func main() {
 		select {
 		case <-sig:
 			fmt.Println("\n收到中断信号...")
-			conn.Close()
+			_ = conn.Close()
 			goto summary
 		case <-timer.C:
 			fmt.Println("\n时间到...")
-			conn.Close()
+			_ = conn.Close()
 			goto summary
 		case <-ticker.C:
 			pkts := atomic.LoadInt64(&totalPkts)

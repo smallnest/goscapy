@@ -11,13 +11,13 @@ func TestParseTCPOptions(t *testing.T) {
 	// Real SYN packet options: MSS(1460), NOP, WScale(7), NOP, NOP, SACK-Perm, NOP, NOP, Timestamps(123,0)
 	raw := []byte{
 		0x02, 0x04, 0x05, 0xb4, // MSS: kind=2, len=4, value=1460
-		0x01,                   // NOP
-		0x03, 0x03, 0x07,       // WScale: kind=3, len=3, shift=7
-		0x01,                   // NOP
-		0x01,                   // NOP
-		0x04, 0x02,             // SACK-Perm: kind=4, len=2
-		0x01,                   // NOP
-		0x01,                   // NOP
+		0x01,             // NOP
+		0x03, 0x03, 0x07, // WScale: kind=3, len=3, shift=7
+		0x01,       // NOP
+		0x01,       // NOP
+		0x04, 0x02, // SACK-Perm: kind=4, len=2
+		0x01,                                                       // NOP
+		0x01,                                                       // NOP
 		0x08, 0x0a, 0x00, 0x00, 0x00, 0x7b, 0x00, 0x00, 0x00, 0x00, // Timestamps: kind=8, len=10, tsval=123, tsecr=0
 	}
 
@@ -134,11 +134,11 @@ func TestTCPOptionsRoundTrip(t *testing.T) {
 
 func TestTCPBuildWithOptions(t *testing.T) {
 	ip := NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
-	ip.Set("proto", IPProtoTCP)
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("proto", IPProtoTCP)
 	tcp := NewTCPWith(12345, 80, TCPSyn)
-	tcp.Set("options", []TCPOption{
+	_ = tcp.Set("options", []TCPOption{
 		TCPOptMSSVal(1460),
 		TCPOptNOPVal(),
 		TCPOptWScaleVal(7),
@@ -172,9 +172,9 @@ func TestTCPBuildWithOptions(t *testing.T) {
 
 func TestTCPBuildWithoutOptions(t *testing.T) {
 	ip := NewIP()
-	ip.Set("src", "10.0.0.1")
-	ip.Set("dst", "10.0.0.2")
-	ip.Set("proto", IPProtoTCP)
+	_ = ip.Set("src", "10.0.0.1")
+	_ = ip.Set("dst", "10.0.0.2")
+	_ = ip.Set("proto", IPProtoTCP)
 	tcp := NewTCPWith(12345, 80, TCPSyn)
 
 	pkt := packet.NewFrom(ip, tcp)
@@ -199,12 +199,12 @@ func TestTCPBuildWithoutOptions(t *testing.T) {
 func TestDissectTCPWithOptions(t *testing.T) {
 	// Build a real TCP SYN with options, then dissect it.
 	ip := NewIP()
-	ip.Set("src", "192.168.1.1")
-	ip.Set("dst", "192.168.1.2")
-	ip.Set("proto", IPProtoTCP)
+	_ = ip.Set("src", "192.168.1.1")
+	_ = ip.Set("dst", "192.168.1.2")
+	_ = ip.Set("proto", IPProtoTCP)
 	tcp := NewTCPWith(54321, 443, TCPSyn)
-	tcp.Set("seq", uint32(0xdeadbeef))
-	tcp.Set("options", []TCPOption{
+	_ = tcp.Set("seq", uint32(0xdeadbeef))
+	_ = tcp.Set("options", []TCPOption{
 		TCPOptMSSVal(1460),
 		TCPOptNOPVal(),
 		TCPOptWScaleVal(7),
@@ -298,8 +298,8 @@ func TestTCPOptHelpers(t *testing.T) {
 func TestParseTCPOptionsEOL(t *testing.T) {
 	// EOL should terminate parsing.
 	raw := []byte{
-		0x01,       // NOP
-		0x00,       // EOL
+		0x01,                   // NOP
+		0x00,                   // EOL
 		0x02, 0x04, 0x05, 0xb4, // MSS (should not be parsed)
 	}
 	opts := ParseTCPOptions(raw)

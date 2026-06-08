@@ -29,7 +29,7 @@ func TestTokenBucketLimiterRate(t *testing.T) {
 	ctx := context.Background()
 
 	// Drain the initial burst token.
-	limiter.Wait(ctx)
+	_ = limiter.Wait(ctx)
 
 	// Measure time for 100 packets at 5000 pps → should take ~20ms.
 	n := 100
@@ -77,7 +77,7 @@ func TestTokenBucketLimiterContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Drain the initial token.
-	limiter.Wait(ctx)
+	_ = limiter.Wait(ctx)
 
 	// Cancel context while waiting.
 	go func() {
@@ -121,7 +121,7 @@ func TestTokenBucketLimiterConcurrent(t *testing.T) {
 
 	// Drain burst.
 	for range 10 {
-		limiter.Wait(ctx)
+		_ = limiter.Wait(ctx)
 	}
 
 	// 4 goroutines each sending 50 packets = 200 total at 10000 pps → ~20ms.
@@ -132,7 +132,7 @@ func TestTokenBucketLimiterConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 50 {
-				limiter.Wait(ctx)
+				_ = limiter.Wait(ctx)
 			}
 		}()
 	}
@@ -156,12 +156,12 @@ func BenchmarkTokenBucketLimiter(b *testing.B) {
 	ctx := context.Background()
 
 	// Drain the initial burst token so we measure steady-state.
-	limiter.Wait(ctx)
+	_ = limiter.Wait(ctx)
 
 	b.ResetTimer()
 	start := time.Now()
 	for range n {
-		limiter.Wait(ctx)
+		_ = limiter.Wait(ctx)
 	}
 	elapsed := time.Since(start)
 	b.StopTimer()

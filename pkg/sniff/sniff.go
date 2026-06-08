@@ -55,7 +55,7 @@ func Sniff(cfg SniffConfig, handler SniffHandler) error {
 	if err != nil {
 		return fmt.Errorf("sniff: open receiver: %w", err)
 	}
-	defer rx.Close()
+	defer func() { _ = rx.Close() }()
 
 	deadline := time.Time{}
 	if cfg.Timeout > 0 {
@@ -63,12 +63,7 @@ func Sniff(cfg SniffConfig, handler SniffHandler) error {
 	}
 
 	captured := 0
-	for {
-		// Check count limit.
-		if cfg.Count > 0 && captured >= cfg.Count {
-			break
-		}
-
+	for cfg.Count <= 0 || captured < cfg.Count {
 		// Check total timeout.
 		if !deadline.IsZero() {
 			if time.Now().After(deadline) {

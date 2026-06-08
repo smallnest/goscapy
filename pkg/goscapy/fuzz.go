@@ -28,7 +28,7 @@ func Fuzz(layer *packet.Layer) *packet.Layer {
 			continue
 		}
 		if rv, ok := randomValue(f); ok {
-			layer.Set(f.Name(), rv)
+			_ = layer.Set(f.Name(), rv)
 		}
 	}
 	return layer
@@ -123,7 +123,7 @@ func isNil(v any) bool {
 	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return rv.IsNil()
 	}
 	return false

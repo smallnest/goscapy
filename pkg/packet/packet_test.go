@@ -117,7 +117,7 @@ func TestLayerValues(t *testing.T) {
 		fields.NewByteField("a", 1),
 	})
 
-	l.Set("a", uint8(100))
+	_ = l.Set("a", uint8(100))
 	cp := l.Values()
 	if cp["a"].(uint8) != 100 {
 		t.Errorf("Values() = %v", cp)

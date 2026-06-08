@@ -36,13 +36,13 @@ func NewVXLANLayer() *packet.Layer {
 
 // VNI sets the VXLAN Network Identifier (24 bits, 0-16777215) and returns the builder.
 func (v *VXLAN) VNI(vni uint32) *VXLAN {
-	v.Layer.Set("vni", vni&0xFFFFFF)
+	_ = v.Set("vni", vni&0xFFFFFF)
 	return v
 }
 
 // Flags sets the VXLAN flags byte and returns the builder.
 func (v *VXLAN) Flags(flags uint8) *VXLAN {
-	v.Layer.Set("flags", flags)
+	_ = v.Set("flags", flags)
 	return v
 }
 

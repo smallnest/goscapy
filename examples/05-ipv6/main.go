@@ -44,12 +44,12 @@ func main() {
 	ipv6Pkt := goscapy.NewEthernet().
 		DstMAC("00:aa:bb:cc:dd:ee").
 		SrcMAC("00:11:22:33:44:55").
-		Type(layers.EtherTypeIPv6).         // EtherType: IPv6 (0x86DD)
+		Type(layers.EtherTypeIPv6). // EtherType: IPv6 (0x86DD)
 		Over(goscapy.NewIPv6().
-			SrcIP("fe80::1").                // 源 IPv6: 链路本地地址
-			DstIP("fe80::2").                // 目标 IPv6: 链路本地地址
-			NH(layers.IPv6NextHdrTCP).       // Next Header: TCP (6)
-			HLim(64))                        // Hop Limit: 64
+			SrcIP("fe80::1").          // 源 IPv6: 链路本地地址
+			DstIP("fe80::2").          // 目标 IPv6: 链路本地地址
+			NH(layers.IPv6NextHdrTCP). // Next Header: TCP (6)
+			HLim(64))                  // Hop Limit: 64
 
 	ipv6Bytes, err := ipv6Pkt.Build()
 	if err != nil {
@@ -69,10 +69,10 @@ func main() {
 
 	// ICMPv6 是 IPv6 的 ICMP 等价物，协议号 58
 	ipv6ICMPBytes, err := goscapy.IPv6ICMPv6Echo(
-		"fe80::1",   // 源 IPv6
-		"fe80::2",   // 目标 IPv6
-		0x1234,      // ICMPv6 ID
-		1,           // ICMPv6 Seq
+		"fe80::1", // 源 IPv6
+		"fe80::2", // 目标 IPv6
+		0x1234,    // ICMPv6 ID
+		1,         // ICMPv6 Seq
 	)
 	if err != nil {
 		log.Fatalf("构建 IPv6 ICMPv6 包失败: %v", err)
@@ -97,8 +97,8 @@ func main() {
 	// 构建 IPv6 + Hop-by-Hop + TCP 的包
 	// Hop-by-Hop 扩展头的 nh 字段指向下一个头（TCP）
 	hopByHop := layers.NewIPv6HopByHop()
-	hopByHop.Set("nh", layers.IPv6NextHdrTCP) // 下一个头: TCP
-	hopByHop.Set("len", uint8(0))              // 长度: (0+1)*8 = 8 字节
+	_ = hopByHop.Set("nh", layers.IPv6NextHdrTCP) // 下一个头: TCP
+	_ = hopByHop.Set("len", uint8(0))             // 长度: (0+1)*8 = 8 字节
 
 	// IPv6 基本头的 NH 指向 Hop-by-Hop 扩展头
 	extPkt := goscapy.NewEthernet().
@@ -108,7 +108,7 @@ func main() {
 		Over(goscapy.NewIPv6().
 			SrcIP("2001:db8::1").
 			DstIP("2001:db8::2").
-			NH(layers.IPv6ExtHdrHopByHop).  // NH 指向 Hop-by-Hop
+			NH(layers.IPv6ExtHdrHopByHop). // NH 指向 Hop-by-Hop
 			HLim(64)).
 		Over(goscapy.NewTCP().
 			SrcPort(12345).

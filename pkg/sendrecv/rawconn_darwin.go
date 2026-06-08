@@ -135,7 +135,7 @@ func SendRaw(proto int, data []byte, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	return conn.Send(data, dst)
 }
 
@@ -145,6 +145,6 @@ func RecvRaw(proto int, timeout time.Duration) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	return conn.Recv(timeout)
 }

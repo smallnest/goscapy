@@ -112,9 +112,9 @@ loop:
 
 		// 用 goscapy 构建 IP + ICMP Echo Request 报文。
 		ipLayer := layers.NewIP()
-		ipLayer.Set("src", srcIP)
-			ipLayer.Set("dst", dstIP)
-		ipLayer.Set("ttl", uint8(64))
+		_ = ipLayer.Set("src", srcIP)
+		_ = ipLayer.Set("dst", dstIP)
+		_ = ipLayer.Set("ttl", uint8(64))
 		icmpLayer := layers.NewICMPEcho(pid, uint16(seq))
 		pkt := ipLayer.Over(icmpLayer)
 
@@ -240,7 +240,6 @@ func resolveHost(host string) (string, error) {
 	}
 	return addrs[0], nil
 }
-
 
 // getLocalIP 返回指定接口的第一个 IPv4 地址。
 func getLocalIP(ifaceName string) net.IP {

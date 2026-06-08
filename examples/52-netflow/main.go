@@ -52,9 +52,9 @@ func main() {
 		TemplateID: 256,
 		FieldCount: 3,
 		Fields: []netflow.V9TemplateField{
-			{Type: 1, Len: 4},  // IN_BYTES
-			{Type: 2, Len: 4},  // IN_PKTS
-			{Type: 7, Len: 2},  // L4_SRC_PORT
+			{Type: 1, Len: 4}, // IN_BYTES
+			{Type: 2, Len: 4}, // IN_PKTS
+			{Type: 7, Len: 2}, // L4_SRC_PORT
 		},
 	}
 	tmplBytes := netflow.PackV9Template(tmpl)
@@ -95,8 +95,8 @@ func main() {
 		TemplateID: 256,
 		FieldCount: 3,
 		Fields: []netflow.IPFIXTemplateField{
-			{Type: 1, Len: 8},     // octetDeltaCount
-			{Type: 2, Len: 4},     // packetDeltaCount
+			{Type: 1, Len: 8},               // octetDeltaCount
+			{Type: 2, Len: 4},               // packetDeltaCount
 			{Type: 100, Len: 4, Pen: 12345}, // enterprise field
 		},
 	}

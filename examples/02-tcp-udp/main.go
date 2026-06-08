@@ -35,19 +35,19 @@ func main() {
 
 	// Builder API: 逐层叠加，完全控制每个字段
 	tcpSynPkt := goscapy.NewEthernet().
-		DstMAC("00:aa:bb:cc:dd:ee").       // 目标 MAC
-		SrcMAC("00:11:22:33:44:55").        // 源 MAC
+		DstMAC("00:aa:bb:cc:dd:ee"). // 目标 MAC
+		SrcMAC("00:11:22:33:44:55"). // 源 MAC
 		Over(goscapy.NewIP().
-			SrcIP("192.168.1.100").          // 源 IP
-			DstIP("10.0.0.1").               // 目标 IP
-			TTL(64).                          // TTL
-			Proto(layers.IPProtoTCP)).        // 协议: TCP (6)
+			SrcIP("192.168.1.100").    // 源 IP
+			DstIP("10.0.0.1").         // 目标 IP
+			TTL(64).                   // TTL
+			Proto(layers.IPProtoTCP)). // 协议: TCP (6)
 		Over(goscapy.NewTCP().
-			SrcPort(54321).                   // 源端口: 随机高端口
-			DstPort(80).                      // 目标端口: HTTP
-			Seq(1000).                        // 序列号
-			Flags(layers.TCPSyn).             // 标志: SYN
-			Window(65535))                    // 窗口大小
+			SrcPort(54321).       // 源端口: 随机高端口
+			DstPort(80).          // 目标端口: HTTP
+			Seq(1000).            // 序列号
+			Flags(layers.TCPSyn). // 标志: SYN
+			Window(65535))        // 窗口大小
 
 	tcpSynBytes, err := tcpSynPkt.Build()
 	if err != nil {
@@ -73,9 +73,9 @@ func main() {
 		Over(goscapy.NewTCP().
 			SrcPort(80).
 			DstPort(54321).
-			Seq(2000).                         // 服务器的初始序列号
-			Ack(1001).                         // 确认号 = 客户端 seq + 1
-			Flags(layers.TCPSyn|layers.TCPAck). // 标志: SYN + ACK
+			Seq(2000).                            // 服务器的初始序列号
+			Ack(1001).                            // 确认号 = 客户端 seq + 1
+			Flags(layers.TCPSyn | layers.TCPAck). // 标志: SYN + ACK
 			Window(65535))
 
 	tcpSynAckBytes, err := tcpSynAckPkt.Build()
@@ -103,8 +103,8 @@ func main() {
 			TTL(64).
 			Proto(layers.IPProtoUDP)).
 		Over(goscapy.NewUDP().
-			SrcPort(12345).                     // 源端口
-			DstPort(53))                        // 目标端口: DNS
+			SrcPort(12345). // 源端口
+			DstPort(53))    // 目标端口: DNS
 
 	udpBytes, err := udpPkt.Build()
 	if err != nil {
@@ -123,13 +123,13 @@ func main() {
 
 	// Shortcut 函数: EtherIPTCP 一行搞定 Ethernet + IP + TCP
 	shortcutBytes, err := goscapy.EtherIPTCP(
-		"00:11:22:33:44:55",  // 源 MAC
-		"00:aa:bb:cc:dd:ee",  // 目标 MAC
-		"192.168.1.100",       // 源 IP
-		"10.0.0.1",            // 目标 IP
-		54321,                 // 源端口
-		80,                    // 目标端口
-		layers.TCPSyn,         // TCP 标志
+		"00:11:22:33:44:55", // 源 MAC
+		"00:aa:bb:cc:dd:ee", // 目标 MAC
+		"192.168.1.100",     // 源 IP
+		"10.0.0.1",          // 目标 IP
+		54321,               // 源端口
+		80,                  // 目标端口
+		layers.TCPSyn,       // TCP 标志
 	)
 	if err != nil {
 		log.Fatalf("Shortcut 构建 TCP 包失败: %v", err)
@@ -139,9 +139,9 @@ func main() {
 	// Shortcut 函数: IPUDP（不带 Ethernet 头）
 	shortcutUDP, err := goscapy.IPUDP(
 		"192.168.1.100", // 源 IP
-		"8.8.8.8",        // 目标 IP
-		12345,             // 源端口
-		53,                // 目标端口
+		"8.8.8.8",       // 目标 IP
+		12345,           // 源端口
+		53,              // 目标端口
 	)
 	if err != nil {
 		log.Fatalf("Shortcut 构建 UDP 包失败: %v", err)

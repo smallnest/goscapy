@@ -73,8 +73,8 @@ func TestBuildNDPOptionsEmpty(t *testing.T) {
 
 func TestNDPRouterSolicitationSerialize(t *testing.T) {
 	rs := NewNDPRouterSolicitation()
-	rs.Set("reserved", uint32(0))
-	rs.Set("options", []byte{})
+	_ = rs.Set("reserved", uint32(0))
+	_ = rs.Set("options", []byte{})
 
 	got, err := rs.SerializeFields()
 	if err != nil {
@@ -91,8 +91,8 @@ func TestNDPRouterSolicitationWithOptions(t *testing.T) {
 	optRaw := BuildNDPOptions([]NDPOption{slla})
 
 	rs := NewNDPRouterSolicitation()
-	rs.Set("reserved", uint32(0))
-	rs.Set("options", optRaw)
+	_ = rs.Set("reserved", uint32(0))
+	_ = rs.Set("options", optRaw)
 
 	got, err := rs.SerializeFields()
 	if err != nil {
@@ -150,7 +150,7 @@ func TestNDPRouterAdvertisementDefaults(t *testing.T) {
 
 func TestNDPRouterAdvertisementSerialize(t *testing.T) {
 	ra := NewNDPRouterAdvertisement()
-	ra.Set("options", []byte{})
+	_ = ra.Set("options", []byte{})
 
 	got, err := ra.SerializeFields()
 	if err != nil {
@@ -168,9 +168,9 @@ func TestNDPNeighborSolicitationSerialize(t *testing.T) {
 	target := net.ParseIP("fe80::1")
 
 	ns := NewNDPNeighborSolicitation()
-	ns.Set("reserved", uint32(0))
-	ns.Set("target", target)
-	ns.Set("options", []byte{})
+	_ = ns.Set("reserved", uint32(0))
+	_ = ns.Set("target", target)
+	_ = ns.Set("options", []byte{})
 
 	got, err := ns.SerializeFields()
 	if err != nil {
@@ -211,10 +211,10 @@ func TestNDPNeighborAdvertisementSerialize(t *testing.T) {
 	target := net.ParseIP("fe80::1")
 
 	na := NewNDPNeighborAdvertisement()
-	na.Set("flags", uint8(NDPNARouter|NDPNASolicited|NDPNAOverride))
-	na.Set("reserved", uint32(0))
-	na.Set("target", target)
-	na.Set("options", []byte{})
+	_ = na.Set("flags", uint8(NDPNARouter|NDPNASolicited|NDPNAOverride))
+	_ = na.Set("reserved", uint32(0))
+	_ = na.Set("target", target)
+	_ = na.Set("options", []byte{})
 
 	got, err := na.SerializeFields()
 	if err != nil {
@@ -236,10 +236,10 @@ func TestNDPRedirectSerialize(t *testing.T) {
 	dest := net.ParseIP("2001:db8::1")
 
 	rd := NewNDPRedirect()
-	rd.Set("reserved", uint32(0))
-	rd.Set("target", target)
-	rd.Set("dest", dest)
-	rd.Set("options", []byte{})
+	_ = rd.Set("reserved", uint32(0))
+	_ = rd.Set("target", target)
+	_ = rd.Set("dest", dest)
+	_ = rd.Set("options", []byte{})
 
 	got, err := rd.SerializeFields()
 	if err != nil {
@@ -255,21 +255,21 @@ func TestNDPRedirectSerialize(t *testing.T) {
 
 func TestNDPPackedBuild(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", "fe80::1")
-	ipv6.Set("dst", "ff02::1")
+	_ = ipv6.Set("src", "fe80::1")
+	_ = ipv6.Set("dst", "ff02::1")
 
 	icmpBase := NewICMPv6()
-	icmpBase.Set("type", NDPNeighborSolicitation)
-	icmpBase.Set("code", uint8(0))
+	_ = icmpBase.Set("type", NDPNeighborSolicitation)
+	_ = icmpBase.Set("code", uint8(0))
 
 	target := net.ParseIP("fe80::2")
 	slla := BuildSourceLinkLayerOption(net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55})
 	optRaw := BuildNDPOptions([]NDPOption{slla})
 
 	ns := NewNDPNeighborSolicitation()
-	ns.Set("reserved", uint32(0))
-	ns.Set("target", target)
-	ns.Set("options", optRaw)
+	_ = ns.Set("reserved", uint32(0))
+	_ = ns.Set("target", target)
+	_ = ns.Set("options", optRaw)
 
 	pkt := packet.NewFrom(ipv6)
 	pkt.Push(icmpBase)
@@ -300,15 +300,15 @@ func TestNDPPackedBuild(t *testing.T) {
 
 func TestNDPPackedBuildRA(t *testing.T) {
 	ipv6 := NewIPv6()
-	ipv6.Set("src", "fe80::1")
-	ipv6.Set("dst", "ff02::1")
+	_ = ipv6.Set("src", "fe80::1")
+	_ = ipv6.Set("dst", "ff02::1")
 
 	icmpBase := NewICMPv6()
-	icmpBase.Set("type", NDPRouterAdvertisement)
-	icmpBase.Set("code", uint8(0))
+	_ = icmpBase.Set("type", NDPRouterAdvertisement)
+	_ = icmpBase.Set("code", uint8(0))
 
 	ra := NewNDPRouterAdvertisement()
-	ra.Set("options", []byte{})
+	_ = ra.Set("options", []byte{})
 
 	pkt := packet.NewFrom(ipv6)
 	pkt.Push(icmpBase)

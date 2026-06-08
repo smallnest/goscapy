@@ -26,7 +26,7 @@ func main() {
 	// 1. 基础 Fuzz: 随机化一个层的所有默认值字段
 	fmt.Println("--- 1. 基础 Fuzz ---")
 	tcp := layers.NewTCP()
-	tcp.Set("dport", uint16(80)) // 只设置目标端口
+	_ = tcp.Set("dport", uint16(80)) // 只设置目标端口
 
 	fmt.Println("Fuzz 前 TCP:")
 	printFields(tcp)
@@ -39,9 +39,9 @@ func main() {
 	// 2. FuzzPacket: 模糊化整个数据包的所有层
 	fmt.Println("--- 2. FuzzPacket ---")
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.1"))
 	icmp := layers.NewICMP()
-	icmp.Set("type", uint8(8)) // Echo Request
+	_ = icmp.Set("type", uint8(8)) // Echo Request
 
 	pkt := packet.NewFrom(ip, icmp)
 	goscapy.FuzzPacket(pkt)
@@ -56,7 +56,7 @@ func main() {
 	goscapy.Fuzz(tcpFuzz)
 
 	ipFuzz := layers.NewIP()
-	ipFuzz.Set("dst", net.ParseIP("192.168.1.1"))
+	_ = ipFuzz.Set("dst", net.ParseIP("192.168.1.1"))
 	goscapy.Fuzz(ipFuzz)
 
 	pkt2 := ipFuzz.Over(tcpFuzz)
@@ -74,11 +74,11 @@ func main() {
 	fmt.Println("--- 4. 模糊测试循环 (生成 5 个变异包) ---")
 	for i := 0; i < 5; i++ {
 		tcp := layers.NewTCP()
-		tcp.Set("dport", uint16(80))
+		_ = tcp.Set("dport", uint16(80))
 		goscapy.Fuzz(tcp)
 
 		ip := layers.NewIP()
-		ip.Set("dst", net.ParseIP("10.0.0.1"))
+		_ = ip.Set("dst", net.ParseIP("10.0.0.1"))
 		goscapy.Fuzz(ip)
 
 		pkt := ip.Over(tcp)

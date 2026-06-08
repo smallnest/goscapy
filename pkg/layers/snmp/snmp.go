@@ -8,20 +8,20 @@ import (
 
 // BER tag constants.
 const (
-	TagInteger       = 0x02
-	TagOctetString   = 0x04
-	TagNull          = 0x05
-	TagOID           = 0x06
-	TagSequence      = 0x30
-	TagIPAddress     = 0x40
-	TagCounter32     = 0x41
-	TagGauge32       = 0x42
-	TagTimeTicks     = 0x43
-	TagOpaque        = 0x44
-	TagCounter64     = 0x46
-	TagNoSuchObject  = 0x80
+	TagInteger        = 0x02
+	TagOctetString    = 0x04
+	TagNull           = 0x05
+	TagOID            = 0x06
+	TagSequence       = 0x30
+	TagIPAddress      = 0x40
+	TagCounter32      = 0x41
+	TagGauge32        = 0x42
+	TagTimeTicks      = 0x43
+	TagOpaque         = 0x44
+	TagCounter64      = 0x46
+	TagNoSuchObject   = 0x80
 	TagNoSuchInstance = 0x81
-	TagEndOfMibView  = 0x82
+	TagEndOfMibView   = 0x82
 )
 
 // SNMP PDU type tags.
@@ -39,9 +39,9 @@ const (
 
 // SNMP version constants.
 const (
-	Version1   int = 0
-	Version2c  int = 1
-	Version3   int = 3
+	Version1  int = 0
+	Version2c int = 1
+	Version3  int = 3
 )
 
 // ---- BER Encoding ----
@@ -230,9 +230,7 @@ func decodeOIDSubID(data []byte) (uint32, int) {
 
 func parseOID(s string) []int {
 	s = strings.TrimSpace(s)
-	if strings.HasPrefix(s, ".") {
-		s = s[1:]
-	}
+	s = strings.TrimPrefix(s, ".")
 	parts := strings.Split(s, ".")
 	result := make([]int, 0, len(parts))
 	for _, p := range parts {
@@ -241,7 +239,7 @@ func parseOID(s string) []int {
 			continue
 		}
 		v := 0
-		fmt.Sscanf(p, "%d", &v)
+		_, _ = fmt.Sscanf(p, "%d", &v)
 		result = append(result, v)
 	}
 	return result
@@ -311,13 +309,13 @@ type VarBind struct {
 
 // SNMPMessage represents a parsed SNMP message.
 type SNMPMessage struct {
-	Version   int
-	Community string
-	PDUType   byte
-	RequestID int
+	Version     int
+	Community   string
+	PDUType     byte
+	RequestID   int
 	ErrorStatus int
 	ErrorIndex  int
-	VarBinds  []VarBind
+	VarBinds    []VarBind
 	// Trap-v1 specific fields
 	Enterprise   string
 	AgentAddr    net.IP
@@ -456,7 +454,7 @@ func parseNormalPDU(data []byte, msg *SNMPMessage) error {
 	pos := 0
 
 	// Request ID.
-	tag, val, consumed, err := BERDecodeTLV(data[pos:])
+	_, val, consumed, err := BERDecodeTLV(data[pos:])
 	if err != nil {
 		return err
 	}
@@ -464,7 +462,7 @@ func parseNormalPDU(data []byte, msg *SNMPMessage) error {
 	pos += consumed
 
 	// Error status.
-	tag, val, consumed, err = BERDecodeTLV(data[pos:])
+	_, val, consumed, err = BERDecodeTLV(data[pos:])
 	if err != nil {
 		return err
 	}
@@ -472,15 +470,15 @@ func parseNormalPDU(data []byte, msg *SNMPMessage) error {
 	pos += consumed
 
 	// Error index.
-	tag, val, consumed, err = BERDecodeTLV(data[pos:])
+	_, val, consumed, err = BERDecodeTLV(data[pos:])
 	if err != nil {
 		return err
 	}
 	msg.ErrorIndex, _ = BERDecodeInteger(val)
 	pos += consumed
-	_ = tag
 
 	// VarBinds.
+	var tag byte
 	tag, val, _, err = BERDecodeTLV(data[pos:])
 	if err != nil {
 		return err

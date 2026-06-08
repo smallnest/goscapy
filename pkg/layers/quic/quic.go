@@ -19,7 +19,7 @@ import (
 
 // QUIC version constants.
 const (
-	Version1    uint32 = 0x00000001 // QUIC v1 (RFC 9000)
+	Version1       uint32 = 0x00000001 // QUIC v1 (RFC 9000)
 	VersionDraft29 uint32 = 0xff00001d // Draft 29
 )
 
@@ -41,44 +41,46 @@ const (
 
 // NewQUICLongHeader creates a QUIC Long Header layer (for Initial, 0-RTT, Handshake).
 // Wire format:
-//   Byte 0: 1 (header form) | 1 (fixed bit) | 2 (type) | 2 (reserved) | 2 (PN length)
-//   Bytes 1-4: version (4B)
-//   Byte 5: DCID length (1B) + DCID (variable)
-//   Byte 5+N: SCID length (1B) + SCID (variable)
-//   [Initial only] Token length (VLQ) + Token (variable)
-//   Length (VLQ) + Packet number (1-4B) + Payload
+//
+//	Byte 0: 1 (header form) | 1 (fixed bit) | 2 (type) | 2 (reserved) | 2 (PN length)
+//	Bytes 1-4: version (4B)
+//	Byte 5: DCID length (1B) + DCID (variable)
+//	Byte 5+N: SCID length (1B) + SCID (variable)
+//	[Initial only] Token length (VLQ) + Token (variable)
+//	Length (VLQ) + Packet number (1-4B) + Payload
 func NewQUICLongHeader() *packet.Layer {
 	return packet.NewLayer("QUIC", []fields.Field{
-		fields.NewByteField("first_byte", 0xC0),   // 1100 0000: long header, fixed bit
-		fields.NewIntField("version", Version1),     // QUIC version
-		fields.NewStrField("dcid", ""),              // Destination Connection ID
-		fields.NewStrField("scid", ""),              // Source Connection ID
-		fields.NewStrField("token", ""),             // Token (Initial only)
-		fields.NewStrField("payload", ""),           // Packet payload (frames)
+		fields.NewByteField("first_byte", 0xC0), // 1100 0000: long header, fixed bit
+		fields.NewIntField("version", Version1), // QUIC version
+		fields.NewStrField("dcid", ""),          // Destination Connection ID
+		fields.NewStrField("scid", ""),          // Source Connection ID
+		fields.NewStrField("token", ""),         // Token (Initial only)
+		fields.NewStrField("payload", ""),       // Packet payload (frames)
 	})
 }
 
 // NewQUICShortHeader creates a QUIC Short Header layer (1-RTT).
 // Wire format:
-//   Byte 0: 0 (header form) | 1 (fixed bit) | 2 (reserved) | 1 (key phase) | 2 (PN length)
-//   DCID (variable, no length prefix)
-//   Packet number (1-4B) + Payload
+//
+//	Byte 0: 0 (header form) | 1 (fixed bit) | 2 (reserved) | 1 (key phase) | 2 (PN length)
+//	DCID (variable, no length prefix)
+//	Packet number (1-4B) + Payload
 func NewQUICShortHeader() *packet.Layer {
 	return packet.NewLayer("QUIC", []fields.Field{
-		fields.NewByteField("first_byte", 0x40),    // 0100 0000: short header, fixed bit
-		fields.NewStrField("dcid", ""),              // Destination Connection ID
-		fields.NewStrField("payload", ""),           // Packet payload (frames)
+		fields.NewByteField("first_byte", 0x40), // 0100 0000: short header, fixed bit
+		fields.NewStrField("dcid", ""),          // Destination Connection ID
+		fields.NewStrField("payload", ""),       // Packet payload (frames)
 	})
 }
 
 // QUICLongHeader holds a parsed QUIC Long Header packet.
 type QUICLongHeader struct {
-	FirstByte  byte
-	Version    uint32
-	DCID       []byte
-	SCID       []byte
-	Token      []byte
-	Payload    []byte
+	FirstByte byte
+	Version   uint32
+	DCID      []byte
+	SCID      []byte
+	Token     []byte
+	Payload   []byte
 }
 
 // QUICShortHeader holds a parsed QUIC Short Header packet.

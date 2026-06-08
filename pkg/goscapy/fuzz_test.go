@@ -11,8 +11,8 @@ import (
 
 func TestFuzzPreservesExplicitValues(t *testing.T) {
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("10.0.0.1"))
-	ip.Set("ttl", uint8(128))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("ttl", uint8(128))
 
 	Fuzz(ip)
 
@@ -147,10 +147,10 @@ func TestFuzzStringFields(t *testing.T) {
 
 func TestFuzzPacket(t *testing.T) {
 	ip := layers.NewIP()
-	ip.Set("dst", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.1"))
 
 	tcp := layers.NewTCP()
-	tcp.Set("dport", uint16(80))
+	_ = tcp.Set("dport", uint16(80))
 
 	pkt := packet.NewFrom(ip, tcp)
 	FuzzPacket(pkt)
@@ -178,7 +178,7 @@ func TestFuzzWithBuilderAPI(t *testing.T) {
 	Fuzz(tcpLayer)
 
 	ipLayer := layers.NewIP()
-	ipLayer.Set("dst", net.ParseIP("10.0.0.1"))
+	_ = ipLayer.Set("dst", net.ParseIP("10.0.0.1"))
 	Fuzz(ipLayer)
 
 	pkt := ipLayer.Over(tcpLayer)
@@ -247,7 +247,7 @@ func TestFuzzMACUnicast(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		// Reset to default
-		l.Set("mac_f", net.HardwareAddr(nil))
+		_ = l.Set("mac_f", net.HardwareAddr(nil))
 		Fuzz(l)
 		mac, _ := l.Get("mac_f")
 		hw := mac.(net.HardwareAddr)
@@ -286,7 +286,7 @@ func TestFuzzProducesValidPackets(t *testing.T) {
 	Fuzz(tcpFuzz)
 
 	ipLayer := layers.NewIP()
-	ipLayer.Set("dst", net.ParseIP("10.0.0.1"))
+	_ = ipLayer.Set("dst", net.ParseIP("10.0.0.1"))
 	Fuzz(ipLayer)
 
 	pkt := ipLayer.Over(tcpFuzz)

@@ -155,7 +155,7 @@ func TestNLRIPrefixRoundTrip(t *testing.T) {
 
 func TestBuildOpenOptParams(t *testing.T) {
 	caps := []BGPCapability{
-		{Code: 1, Data: []byte{0x00, 0x01, 0x00, 0x01}}, // MP_BGP: IPv4 unicast
+		{Code: 1, Data: []byte{0x00, 0x01, 0x00, 0x01}},  // MP_BGP: IPv4 unicast
 		{Code: 65, Data: []byte{0x00, 0x00, 0x00, 0x64}}, // 4-byte ASN: 100
 	}
 

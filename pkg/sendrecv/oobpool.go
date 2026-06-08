@@ -20,5 +20,5 @@ func getOOBBuf() []byte {
 
 // putOOBBuf returns a buffer to the pool.
 func putOOBBuf(b []byte) {
-	oobPool.Put(b)
+	oobPool.Put(b) //nolint:staticcheck // SA6002: []byte is already a reference type, no boxing occurs
 }

@@ -45,30 +45,30 @@ var Marker = []byte{
 
 // BGP path attribute type codes.
 const (
-	AttrOrigin           uint8 = 1  // ORIGIN
-	AttrASPath           uint8 = 2  // AS_PATH
-	AttrNextHop          uint8 = 3  // NEXT_HOP
-	AttrMED              uint8 = 4  // MULTI_EXIT_DISC
-	AttrLocalPref        uint8 = 5  // LOCAL_PREF
-	AttrAtomicAggregate  uint8 = 6  // ATOMIC_AGGREGATE
-	AttrAggregator       uint8 = 7  // AGGREGATOR
-	AttrCommunity        uint8 = 8  // COMMUNITY
-	AttrOriginatorID     uint8 = 9  // ORIGINATOR_ID
-	AttrClusterList      uint8 = 10 // CLUSTER_LIST
-	AttrMPReachNLRI      uint8 = 14 // MP_REACH_NLRI
-	AttrMPUnreachNLRI    uint8 = 15 // MP_UNREACH_NLRI
-	AttrExtCommunities   uint8 = 16 // EXTENDED_COMMUNITIES
-	AttrAS4Path          uint8 = 17 // AS4_PATH
-	AttrAS4Aggregator    uint8 = 18 // AS4_AGGREGATOR
-	AttrLargeCommunity   uint8 = 32 // LARGE_COMMUNITY
+	AttrOrigin          uint8 = 1  // ORIGIN
+	AttrASPath          uint8 = 2  // AS_PATH
+	AttrNextHop         uint8 = 3  // NEXT_HOP
+	AttrMED             uint8 = 4  // MULTI_EXIT_DISC
+	AttrLocalPref       uint8 = 5  // LOCAL_PREF
+	AttrAtomicAggregate uint8 = 6  // ATOMIC_AGGREGATE
+	AttrAggregator      uint8 = 7  // AGGREGATOR
+	AttrCommunity       uint8 = 8  // COMMUNITY
+	AttrOriginatorID    uint8 = 9  // ORIGINATOR_ID
+	AttrClusterList     uint8 = 10 // CLUSTER_LIST
+	AttrMPReachNLRI     uint8 = 14 // MP_REACH_NLRI
+	AttrMPUnreachNLRI   uint8 = 15 // MP_UNREACH_NLRI
+	AttrExtCommunities  uint8 = 16 // EXTENDED_COMMUNITIES
+	AttrAS4Path         uint8 = 17 // AS4_PATH
+	AttrAS4Aggregator   uint8 = 18 // AS4_AGGREGATOR
+	AttrLargeCommunity  uint8 = 32 // LARGE_COMMUNITY
 )
 
 // Path attribute flag bits.
 const (
-	FlagOptional     uint8 = 0x80 // Optional
-	FlagTransitive   uint8 = 0x40 // Transitive
-	FlagPartial      uint8 = 0x20 // Partial
-	FlagExtLength    uint8 = 0x10 // Extended Length
+	FlagOptional   uint8 = 0x80 // Optional
+	FlagTransitive uint8 = 0x40 // Transitive
+	FlagPartial    uint8 = 0x20 // Partial
+	FlagExtLength  uint8 = 0x10 // Extended Length
 )
 
 // BGP Origin values.
@@ -85,8 +85,8 @@ const (
 func NewBGP() *packet.Layer {
 	return packet.NewLayer("BGP", []fields.Field{
 		fields.NewStrFixedField("marker", 16, Marker), // 16 bytes of 0xFF
-		fields.NewShortField("len", HeaderSize),        // Total message length
-		fields.NewByteField("type", TypeOpen),           // Message type
+		fields.NewShortField("len", HeaderSize),       // Total message length
+		fields.NewByteField("type", TypeOpen),         // Message type
 	})
 }
 
@@ -96,12 +96,12 @@ func NewBGP() *packet.Layer {
 //	version(1) | my_as(2) | hold_time(2) | bgp_id(4) | opt_param_len(1) | opt_params[]
 func NewBGPOpen() *packet.Layer {
 	return packet.NewLayer("BGP Open", []fields.Field{
-		fields.NewByteField("version", 4),                    // BGP version 4
-		fields.NewShortField("my_as", 0),                     // Autonomous System Number
-		fields.NewShortField("hold_time", 0),                 // Hold Time (seconds)
-		fields.NewIPField("bgp_id", nil),                     // BGP Identifier (Router ID)
-		fields.NewByteField("opt_param_len", 0),              // Optional Parameters Length
-		fields.NewStrField("opt_params", ""),                  // Optional Parameters
+		fields.NewByteField("version", 4),       // BGP version 4
+		fields.NewShortField("my_as", 0),        // Autonomous System Number
+		fields.NewShortField("hold_time", 0),    // Hold Time (seconds)
+		fields.NewIPField("bgp_id", nil),        // BGP Identifier (Router ID)
+		fields.NewByteField("opt_param_len", 0), // Optional Parameters Length
+		fields.NewStrField("opt_params", ""),    // Optional Parameters
 	})
 }
 
@@ -111,11 +111,11 @@ func NewBGPOpen() *packet.Layer {
 //	withdrawn_routes_len(2) | withdrawn_routes[] | path_attr_len(2) | path_attrs[] | nlri[]
 func NewBGPUpdate() *packet.Layer {
 	return packet.NewLayer("BGP Update", []fields.Field{
-		fields.NewShortField("withdrawn_len", 0),             // Withdrawn Routes Length
-		fields.NewStrField("withdrawn", ""),                   // Withdrawn Routes
-		fields.NewShortField("path_attr_len", 0),             // Path Attributes Length
-		fields.NewStrField("path_attrs", ""),                  // Path Attributes
-		fields.NewStrField("nlri", ""),                        // NLRI (Network Layer Reachability Info)
+		fields.NewShortField("withdrawn_len", 0), // Withdrawn Routes Length
+		fields.NewStrField("withdrawn", ""),      // Withdrawn Routes
+		fields.NewShortField("path_attr_len", 0), // Path Attributes Length
+		fields.NewStrField("path_attrs", ""),     // Path Attributes
+		fields.NewStrField("nlri", ""),           // NLRI (Network Layer Reachability Info)
 	})
 }
 
@@ -125,9 +125,9 @@ func NewBGPUpdate() *packet.Layer {
 //	error_code(1) | error_subcode(1) | data[]
 func NewBGPNotification() *packet.Layer {
 	return packet.NewLayer("BGP Notification", []fields.Field{
-		fields.NewByteField("error_code", 0),                 // Error Code
-		fields.NewByteField("error_subcode", 0),              // Error Subcode
-		fields.NewStrField("data", ""),                        // Error Data
+		fields.NewByteField("error_code", 0),    // Error Code
+		fields.NewByteField("error_subcode", 0), // Error Subcode
+		fields.NewStrField("data", ""),          // Error Data
 	})
 }
 
@@ -174,7 +174,7 @@ func ParsePathAttr(data []byte) (*PathAttr, int, error) {
 		TypeCode: data[1],
 	}
 
-	offset := 2
+	var offset int
 	var valueLen int
 
 	if attr.Flags&FlagExtLength != 0 {
@@ -254,8 +254,8 @@ func ParseNLRIPrefix(data []byte) (*NLRIPrefix, int, error) {
 
 // BGPCapability represents a BGP capability (used in OPEN optional parameters).
 type BGPCapability struct {
-	Code   uint8
-	Data   []byte
+	Code uint8
+	Data []byte
 }
 
 // SerializeCapability serializes a BGP capability to wire format.
@@ -277,8 +277,8 @@ func BuildOpenOptParams(caps []BGPCapability) []byte {
 
 	// Wrap in parameter type 2 (Capabilities)
 	var params []byte
-	params = append(params, 2)                   // param_type = Capabilities
-	params = append(params, byte(len(capData)))   // param_length
+	params = append(params, 2)                  // param_type = Capabilities
+	params = append(params, byte(len(capData))) // param_length
 	params = append(params, capData...)
 	return params
 }

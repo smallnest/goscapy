@@ -57,9 +57,9 @@ func main() {
 	fmt.Println("--- 3. 解析 TLS 记录 ---")
 	record := tls.NewTLS()
 	// Manually build TLS record bytes
-	record.Set("content_type", uint8(tls.ContentTypeHandshake))
-	record.Set("version", uint16(tls.VersionTLS12))
-	record.Set("fragment", append([]byte{0x01, 0x00, 0x00, byte(len(chBody))}, chBody...))
+	_ = record.Set("content_type", uint8(tls.ContentTypeHandshake))
+	_ = record.Set("version", uint16(tls.VersionTLS12))
+	_ = record.Set("fragment", append([]byte{0x01, 0x00, 0x00, byte(len(chBody))}, chBody...))
 
 	recData, _ := record.SerializeFields()
 	fmt.Printf("  TLS record: %d bytes\n", len(recData))
@@ -106,10 +106,10 @@ func main() {
 	// 6. 解析 ServerHello
 	fmt.Println("--- 6. 模拟 ServerHello ---")
 	sh := &tls.ServerHello{
-		Version:      tls.VersionTLS12,
-		Random:       make([]byte, 32),
-		CipherSuite:  0xC02F,
-		Compression:  0,
+		Version:     tls.VersionTLS12,
+		Random:      make([]byte, 32),
+		CipherSuite: 0xC02F,
+		Compression: 0,
 	}
 	shBody := buildServerHello(sh)
 	parsedSH, err := tls.ParseServerHello(shBody)

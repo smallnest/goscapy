@@ -185,7 +185,9 @@ func (l *Layer) SerializeInto(buf []byte) (int, error) {
 		if !exists {
 			continue
 		}
-		pi, ok := f.(interface{ PackInto([]byte, any) (int, error) })
+		pi, ok := f.(interface {
+			PackInto([]byte, any) (int, error)
+		})
 		if !ok {
 			// Fallback to Pack + copy for fields without PackInto.
 			b, err := f.Pack(val)

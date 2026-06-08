@@ -9,20 +9,20 @@ import (
 
 // HCI packet type constants.
 const (
-	HCICommand   uint8 = 1
-	HCIACLData   uint8 = 2
-	HCISCOData   uint8 = 3
-	HCIEvent     uint8 = 4
-	HCIISOData   uint8 = 5
+	HCICommand uint8 = 1
+	HCIACLData uint8 = 2
+	HCISCOData uint8 = 3
+	HCIEvent   uint8 = 4
+	HCIISOData uint8 = 5
 )
 
 // L2CAP channel ID constants.
 const (
-	L2CAPCIDATT     uint16 = 0x0004
-	L2CAPCIDSM      uint16 = 0x0005
-	L2CAPCIDSMP     uint16 = 0x0006
+	L2CAPCIDATT            uint16 = 0x0004
+	L2CAPCIDSM             uint16 = 0x0005
+	L2CAPCIDSMP            uint16 = 0x0006
 	L2CAPCIDConnectionless uint16 = 0x0002
-	L2CAPCIDSignal  uint16 = 0x0001
+	L2CAPCIDSignal         uint16 = 0x0001
 )
 
 // ATT opcode constants.
@@ -68,19 +68,19 @@ const (
 
 // EIR type constants.
 const (
-	EIRTypeFlags        uint8 = 0x01
-	EIRTypeUUID16       uint8 = 0x03
-	EIRTypeUUID128      uint8 = 0x07
-	EIRTypeShortName    uint8 = 0x08
-	EIRTypeCompleteName uint8 = 0x09
-	EIRTypeTxPowerLevel uint8 = 0x0A
-	EIRTypeClassOfDev   uint8 = 0x0D
+	EIRTypeFlags         uint8 = 0x01
+	EIRTypeUUID16        uint8 = 0x03
+	EIRTypeUUID128       uint8 = 0x07
+	EIRTypeShortName     uint8 = 0x08
+	EIRTypeCompleteName  uint8 = 0x09
+	EIRTypeTxPowerLevel  uint8 = 0x0A
+	EIRTypeClassOfDev    uint8 = 0x0D
 	EIRTypeSlaveIntRange uint8 = 0x12
-	EIRType16bitSolUUID uint8 = 0x14
-	EIRTypeAppearance   uint8 = 0x19
-	EIRTypeLEDeviceAddr uint8 = 0x1B
-	EIRTypeLERole       uint8 = 0x1C
-	EIRTypeManufacturer uint8 = 0xFF
+	EIRType16bitSolUUID  uint8 = 0x14
+	EIRTypeAppearance    uint8 = 0x19
+	EIRTypeLEDeviceAddr  uint8 = 0x1B
+	EIRTypeLERole        uint8 = 0x1C
+	EIRTypeManufacturer  uint8 = 0xFF
 )
 
 // ATT error codes.
@@ -293,12 +293,12 @@ func ParseATTNotify(params []byte) (*ATTNotify, error) {
 
 // SMPairingReq represents a parsed SM Pairing Request/Response.
 type SMPairingReq struct {
-	IOCapability  uint8
-	OOBDataFlag   uint8
-	AuthReq       uint8
-	MaxEncSize    uint8
-	InitKeyDist   uint8
-	RespKeyDist   uint8
+	IOCapability uint8
+	OOBDataFlag  uint8
+	AuthReq      uint8
+	MaxEncSize   uint8
+	InitKeyDist  uint8
+	RespKeyDist  uint8
 }
 
 // ParseSMPairingReq parses SM Pairing Request or Response data.

@@ -46,9 +46,9 @@ func main() {
 
 	// SniffConfig 配置嗅探参数
 	cfg := sniff.SniffConfig{
-		Iface:   iface,                 // 网络接口
-		Count:   10,                    // 最多捕获 10 个包
-		Timeout: 10 * time.Second,      // 总超时 10 秒
+		Iface:   iface,            // 网络接口
+		Count:   10,               // 最多捕获 10 个包
+		Timeout: 10 * time.Second, // 总超时 10 秒
 	}
 
 	count := 0
@@ -87,8 +87,8 @@ func main() {
 
 	chanCfg := sniff.SniffConfig{
 		Iface:   iface,
-		Count:   5,                     // 最多 5 个包
-		Timeout: 5 * time.Second,       // 超时 5 秒
+		Count:   5,               // 最多 5 个包
+		Timeout: 5 * time.Second, // 超时 5 秒
 	}
 
 	fmt.Println("开始通道嗅探...")
@@ -97,7 +97,7 @@ func main() {
 	chanCount := 0
 	timeout := time.After(6 * time.Second)
 
-	loop:
+loop:
 	for {
 		select {
 		case pkt, ok := <-ch:
@@ -135,8 +135,8 @@ func main() {
 	// 只捕获 TCP 包
 	filterCfg := sniff.SniffConfig{
 		Iface:   iface,
-		Filter:  "tcp",                 // BPF 过滤: 只捕获 TCP
-		Count:   3,                     // 最多 3 个 TCP 包
+		Filter:  "tcp", // BPF 过滤: 只捕获 TCP
+		Count:   3,     // 最多 3 个 TCP 包
 		Timeout: 10 * time.Second,
 	}
 
