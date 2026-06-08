@@ -5,52 +5,34 @@ import (
 
 	"github.com/smallnest/goscapy/pkg/packet"
 
-	// Register DNS layer via init().
+	// Core protocol layers (always loaded).
 	_ "github.com/smallnest/goscapy/pkg/layers/dns"
-	// Register DHCP layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/dhcp"
-	// Register Dot1Q layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/dot1q"
-	// Register VXLAN layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/vxlan"
-	// Register GRE layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/gre"
-	// Register LLDP layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/lldp"
-	// Register ERSPAN layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/erspan"
-	// Register QUIC layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/quic"
-	// Register OSPF layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/ospf"
-	// Register BGP layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/bgp"
-	// Register HTTP layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/http"
-	// Register NTP layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/ntp"
-	// Register Dot11 layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/dot11"
-	// Register TLS layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/tls"
-	// Register Bluetooth/BLE layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/bt"
-	// Register SNMP layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/snmp"
-	// Register Netflow/IPFIX layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/netflow"
-	// Register RTP/RTCP/SIP (VoIP) layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/voip"
-	// Register RADIUS layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/radius"
-	// Register LDAP layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/ldap"
-	// Register Kerberos layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/kerberos"
-	// Register Zigbee layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/zigbee"
-	// Register LoRaWAN layer via init().
-	_ "github.com/smallnest/goscapy/pkg/layers/lorawan"
+
+	// Contrib protocol layers (loaded via contrib for backward compatibility).
+	// Importing the layers package loads all protocols; for lean builds,
+	// import only specific contrib packages instead.
+	_ "github.com/smallnest/goscapy/pkg/contrib/bgp"
+	_ "github.com/smallnest/goscapy/pkg/contrib/bt"
+	_ "github.com/smallnest/goscapy/pkg/contrib/dot11"
+	_ "github.com/smallnest/goscapy/pkg/contrib/erspan"
+	_ "github.com/smallnest/goscapy/pkg/contrib/http"
+	_ "github.com/smallnest/goscapy/pkg/contrib/kerberos"
+	_ "github.com/smallnest/goscapy/pkg/contrib/ldap"
+	_ "github.com/smallnest/goscapy/pkg/contrib/lldp"
+	_ "github.com/smallnest/goscapy/pkg/contrib/lorawan"
+	_ "github.com/smallnest/goscapy/pkg/contrib/netflow"
+	_ "github.com/smallnest/goscapy/pkg/contrib/ntp"
+	_ "github.com/smallnest/goscapy/pkg/contrib/ospf"
+	_ "github.com/smallnest/goscapy/pkg/contrib/quic"
+	_ "github.com/smallnest/goscapy/pkg/contrib/radius"
+	_ "github.com/smallnest/goscapy/pkg/contrib/snmp"
+	_ "github.com/smallnest/goscapy/pkg/contrib/tls"
+	_ "github.com/smallnest/goscapy/pkg/contrib/voip"
+	_ "github.com/smallnest/goscapy/pkg/contrib/zigbee"
 )
 
 func init() {
