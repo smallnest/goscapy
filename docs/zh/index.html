@@ -54,10 +54,10 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-dot plum"></div>
-                                <h4>🔬 数据包解析</h4>
+                                <h4>🔬 数据包解析与内省</h4>
                             </div>
                             <p>
-                                将原始字节解析为结构化数据包，支持自动协议检测和分层提取。
+                                将原始字节解析为结构化数据包，支持自动协议检测、分层提取，以及 <code>Show()</code>、<code>Summary()</code> 多格式展示。
                             </p>
                         </div>
                         <div class="card">
@@ -66,8 +66,7 @@
                                 <h4>📡 发送与接收</h4>
                             </div>
                             <p>
-                                通过原始套接字在 L2（以太网）和
-                                L3（IP）层级发送和接收数据包。
+                                通过原始套接字在 L2（以太网）和 L3（IP）层级发送和接收数据包，支持批量收发、零拷贝、io_uring 异步 IO。
                             </p>
                         </div>
                         <div class="card">
@@ -76,8 +75,7 @@
                                 <h4>👃 数据包嗅探</h4>
                             </div>
                             <p>
-                                支持回调和通道两种方式的实时流量捕获，内置 BPF
-                                过滤器支持。
+                                支持回调和通道两种方式的实时流量捕获，内置 BPF 过滤器支持，以及 Linux PacketMMAP (TPACKET_V3) 高性能捕获。
                             </p>
                         </div>
                         <div class="card">
@@ -86,8 +84,7 @@
                                 <h4>✅ 自动校验和</h4>
                             </div>
                             <p>
-                                IP、TCP、UDP 和 ICMP
-                                校验和在序列化时自动计算，无需手动处理。
+                                IP、TCP、UDP、ICMP、ICMPv6 和 IPv6 校验和在序列化时自动计算，无需手动处理。
                             </p>
                         </div>
                         <div class="card">
@@ -96,18 +93,52 @@
                                 <h4>🔗 层绑定</h4>
                             </div>
                             <p>
-                                相邻层之间自动推断字段 — IP
-                                叠加在以太网上会自动设置 EtherType。
+                                相邻层之间自动推断字段 — IP 叠加在以太网上会自动设置 EtherType。
                             </p>
                         </div>
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-dot coral"></div>
+                                <h4>🧩 按需加载模块</h4>
+                            </div>
+                            <p>
+                                Contrib 模块系统支持按需加载协议，减少二进制体积。导入所需协议包并调用 <code>contrib.Load()</code> 即可。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot terracotta"></div>
+                                <h4>🔍 p0f 指纹识别</h4>
+                            </div>
+                            <p>
+                                通过被动分析 TCP SYN 包特征（窗口大小、TTL、选项布局等）识别远程操作系统，内置签名数据库。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot sage"></div>
+                                <h4>💾 PCAP 读写</h4>
+                            </div>
+                            <p>
+                                纯 Go 实现的 PCAP/pcapng 文件读写，无需 libpcap 依赖，支持离线数据包分析与存储。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot plum"></div>
+                                <h4>🔄 TCP 流重组</h4>
+                            </div>
+                            <p>
+                                跟踪 TCP 会话、按序重组数据段、处理重叠与重传，暴露双向字节流用于应用层分析。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot blue"></div>
                                 <h4>💻 跨平台</h4>
                             </div>
                             <p>
-                                支持 macOS（Darwin）和
-                                Linux，使用平台特定的原始套接字实现。
+                                支持 macOS（Darwin）和 Linux，使用平台特定的原始套接字实现，零 CGO 依赖。
                             </p>
                         </div>
                     </div>
@@ -336,13 +367,13 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 </tr>
                                 <tr>
                                     <td><strong>PCAP 文件读写</strong></td>
-                                    <td>❌</td>
-                                    <td>✅</td>
+                                    <td>✅ 纯 Go 实现（pcap/pcapng）</td>
+                                    <td>✅ 依赖 libpcap</td>
                                     <td>❌</td>
                                 </tr>
                                 <tr>
                                     <td><strong>TCP 流重组</strong></td>
-                                    <td>❌</td>
+                                    <td>✅ <code>tcpstream</code> + <code>reassembly</code></td>
                                     <td>✅ tcpassembly</td>
                                     <td>❌</td>
                                 </tr>
@@ -371,7 +402,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 </tr>
                                 <tr>
                                     <td><strong>协议覆盖</strong></td>
-                                    <td>Ethernet, ARP, IP, TCP, UDP, ICMP</td>
+                                    <td>40+ 协议（核心 + contrib 按需加载）</td>
                                     <td>200+ 协议解码</td>
                                     <td>icmp, ipv4, bpf 等</td>
                                 </tr>
@@ -425,10 +456,9 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <div class="card-dot sage"></div>
                                 <h4>📊 PCAP 分析与离线包解析</h4>
                             </div>
-                            <p><strong>推荐库：gopacket</strong></p>
+                            <p><strong>推荐库：goscapy</strong></p>
                             <p>
-                                具备最完整的 PCAP 读写与 TCP
-                                流重组（tcpassembly）支持。
+                                纯 Go 实现 PCAP/pcapng 读写，结合 TCP 流重组和 p0f 指纹识别，无需 libpcap 依赖。
                             </p>
                         </div>
                         <div class="card">
@@ -496,7 +526,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                         <div class="section-dot sage"></div>
                         <h3>支持的协议</h3>
                     </div>
-                    <p>全面覆盖网络协议栈各层。</p>
+                    <p>全面覆盖网络协议栈各层，核心协议默认加载，扩展协议按需引入。</p>
                     <div class="table-wrapper">
                         <table>
                             <thead>
@@ -512,7 +542,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                             >链路层</span
                                         >
                                     </td>
-                                    <td>Ethernet（CSMA/CD）、ARP</td>
+                                    <td>Ethernet、ARP、Dot1Q (VLAN)、LLDP、Dot11 (WiFi 802.11)</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -520,7 +550,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                             >网络层</span
                                         >
                                     </td>
-                                    <td>IPv4</td>
+                                    <td>IPv4、IPv6（含扩展头部 Hop-by-Hop/Routing/Fragment/DestOpts）、ICMP、ICMPv6、NDP（RS/RA/NS/NA/Redirect）、OSPF、GRE</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -529,15 +559,39 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                             >传输层</span
                                         >
                                     </td>
-                                    <td>TCP、UDP、ICMP</td>
+                                    <td>TCP、UDP</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span class="layer-badge layer-payload"
-                                            >载荷层</span
+                                            >隧道/封装</span
                                         >
                                     </td>
-                                    <td>Raw 原始字节</td>
+                                    <td>VXLAN、ERSPAN</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge" style="background:#9b59b6;color:#fff"
+                                            >应用层</span
+                                        >
+                                    </td>
+                                    <td>DNS、DHCP、HTTP、NTP、BGP、SNMP、TLS、QUIC、RADIUS、LDAP、Kerberos</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge" style="background:#e67e22;color:#fff"
+                                            >IoT / 无线</span
+                                        >
+                                    </td>
+                                    <td>Bluetooth/BLE、Zigbee、LoRaWAN、VoIP (RTP/RTCP/SIP)</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge" style="background:#1abc9c;color:#fff"
+                                            >监控 / 流量</span
+                                        >
+                                    </td>
+                                    <td>Netflow/IPFIX</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -616,7 +670,12 @@ pkt, err := <span class="fn">goscapy.EtherIPICMP</span>(
                             <pre><span class="cmt">// 将原始字节解析为结构化数据包</span>
 raw := []<span class="type">byte</span>{<span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, ...}
 pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
-fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span></pre>
+
+<span class="cmt">// 一行摘要</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">Summary</span>()) <span class="cmt">// "IP 192.168.1.1 > 8.8.8.8 / ICMP echo-request"</span>
+
+<span class="cmt">// 详细分层展示</span>
+pkt.<span class="fn">Show</span>()</pre>
                         </div>
                     </div>
                 </div>
@@ -642,7 +701,7 @@ fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span 
                         >MIT 许可证</a
                     >
                 </span>
-                &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+                &copy; 2026 goscapy 贡献者。基于 MIT 许可证发布。
             </p>
         </div>
 

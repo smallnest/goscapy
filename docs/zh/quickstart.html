@@ -230,6 +230,12 @@ pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
 <span class="cmt">// 打印层栈</span>
 fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span>
 
+<span class="cmt">// 一行摘要</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">Summary</span>()) <span class="cmt">// "IP 192.168.1.1 > 8.8.8.8 / ICMP echo-request"</span>
+
+<span class="cmt">// 详细分层展示</span>
+pkt.<span class="fn">Show</span>()
+
 <span class="cmt">// 访问各个层</span>
 eth := packet.<span class="fn">Ethernet</span>(pkt)
 fmt.<span class="fn">Printf</span>(<span class="str">"源MAC: %s\n"</span>, eth.<span class="fn">SrcMAC</span>())
@@ -374,8 +380,12 @@ ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">Sni
         <ul class="step-list">
           <li><a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">完整 API 参考</a> — 所有包、类型和函数</li>
           <li><a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub 仓库</a> — 源代码、Issues 和贡献</li>
-          <li>进阶：ARP、VXLAN、GRE、DNS、DHCP 协议</li>
+          <li>进阶：ARP、VXLAN、GRE、DNS、DHCP、BGP、OSPF、TLS、QUIC 等协议</li>
           <li>进阶：层绑定和自动字段推断</li>
+          <li>进阶：数据包内省 (<code>Show()</code> / <code>Summary()</code>)</li>
+          <li>进阶：p0f 被动 OS 指纹识别</li>
+          <li>进阶：PCAP 文件读写与 TCP 流重组</li>
+          <li>进阶：Contrib 模块按需加载</li>
         </ul>
       </div>
 
@@ -389,7 +399,7 @@ ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">Sni
         <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
         <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT 许可证</a>
       </span>
-      &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+      &copy; 2026 goscapy 贡献者。基于 MIT 许可证发布。
     </p>
 
   </div>

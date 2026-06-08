@@ -30,11 +30,21 @@
             <thead><tr><th>包</th><th>导入路径</th><th>说明</th></tr></thead>
             <tbody>
               <tr><td><code>goscapy</code></td><td><code>pkg/goscapy</code></td><td>Builder API 和快捷函数 — 主入口</td></tr>
-              <tr><td><code>packet</code></td><td><code>pkg/packet</code></td><td>核心 Packet/Layer 类型、Build、Dissect、字段绑定、协议注册</td></tr>
-              <tr><td><code>layers</code></td><td><code>pkg/layers</code></td><td>协议层定义（Ethernet、ARP、IP、TCP、UDP、ICMP、IPv6、Dot1Q、VXLAN、GRE、DNS、DHCP、Raw）</td></tr>
+              <tr><td><code>packet</code></td><td><code>pkg/packet</code></td><td>核心 Packet/Layer 类型、Build、Dissect、字段绑定、协议注册、Show/Summary 内省</td></tr>
+              <tr><td><code>layers</code></td><td><code>pkg/layers</code></td><td>协议层定义（Ethernet、ARP、IP、TCP、UDP、ICMP、IPv6、NDP、Dot1Q、VXLAN、GRE、DNS、DHCP 等 40+ 协议）</td></tr>
+              <tr><td><code>contrib</code></td><td><code>pkg/contrib</code></td><td>按需加载模块系统 — 导入协议包后调用 <code>contrib.Load()</code> 即可注册</td></tr>
               <tr><td><code>fields</code></td><td><code>pkg/fields</code></td><td>字段类型系统 — 序列化、反序列化、TLV 选项</td></tr>
-              <tr><td><code>sendrecv</code></td><td><code>pkg/sendrecv</code></td><td>原始套接字发送/接收（Send、Sendp、Recv、SendRecv）</td></tr>
+              <tr><td><code>sendrecv</code></td><td><code>pkg/sendrecv</code></td><td>原始套接字发送/接收（Send、Sendp、Recv、SendRecv、BatchConn、UringConn、PacketMMAP）</td></tr>
               <tr><td><code>sniff</code></td><td><code>pkg/sniff</code></td><td>数据包嗅探，支持 BPF 过滤器</td></tr>
+              <tr><td><code>pcap</code></td><td><code>pkg/pcap</code></td><td>PCAP/pcapng 文件读写（纯 Go 实现，无 libpcap 依赖）</td></tr>
+              <tr><td><code>reassembly</code></td><td><code>pkg/reassembly</code></td><td>IP 分片重组 — 按 (src, dst, id, proto) 聚合分片</td></tr>
+              <tr><td><code>tcpstream</code></td><td><code>pkg/tcpstream</code></td><td>TCP 流重组 — 跟踪会话、按序重组、处理重叠与重传</td></tr>
+              <tr><td><code>p0f</code></td><td><code>pkg/p0f</code></td><td>被动 OS 指纹识别（p0f v2 格式），内置签名数据库</td></tr>
+              <tr><td><code>cmsg</code></td><td><code>pkg/cmsg</code></td><td>解析 recvmsg 控制消息（内核时间戳、IP_PKTINFO 等）</td></tr>
+              <tr><td><code>arping</code></td><td><code>pkg/arping</code></td><td>ARP 探测工具</td></tr>
+              <tr><td><code>traceroute</code></td><td><code>pkg/traceroute</code></td><td>路由追踪工具</td></tr>
+              <tr><td><code>route</code></td><td><code>pkg/route</code></td><td>路由表查询</td></tr>
+              <tr><td><code>asn1</code></td><td><code>pkg/asn1</code></td><td>ASN.1 编解码（用于 Kerberos、LDAP、SNMP 等）</td></tr>
             </tbody>
           </table>
         </div>
@@ -335,6 +345,123 @@ packet.<span class="fn">RegisterBuildHook</span>(<span class="str">"IP"</span>, 
         </div>
       </div>
 
+      <!-- 数据包内省 -->
+      <div class="section" id="数据包内省">
+        <div class="section-title">
+          <div class="section-dot coral"></div>
+          <h3>数据包内省</h3>
+        </div>
+        <p>goscapy 提供多种方式查看已解析的数据包内容：</p>
+        <div class="table-wrapper"><table><thead><tr><th>方法</th><th>输出格式</th><th>说明</th></tr></thead><tbody>
+          <tr><td><code>pkt.Show()</code></td><td>多行格式化展示</td><td>类似 Scapy 的 <code>###[ Proto ]###</code> 格式，显示每个字段名、值和类型</td></tr>
+          <tr><td><code>pkt.Summary()</code></td><td>一行摘要</td><td>协议感知的紧凑格式，如 <code>IP 192.168.1.1 &gt; 8.8.8.8 / TCP S 80 &gt; 12345</code></td></tr>
+          <tr><td><code>pkt.String()</code></td><td>协议栈</td><td>简洁的层列表，如 <code>Ethernet / IP / TCP</code></td></tr>
+          <tr><td><code>layer.Describe()</code></td><td>单层详情</td><td>显示单个协议层的所有字段名、值和类型</td></tr>
+          <tr><td><code>packet.ListLayers()</code></td><td>已注册层列表</td><td>返回所有已注册的协议层名称（排序后）</td></tr>
+        </tbody></table></div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="cmt">// 详细展示</span>
+pkt.<span class="fn">Show</span>()
+<span class="cmt">// ###[ IP ]###</span>
+<span class="cmt">// version = 4 (uint8)</span>
+<span class="cmt">// src = 192.168.1.1 (net.IP)</span>
+<span class="cmt">// ...</span>
+
+<span class="cmt">// 一行摘要</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">Summary</span>())
+<span class="cmt">// IP 192.168.1.1 > 8.8.8.8 / TCP S 80 > 12345</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- p0f 指纹识别 -->
+      <div class="section" id="p0f-指纹识别">
+        <div class="section-title">
+          <div class="section-dot teal"></div>
+          <h3>被动 OS 指纹识别 (p0f)</h3>
+        </div>
+        <p>
+          <code>p0f</code> 包通过被动分析 TCP SYN/SYN+ACK 包的特征来识别远程操作系统。
+          它检查窗口大小、TTL、TCP 选项布局等字段，与内置签名数据库进行匹配。
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> <span class="str">"github.com/smallnest/goscapy/pkg/p0f"</span>
+
+<span class="cmt">// 使用内置签名数据库</span>
+db := p0f.<span class="fn">DefaultDatabase</span>()
+
+<span class="cmt">// 或从文件加载自定义签名</span>
+db, err := p0f.<span class="fn">LoadDatabase</span>(<span class="str">"p0f.fp"</span>)
+
+<span class="cmt">// 对捕获的 SYN 包进行指纹识别</span>
+result := p0f.<span class="fn">P0fFingerprint</span>(pkt, db)
+fmt.<span class="fn">Printf</span>(<span class="str">"OS: %s (confidence: %s)\n"</span>, result.OS, result.Confidence)</pre>
+          </div>
+        </div>
+        <div class="tip">
+          <div class="admonition-title">💡 提示</div>
+          签名数据库包含 Linux、Windows、macOS/iOS、FreeBSD、OpenBSD、Solaris 等操作系统的指纹。你也可以加载自定义的 p0f v2 格式签名文件。
+        </div>
+      </div>
+
+      <!-- Contrib 模块系统 -->
+      <div class="section" id="contrib-模块系统">
+        <div class="section-title">
+          <div class="section-dot violet"></div>
+          <h3>Contrib 模块系统</h3>
+        </div>
+        <p>
+          Contrib 模块允许按需加载协议支持，减少二进制体积。导入 <code>pkg/layers</code> 会自动加载所有协议（向后兼容），
+          而只导入特定的 contrib 包则实现精简构建。
+        </p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">go</span><button class="code-copy">Copy</button></div>
+          <div class="code-body">
+<pre><span class="kw">import</span> (
+    <span class="str">"github.com/smallnest/goscapy/pkg/contrib"</span>
+    _ <span class="str">"github.com/smallnest/goscapy/pkg/contrib/ospf"</span>
+    _ <span class="str">"github.com/smallnest/goscapy/pkg/contrib/bgp"</span>
+)
+
+<span class="cmt">// 按需加载已注册的模块</span>
+contrib.<span class="fn">Load</span>(<span class="str">"ospf"</span>)
+contrib.<span class="fn">Load</span>(<span class="str">"bgp"</span>)
+
+<span class="cmt">// 或一次性加载所有已注册模块</span>
+contrib.<span class="fn">LoadAll</span>()
+
+<span class="cmt">// 查询模块状态</span>
+contrib.<span class="fn">IsLoaded</span>(<span class="str">"ospf"</span>)  <span class="cmt">// true</span>
+contrib.<span class="fn">List</span>()              <span class="cmt">// 所有已注册模块名</span>
+contrib.<span class="fn">Loaded</span>()            <span class="cmt">// 所有已加载模块名</span></pre>
+          </div>
+        </div>
+        <div class="table-wrapper"><table><thead><tr><th>模块</th><th>协议</th></tr></thead><tbody>
+          <tr><td><code>bgp</code></td><td>Border Gateway Protocol</td></tr>
+          <tr><td><code>bt</code></td><td>Bluetooth / BLE</td></tr>
+          <tr><td><code>dot11</code></td><td>IEEE 802.11 (WiFi)</td></tr>
+          <tr><td><code>erspan</code></td><td>Encapsulated Remote SPAN</td></tr>
+          <tr><td><code>http</code></td><td>Hypertext Transfer Protocol</td></tr>
+          <tr><td><code>kerberos</code></td><td>Kerberos Authentication</td></tr>
+          <tr><td><code>ldap</code></td><td>Lightweight Directory Access Protocol</td></tr>
+          <tr><td><code>lldp</code></td><td>Link Layer Discovery Protocol</td></tr>
+          <tr><td><code>lorawan</code></td><td>LoRaWAN</td></tr>
+          <tr><td><code>netflow</code></td><td>Netflow / IPFIX</td></tr>
+          <tr><td><code>ntp</code></td><td>Network Time Protocol</td></tr>
+          <tr><td><code>ospf</code></td><td>Open Shortest Path First</td></tr>
+          <tr><td><code>quic</code></td><td>QUIC Transport</td></tr>
+          <tr><td><code>radius</code></td><td>RADIUS Authentication</td></tr>
+          <tr><td><code>snmp</code></td><td>Simple Network Management Protocol</td></tr>
+          <tr><td><code>tls</code></td><td>Transport Layer Security</td></tr>
+          <tr><td><code>voip</code></td><td>RTP / RTCP / SIP</td></tr>
+          <tr><td><code>zigbee</code></td><td>Zigbee</td></tr>
+        </tbody></table></div>
+      </div>
+
       <!-- 解析器管线 -->
       <div class="section" id="解析器管线">
         <div class="section-title">
@@ -596,7 +723,7 @@ ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">Sni
         <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
         <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT 许可证</a>
       </span>
-      &copy; 2025 goscapy 贡献者。基于 MIT 许可证发布。
+      &copy; 2026 goscapy 贡献者。基于 MIT 许可证发布。
     </p>
 
   </div>

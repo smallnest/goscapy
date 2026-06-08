@@ -61,12 +61,13 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-dot plum"></div>
-                                <h4>🔬 Packet Dissect</h4>
+                                <h4>🔬 Dissect &amp; Introspect</h4>
                             </div>
                             <p>
                                 Parse raw bytes into structured packets with
-                                automatic protocol detection and layer
-                                extraction.
+                                automatic protocol detection, layer extraction,
+                                and <code>Show()</code> / <code>Summary()</code>
+                                multi-format display.
                             </p>
                         </div>
                         <div class="card">
@@ -76,7 +77,8 @@
                             </div>
                             <p>
                                 Send and receive packets via raw sockets at both
-                                L2 (Ethernet) and L3 (IP) levels.
+                                L2 (Ethernet) and L3 (IP) levels, with batch
+                                I/O, zero-copy, and io_uring async support.
                             </p>
                         </div>
                         <div class="card">
@@ -86,7 +88,9 @@
                             </div>
                             <p>
                                 Capture live traffic with callback or
-                                channel-based APIs, plus BPF filter support.
+                                channel-based APIs, plus BPF filter support
+                                and Linux PacketMMAP (TPACKET_V3) high-performance
+                                capture.
                             </p>
                         </div>
                         <div class="card">
@@ -95,8 +99,8 @@
                                 <h4>✅ Auto Checksums</h4>
                             </div>
                             <p>
-                                IP, TCP, UDP, and ICMP checksums are computed
-                                automatically during serialization.
+                                IP, TCP, UDP, ICMP, ICMPv6, and IPv6 checksums
+                                are computed automatically during serialization.
                             </p>
                         </div>
                         <div class="card">
@@ -113,11 +117,56 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-dot coral"></div>
+                                <h4>🧩 On-Demand Modules</h4>
+                            </div>
+                            <p>
+                                Contrib module system for lean builds — import
+                                only the protocols you need and load with
+                                <code>contrib.Load()</code>.
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot terracotta"></div>
+                                <h4>🔍 p0f Fingerprinting</h4>
+                            </div>
+                            <p>
+                                Passive OS fingerprinting via TCP SYN analysis
+                                (window size, TTL, option layout), with built-in
+                                signature database.
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot sage"></div>
+                                <h4>💾 PCAP Read/Write</h4>
+                            </div>
+                            <p>
+                                Pure-Go PCAP/pcapng file reading and writing —
+                                no libpcap dependency for offline analysis and
+                                storage.
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot plum"></div>
+                                <h4>🔄 TCP Stream Reassembly</h4>
+                            </div>
+                            <p>
+                                Track TCP sessions, reassemble segments in
+                                sequence order, handle overlaps and
+                                retransmissions for application-layer analysis.
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-dot blue"></div>
                                 <h4>💻 Cross-Platform</h4>
                             </div>
                             <p>
                                 Works on macOS (Darwin) and Linux with
                                 platform-specific raw socket implementations.
+                                Zero CGO dependencies.
                             </p>
                         </div>
                     </div>
@@ -366,15 +415,15 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 </tr>
                                 <tr>
                                     <td><strong>PCAP Read/Write</strong></td>
-                                    <td>❌</td>
-                                    <td>✅</td>
+                                    <td>✅ Pure Go (pcap/pcapng)</td>
+                                    <td>✅ (requires libpcap)</td>
                                     <td>❌</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <strong>TCP Stream Reassembly</strong>
                                     </td>
-                                    <td>❌</td>
+                                    <td>✅ <code>tcpstream</code> + <code>reassembly</code></td>
                                     <td>✅ tcpassembly</td>
                                     <td>❌</td>
                                 </tr>
@@ -410,7 +459,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 </tr>
                                 <tr>
                                     <td><strong>Protocol Coverage</strong></td>
-                                    <td>Ethernet, ARP, IP, TCP, UDP, ICMP</td>
+                                    <td>40+ protocols (core + contrib on-demand)</td>
                                     <td>200+ protocols decoded</td>
                                     <td>icmp, ipv4, bpf, etc.</td>
                                 </tr>
@@ -471,10 +520,11 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                 <div class="card-dot sage"></div>
                                 <h4>📊 PCAP Analysis</h4>
                             </div>
-                            <p><strong>Recommended: gopacket</strong></p>
+                            <p><strong>Recommended: goscapy</strong></p>
                             <p>
-                                Best-in-class support for PCAP read/write and
-                                TCP stream reassembly (tcpassembly).
+                                Pure-Go PCAP/pcapng read/write with TCP stream
+                                reassembly and p0f fingerprinting — no libpcap
+                                dependency.
                             </p>
                         </div>
                         <div class="card">
@@ -548,6 +598,8 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                     </div>
                     <p>
                         Comprehensive coverage across the network stack layers.
+                        Core protocols are loaded by default; contrib protocols
+                        are loaded on demand.
                     </p>
                     <div class="table-wrapper">
                         <table>
@@ -564,7 +616,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                             >Link</span
                                         >
                                     </td>
-                                    <td>Ethernet (CSMA/CD), ARP</td>
+                                    <td>Ethernet, ARP, Dot1Q (VLAN), LLDP, Dot11 (WiFi 802.11)</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -572,7 +624,7 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                             >Network</span
                                         >
                                     </td>
-                                    <td>IPv4</td>
+                                    <td>IPv4, IPv6 (with extension headers: Hop-by-Hop/Routing/Fragment/DestOpts), ICMP, ICMPv6, NDP (RS/RA/NS/NA/Redirect), OSPF, GRE</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -581,15 +633,39 @@ fmt.<span class="fn">Println</span>(resp.<span class="fn">String</span>())</pre>
                                             >Transport</span
                                         >
                                     </td>
-                                    <td>TCP, UDP, ICMP</td>
+                                    <td>TCP, UDP</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span class="layer-badge layer-payload"
-                                            >Payload</span
+                                            >Tunnel / Encap</span
                                         >
                                     </td>
-                                    <td>Raw bytes</td>
+                                    <td>VXLAN, ERSPAN</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge" style="background:#9b59b6;color:#fff"
+                                            >Application</span
+                                        >
+                                    </td>
+                                    <td>DNS, DHCP, HTTP, NTP, BGP, SNMP, TLS, QUIC, RADIUS, LDAP, Kerberos</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge" style="background:#e67e22;color:#fff"
+                                            >IoT / Wireless</span
+                                        >
+                                    </td>
+                                    <td>Bluetooth/BLE, Zigbee, LoRaWAN, VoIP (RTP/RTCP/SIP)</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="layer-badge" style="background:#1abc9c;color:#fff"
+                                            >Monitoring / Flow</span
+                                        >
+                                    </td>
+                                    <td>Netflow/IPFIX</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -668,7 +744,12 @@ pkt, err := <span class="fn">goscapy.EtherIPICMP</span>(
                             <pre><span class="cmt">// Parse raw bytes into structured packet</span>
 raw := []<span class="type">byte</span>{<span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, <span class="num">0xff</span>, ...}
 pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
-fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span></pre>
+
+<span class="cmt">// One-line summary</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">Summary</span>()) <span class="cmt">// "IP 192.168.1.1 > 8.8.8.8 / ICMP echo-request"</span>
+
+<span class="cmt">// Detailed layer-by-layer display</span>
+pkt.<span class="fn">Show</span>()</pre>
                         </div>
                     </div>
                 </div>
@@ -694,7 +775,7 @@ fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span 
                         >MIT License</a
                     >
                 </span>
-                &copy; 2025 goscapy contributors. Licensed under MIT.
+                &copy; 2026 goscapy contributors. Licensed under MIT.
             </p>
         </div>
 

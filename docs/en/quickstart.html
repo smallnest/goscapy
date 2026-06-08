@@ -230,6 +230,12 @@ pkt, err := packet.<span class="fn">Dissect</span>(raw, packet.DissectEthernet)
 <span class="cmt">// Print the layer stack</span>
 fmt.<span class="fn">Println</span>(pkt.<span class="fn">String</span>()) <span class="cmt">// "Ethernet / IP / ICMP"</span>
 
+<span class="cmt">// One-line summary</span>
+fmt.<span class="fn">Println</span>(pkt.<span class="fn">Summary</span>()) <span class="cmt">// "IP 192.168.1.1 > 8.8.8.8 / ICMP echo-request"</span>
+
+<span class="cmt">// Detailed layer-by-layer display</span>
+pkt.<span class="fn">Show</span>()
+
 <span class="cmt">// Access individual layers</span>
 eth := packet.<span class="fn">Ethernet</span>(pkt)
 fmt.<span class="fn">Printf</span>(<span class="str">"SrcMAC: %s\n"</span>, eth.<span class="fn">SrcMAC</span>())
@@ -374,8 +380,12 @@ ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">Sni
         <ul class="step-list">
           <li><a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Full API Reference</a> — all packages, types, and functions</li>
           <li><a href="https://github.com/smallnest/goscapy" target="_blank" rel="noopener">GitHub Repository</a> — source code, issues, and contributions</li>
-          <li>Advanced: ARP, VXLAN, GRE, DNS, DHCP protocols</li>
+          <li>Advanced: ARP, VXLAN, GRE, DNS, DHCP, BGP, OSPF, TLS, QUIC protocols</li>
           <li>Advanced: Layer binding and auto-field inference</li>
+          <li>Advanced: Packet introspection (<code>Show()</code> / <code>Summary()</code>)</li>
+          <li>Advanced: p0f passive OS fingerprinting</li>
+          <li>Advanced: PCAP file read/write and TCP stream reassembly</li>
+          <li>Advanced: Contrib module on-demand loading</li>
         </ul>
       </div>
 
@@ -389,7 +399,7 @@ ch, stop := sniff.<span class="fn">SniffChan</span>(sniff.<span class="type">Sni
         <a href="https://pkg.go.dev/github.com/smallnest/goscapy" target="_blank" rel="noopener">Go Reference</a>
         <a href="https://github.com/smallnest/goscapy/blob/main/LICENSE">MIT License</a>
       </span>
-      &copy; 2025 goscapy contributors. Licensed under MIT.
+      &copy; 2026 goscapy contributors. Licensed under MIT.
     </p>
 
   </div>
