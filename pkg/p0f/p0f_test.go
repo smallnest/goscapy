@@ -84,18 +84,6 @@ func buildSynPktWithTS(window uint16, ttl uint8, mss uint16, wscale uint8, df bo
 	return pkt
 }
 
-func buildSynAckPkt(window uint16, ttl uint8) *packet.Packet {
-	ip := layers.NewIP()
-	_ = ip.Set("ttl", ttl)
-	_ = ip.Set("proto", uint8(6))
-
-	tcp := layers.NewTCP()
-	_ = tcp.Set("flags", uint8(layers.TCPSyn|layers.TCPAck))
-	_ = tcp.Set("window", window)
-
-	return packet.NewFrom(ip, tcp)
-}
-
 // buildSynAckPktWithOpts builds a SYN+ACK packet with TCP options and DF set.
 func buildSynAckPktWithOpts(window uint16, ttl uint8, mss uint16, wscale uint8) *packet.Packet {
 	ip := layers.NewIP()

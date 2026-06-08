@@ -74,7 +74,7 @@ func LoadDatabase(path string) (*Database, error) {
 	if err != nil {
 		return nil, fmt.Errorf("p0f: load: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	db := &Database{}
 	scanner := bufio.NewScanner(f)
