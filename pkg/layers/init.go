@@ -47,6 +47,10 @@ import (
 	_ "github.com/smallnest/goscapy/pkg/layers/ldap"
 	// Register Kerberos layer via init().
 	_ "github.com/smallnest/goscapy/pkg/layers/kerberos"
+	// Register Zigbee layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/zigbee"
+	// Register LoRaWAN layer via init().
+	_ "github.com/smallnest/goscapy/pkg/layers/lorawan"
 )
 
 func init() {
