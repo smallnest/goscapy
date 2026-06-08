@@ -128,7 +128,7 @@ func ParseRADIUSAVPs(data []byte) ([]fields.TLVOption, error) {
 		}
 		typ := rest[0]
 		avl := int(rest[1]) // AVP length includes Type(1) + Length(1) + Value
-		if avl < 2 {
+		if avl < 3 {
 			return nil, fmt.Errorf("radius: AVP type %d has invalid length %d", typ, avl)
 		}
 		if len(rest) < avl {
@@ -146,17 +146,18 @@ func ParseRADIUSAVPs(data []byte) ([]fields.TLVOption, error) {
 
 // BuildRADIUSAVPs serializes RADIUS AVPs to wire format.
 // Each AVP is: Type(1B) + Length(1B, = 2 + len(Value)) + Value.
-func BuildRADIUSAVPs(avps []fields.TLVOption) []byte {
+// Returns an error if any value exceeds 253 bytes (max AVP value length per RFC 2865).
+func BuildRADIUSAVPs(avps []fields.TLVOption) ([]byte, error) {
 	var buf []byte
 	for _, a := range avps {
-		avl := 2 + len(a.Value)
-		if avl > 255 {
-			avl = 255
+		if len(a.Value) > 253 {
+			return nil, fmt.Errorf("radius: AVP type %d value too long (%d bytes, max 253)", a.Type, len(a.Value))
 		}
+		avl := 2 + len(a.Value)
 		buf = append(buf, a.Type, byte(avl))
-		buf = append(buf, a.Value[:avl-2]...)
+		buf = append(buf, a.Value...)
 	}
-	return buf
+	return buf, nil
 }
 
 // GetRADIUSAVP returns the first AVP matching the given type, or nil.
@@ -173,11 +174,15 @@ func NewUserNameAVP(name string) fields.TLVOption {
 
 // NewNASIPAVP creates a NAS-IP-Address AVP (type 4).
 func NewNASIPAVP(ip string) fields.TLVOption {
-	parsed := net.ParseIP(ip).To4()
+	parsed := net.ParseIP(ip)
 	if parsed == nil {
 		parsed = net.IPv4zero
 	}
-	return fields.TLVOption{Type: AVPNASIP, Value: parsed}
+	ip4 := parsed.To4()
+	if ip4 == nil {
+		ip4 = net.IPv4zero
+	}
+	return fields.TLVOption{Type: AVPNASIP, Value: ip4}
 }
 
 // NewNASPortAVP creates a NAS-Port AVP (type 5).
@@ -192,11 +197,15 @@ func NewServiceTypeAVP(svc uint32) fields.TLVOption {
 
 // NewFramedIPAVP creates a Framed-IP-Address AVP (type 8).
 func NewFramedIPAVP(ip string) fields.TLVOption {
-	parsed := net.ParseIP(ip).To4()
+	parsed := net.ParseIP(ip)
 	if parsed == nil {
 		parsed = net.IPv4zero
 	}
-	return fields.TLVOption{Type: AVPFramedIP, Value: parsed}
+	ip4 := parsed.To4()
+	if ip4 == nil {
+		ip4 = net.IPv4zero
+	}
+	return fields.TLVOption{Type: AVPFramedIP, Value: ip4}
 }
 
 // NewStateAVP creates a State AVP (type 24).

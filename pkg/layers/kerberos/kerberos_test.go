@@ -143,6 +143,24 @@ func TestParsePrincipalName(t *testing.T) {
 	}
 }
 
+func TestParseKerberosMsgErrors(t *testing.T) {
+	_, err := ParseKerberosMsg(nil)
+	if err == nil {
+		t.Error("expected error for nil input")
+	}
+
+	_, err = ParseKerberosMsg([]byte{})
+	if err == nil {
+		t.Error("expected error for empty input")
+	}
+
+	// Invalid BER data.
+	_, err = ParseKerberosMsg([]byte{0x02, 0x05, 0x01}) // truncated
+	if err == nil {
+		t.Error("expected error for truncated BER")
+	}
+}
+
 func TestMsgTypeToTag(t *testing.T) {
 	tests := []struct {
 		mt   int

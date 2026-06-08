@@ -139,8 +139,7 @@ func ParseKerberosMsg(data []byte) (*KerberosMsg, error) {
 		return nil, fmt.Errorf("kerberos: empty input")
 	}
 
-	tag := data[0]
-	_, value, _, err := asn1.BERDecodeTLV(data)
+	tag, value, _, err := asn1.BERDecodeTLV(data)
 	if err != nil {
 		return nil, fmt.Errorf("kerberos: parse outer: %w", err)
 	}
@@ -162,8 +161,8 @@ func ParseKerberosMsg(data []byte) (*KerberosMsg, error) {
 		}
 	}
 
-	// msg-type INTEGER (for most message types)
-	if pos < len(value) && msg.MsgType != MsgTypeTGSREQ {
+	// msg-type INTEGER
+	if pos < len(value) {
 		fTag, fVal, fConsumed, err := asn1.BERDecodeTLV(value[pos:])
 		if err == nil && fTag == asn1.TagInteger {
 			mt, _ := asn1.BERDecodeInteger(fVal)
