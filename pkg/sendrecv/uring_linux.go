@@ -662,10 +662,7 @@ func (c *UringConn) RecvOOB(timeout time.Duration) ([]byte, []byte, string, erro
 		return nil, nil, "", err
 	}
 
-	oobOut := make([]byte, len(oob))
-	copy(oobOut, oob)
-
-	return data, oobOut, src, nil
+	return data, oob, src, nil
 }
 
 // SendRecvBatchOOB is the OOB-aware version of SendRecvBatch.
