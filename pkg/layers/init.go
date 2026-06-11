@@ -6,11 +6,11 @@ import (
 	"github.com/smallnest/goscapy/pkg/packet"
 
 	// Core protocol layers (always loaded).
-	_ "github.com/smallnest/goscapy/pkg/layers/dns"
 	_ "github.com/smallnest/goscapy/pkg/layers/dhcp"
+	_ "github.com/smallnest/goscapy/pkg/layers/dns"
 	_ "github.com/smallnest/goscapy/pkg/layers/dot1q"
-	_ "github.com/smallnest/goscapy/pkg/layers/vxlan"
 	_ "github.com/smallnest/goscapy/pkg/layers/gre"
+	_ "github.com/smallnest/goscapy/pkg/layers/vxlan"
 
 	// Contrib protocol layers (loaded via contrib for backward compatibility).
 	// Importing the layers package loads all protocols; for lean builds,
@@ -63,6 +63,17 @@ func init() {
 	packet.RegisterBinding("TCP", "IPv6", "nh", uint8(6))
 	// ICMP over IP → IP.proto = 1
 	packet.RegisterBinding("ICMP", "IP", "proto", uint8(1))
+	// IGMP over IP → IP.proto = 2
+	packet.RegisterBinding("IGMP", "IP", "proto", IPProtoIGMP)
+	// SCTP over IP → IP.proto = 132
+	packet.RegisterBinding("SCTP", "IP", "proto", IPProtoSCTP)
+	// SCTP over IPv6 → IPv6.nh = 132
+	packet.RegisterBinding("SCTP", "IPv6", "nh", IPProtoSCTP)
+	// MPLS over Ethernet → Ether.type = 0x8847 (unicast)
+	packet.RegisterBinding("MPLS", "Ethernet", "type", EtherTypeMPLSUnicast)
+	// PPPoE session over Ethernet → Ether.type = 0x8864
+	packet.RegisterBinding("PPPoE", "Ethernet", "type", EtherTypePPPoESession)
+	// PPP over PPPoE: no key field (PPPoE payload is always PPP in session stage).
 	// ICMPv6 over IPv6 → IPv6.nh = 58
 	packet.RegisterBinding("ICMPv6", "IPv6", "nh", uint8(58))
 	// IPv6 extension headers over IPv6
@@ -78,6 +89,9 @@ func init() {
 	packet.RegisterBuildHook("ICMP", icmpBuildHook)
 	packet.RegisterBuildHook("TCP", tcpBuildHook)
 	packet.RegisterBuildHook("UDP", udpBuildHook)
+	packet.RegisterBuildHook("SCTP", sctpBuildHook)
+	packet.RegisterBuildHook("IGMP", igmpBuildHook)
+	packet.RegisterBuildHook("PPPoE", pppoeBuildHook)
 
 	// Post-parse hooks for variable-length header fields.
 	packet.RegisterPostParseHook("TCP", tcpPostParseHook)
@@ -108,6 +122,12 @@ func init() {
 	packet.RegisterLayer("NDP Neighbor Advertisement", NewNDPNeighborAdvertisement)
 	packet.RegisterLayer("NDP Redirect", NewNDPRedirect)
 	packet.RegisterLayer("Raw", NewRaw)
+	packet.RegisterLayer("SCTP", NewSCTP)
+	packet.RegisterLayer("SCTPChunk", NewSCTPChunk)
+	packet.RegisterLayer("IGMP", NewIGMP)
+	packet.RegisterLayer("MPLS", NewMPLS)
+	packet.RegisterLayer("PPPoE", NewPPPoE)
+	packet.RegisterLayer("PPP", NewPPP)
 
 	// Register key fields for next-layer resolution.
 	// Ethernet uses "type" field to identify the upper layer.
@@ -122,9 +142,25 @@ func init() {
 	packet.RegisterNextLayer("Ethernet", 0x86DD, "IPv6")
 
 	// Register next-layer mappings: IP.proto → upper protocol.
-	packet.RegisterNextLayer("IP", 1, "ICMP") // ICMP
-	packet.RegisterNextLayer("IP", 6, "TCP")  // TCP
-	packet.RegisterNextLayer("IP", 17, "UDP") // UDP
+	packet.RegisterNextLayer("IP", 1, "ICMP")   // ICMP
+	packet.RegisterNextLayer("IP", 2, "IGMP")   // IGMP
+	packet.RegisterNextLayer("IP", 6, "TCP")    // TCP
+	packet.RegisterNextLayer("IP", 17, "UDP")   // UDP
+	packet.RegisterNextLayer("IP", 132, "SCTP") // SCTP
+
+	// SCTP over IPv6 (IPv6 key field "nh" is registered below).
+	packet.RegisterNextLayer("IPv6", 132, "SCTP")
+
+	// MPLS next-layer resolution and PPPoE/PPP chaining.
+	packet.RegisterNextLayer("Ethernet", uint64(EtherTypeMPLSUnicast), "MPLS")
+	packet.RegisterNextLayer("Ethernet", uint64(EtherTypeMPLSMulticast), "MPLS")
+	packet.RegisterNextLayer("Ethernet", uint64(EtherTypePPPoESession), "PPPoE")
+	// PPPoE always carries a PPP frame in the session stage.
+	packet.RegisterTunnelPayload("PPPoE", "PPP")
+	// PPP "proto" selects the encapsulated network protocol.
+	packet.RegisterKeyField("PPP", "proto")
+	packet.RegisterNextLayer("PPP", uint64(PPPProtoIPv4), "IP")
+	packet.RegisterNextLayer("PPP", uint64(PPPProtoIPv6), "IPv6")
 
 	// Register key fields for IPv6 and extension headers.
 	packet.RegisterKeyField("IPv6", "nh")
@@ -280,4 +316,25 @@ func init() {
 	packet.RegisterHeaderSizeFunc("IPv6 Hop-by-Hop", extHdrSizeFn)
 	packet.RegisterHeaderSizeFunc("IPv6 Routing", extHdrSizeFn)
 	packet.RegisterHeaderSizeFunc("IPv6 DestOpts", extHdrSizeFn)
+
+	// MPLS: each label stack entry is 4 bytes. After the bottom-of-stack
+	// entry, the inner protocol is inferred from the first nibble of the
+	// payload (IPv4 → 0x4, IPv6 → 0x6).
+	packet.RegisterNextLayerFunc("MPLS", func(layer *packet.Layer, remaining []byte) string {
+		lseVal, _ := layer.Get("lse")
+		lse, _ := lseVal.(uint32)
+		if !MPLSBottom(lse) {
+			return "MPLS" // more label entries follow
+		}
+		if len(remaining) == 0 {
+			return ""
+		}
+		switch remaining[0] >> 4 {
+		case 4:
+			return "IP"
+		case 6:
+			return "IPv6"
+		}
+		return ""
+	})
 }

@@ -87,6 +87,22 @@ func (l *Layer) Values() map[string]any {
 	return cp
 }
 
+// Copy returns a deep copy of the layer: the field definitions are shared
+// (they are immutable), but the values map is duplicated so the copy can be
+// mutated independently. This is used by fragmentation, which produces many
+// packets sharing the same header template.
+func (l *Layer) Copy() *Layer {
+	cp := &Layer{
+		proto:  l.proto,
+		fields: l.fields,
+		values: make(map[string]any, len(l.values)),
+	}
+	for k, v := range l.values {
+		cp.values[k] = v
+	}
+	return cp
+}
+
 // FindField finds a field definition by name, returning nil if not found.
 func (l *Layer) FindField(name string) fields.Field {
 	for _, f := range l.fields {

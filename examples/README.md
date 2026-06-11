@@ -31,6 +31,10 @@ go run main.go
 | 09 | [GRE/VXLAN](09-gre-vxlan/) | 隧道封装包构建 | `go run main.go` |
 | 10 | [包解析](10-dissect/) | 将原始字节解析为结构化包 | `go run main.go` |
 | 16 | [Shortcut 函数](16-shortcuts/) | 所有快捷函数综合示例 | `go run main.go` |
+| 60 | [hexdump 与自省](60-hexdump-introspect/) | Hexdump/Show2/Ls/FieldNames 调试 API | `go run main.go` |
+| 61 | [IP/IPv6 分片构造](61-fragment/) | Fragment/Fragment6 构造侧分片 | `go run main.go` |
+| 62 | [新增协议](62-new-protocols/) | SCTP/IGMP/MPLS/PPPoE 构造与解析 | `go run main.go` |
+| 63 | [离线嗅探](63-offline-sniff/) | 从 pcap 文件读取并走嗅探回调管线 | `go run main.go` |
 
 ### 🛠️ 真实网络工具（goscapy 实现，需 root）
 
@@ -62,6 +66,8 @@ go run main.go
 | 13 | [TCP SYN 扫描](13-tcp-syn-scan/) | 半开放端口扫描 | `sudo go run main.go en0 127.0.0.1` |
 | 14 | [包嗅探](14-sniff/) | 实时流量捕获 | `sudo go run main.go en0` |
 | 15 | [BPF 过滤器](15-bpf-filter/) | BPF 过滤器编译和使用 | `go run main.go` |
+| 64 | [循环探测](64-srloop/) | SrLoop/SrFlood 主动探测与洪泛 | `sudo go run main.go <目标> [iface]` |
+| 65 | [应答机框架](65-answering-machine/) | AnsweringMachine ARP 响应器 | `sudo go run main.go <iface> <IP> <MAC>` |
 
 ## 学习路径
 

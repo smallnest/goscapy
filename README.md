@@ -14,7 +14,11 @@ A pure Go library for crafting, dissecting, sending, receiving, and sniffing net
 - **Packet Dissect** — parse raw bytes into structured packets with auto protocol detection
 - **Send & Receive** — send and receive packets via raw sockets (L2 and L3)
 - **Packet Sniffing** — capture live traffic with callback or channel-based APIs, plus BPF filter support
-- **Auto Checksums** — IP, TCP, UDP, and ICMP checksums are computed automatically during serialization
+- **Offline Sniffing** — replay pcap/pcapng files through the same handler/filter pipeline
+- **Fragmentation** — `Fragment`/`Fragment6` split large packets into IPv4/IPv6 fragments
+- **Answering Machine** — sniff→match→reply framework for service emulation and honeypots
+- **Debug & Introspection** — `Hexdump`, `Show2` (rebuild-and-display), `Ls`/`FieldNames`
+- **Auto Checksums** — IP, TCP, UDP, ICMP, IGMP, and SCTP (CRC32c) checksums computed automatically
 - **Layer Binding** — automatic field inference between adjacent layers (e.g., IP over Ethernet → EtherType=0x0800)
 - **Cross-Platform** — Darwin (macOS) and Linux with platform-specific raw socket implementations
 
@@ -22,10 +26,14 @@ A pure Go library for crafting, dissecting, sending, receiving, and sniffing net
 
 | Layer | Protocols |
 |-------|-----------|
-| Link | Ethernet, ARP |
-| Network | IPv4 |
-| Transport | TCP, UDP, ICMP |
+| Link | Ethernet, ARP, Dot1Q (VLAN), MPLS, PPPoE/PPP, LLDP, Dot11 |
+| Network | IPv4, IPv6 (+ extension headers), ICMP, ICMPv6/NDP, IGMP |
+| Transport | TCP, UDP, SCTP |
+| Tunnel | GRE, VXLAN, ERSPAN |
+| Application | DNS, DHCP, HTTP, NTP, SNMP, TLS, QUIC, RADIUS, Kerberos, LDAP, BGP, OSPF, NetFlow/IPFIX, SIP/RTP, Zigbee, LoRaWAN, BT |
 | Payload | Raw |
+
+Most application-layer protocols load on demand via the `contrib` registry. See `pkg/layers` and `pkg/contrib` for the full list.
 
 ## Installation
 

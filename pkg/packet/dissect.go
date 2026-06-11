@@ -25,6 +25,13 @@ const maxTunnelDepth = 8
 // The hook can parse these bytes and store results in the layer via Set.
 type PostParseHook func(layer *Layer, extra []byte) error
 
+// NextLayerFunc determines the next upper-layer protocol by inspecting the
+// parsed layer and the remaining (not-yet-consumed) payload bytes. It is used
+// for protocols whose next layer is not encoded in a single key field —
+// for example MPLS, where the inner protocol is guessed from the first nibble
+// of the payload. Returning "" falls back to key-field / heuristic resolution.
+type NextLayerFunc func(layer *Layer, remaining []byte) string
+
 type dissectReg struct {
 	factories      map[string]LayerFactory
 	nextLayer      map[string]map[uint64]string // proto → field value → next proto name
@@ -33,6 +40,7 @@ type dissectReg struct {
 	dissectors     map[string]DissectorFunc     // proto → function to identify this protocol from raw bytes
 	tunnelPayload  map[string]string            // proto → inner proto for tunnel-encapsulated payloads
 	postParseHooks map[string]PostParseHook     // proto → hook called after fixed fields are parsed
+	nextLayerFns   map[string]NextLayerFunc     // proto → function resolving next layer from payload
 }
 
 // dissectRegistry holds all protocol dissection registrations.
@@ -46,6 +54,7 @@ var dissectRegistry = dissectReg{
 	dissectors:     make(map[string]DissectorFunc),
 	tunnelPayload:  make(map[string]string),
 	postParseHooks: make(map[string]PostParseHook),
+	nextLayerFns:   make(map[string]NextLayerFunc),
 }
 
 // RegisterLayer registers a layer factory for the given protocol name.
@@ -100,6 +109,14 @@ func RegisterHeuristic(lowerProto, field string, value any, nextProto string) {
 // the fixed field boundary and the full header size.
 func RegisterPostParseHook(proto string, hook PostParseHook) {
 	dissectRegistry.postParseHooks[proto] = hook
+}
+
+// RegisterNextLayerFunc registers a custom next-layer resolver for proto.
+// It takes precedence over key-field / heuristic resolution and is used by
+// protocols (such as MPLS) whose next layer must be inferred from the payload
+// rather than a single header field.
+func RegisterNextLayerFunc(proto string, fn NextLayerFunc) {
+	dissectRegistry.nextLayerFns[proto] = fn
 }
 
 // RegisterTunnelPayload marks a protocol as a tunnel whose payload starts
@@ -210,7 +227,13 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 			break
 		}
 
-		// Resolve next layer via key field or heuristics.
+		// Resolve next layer via custom func, then key field or heuristics.
+		if fn, ok := dissectRegistry.nextLayerFns[currentProto]; ok {
+			if next := fn(layer, remaining); next != "" {
+				currentProto = next
+				continue
+			}
+		}
 		currentProto = resolveNextLayer(currentProto, layer)
 	}
 
