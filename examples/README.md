@@ -35,6 +35,7 @@ go run main.go
 | 61 | [IP/IPv6 分片构造](61-fragment/) | Fragment/Fragment6 构造侧分片 | `go run main.go` |
 | 62 | [新增协议](62-new-protocols/) | SCTP/IGMP/MPLS/PPPoE 构造与解析 | `go run main.go` |
 | 63 | [离线嗅探](63-offline-sniff/) | 从 pcap 文件读取并走嗅探回调管线 | `go run main.go` |
+| 66 | [PacketList 批量分析](66-packetlist/) | 读写 pcap、过滤、会话分组、协议统计 | `go run main.go` |
 
 ### 🛠️ 真实网络工具（goscapy 实现，需 root）
 
@@ -68,6 +69,7 @@ go run main.go
 | 15 | [BPF 过滤器](15-bpf-filter/) | BPF 过滤器编译和使用 | `go run main.go` |
 | 64 | [循环探测](64-srloop/) | SrLoop/SrFlood 主动探测与洪泛 | `sudo go run main.go <目标> [iface]` |
 | 65 | [应答机框架](65-answering-machine/) | AnsweringMachine ARP 响应器 | `sudo go run main.go <iface> <IP> <MAC>` |
+| 67 | [应答机实例](67-responders/) | ICMP/ARP/DNS 开箱即用响应器 | `sudo go run main.go icmp <iface>` |
 
 ## 学习路径
 

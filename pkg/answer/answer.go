@@ -81,6 +81,22 @@ func New(cfg Config, funcs Funcs) *AnsweringMachine {
 	return &AnsweringMachine{cfg: cfg, funcs: funcs}
 }
 
+// Funcs returns the machine's decision/reply callbacks. This lets callers
+// unit-test a responder's matching and reply-building logic without opening a
+// raw socket.
+func (am *AnsweringMachine) Funcs() Funcs { return am.funcs }
+
+// Config returns the machine's configuration.
+func (am *AnsweringMachine) Config() Config { return am.cfg }
+
+// SetOnReply sets (or replaces) the post-reply callback used for
+// logging/metrics, returning the machine for chaining. It is a convenience
+// for responders constructed by helper functions that don't expose OnReply.
+func (am *AnsweringMachine) SetOnReply(fn func(request, reply *packet.Packet)) *AnsweringMachine {
+	am.funcs.OnReply = fn
+	return am
+}
+
 // Run starts the answering loop and blocks until ctx is cancelled, the count
 // limit is reached, or a fatal receive error occurs. It returns the number of
 // replies sent and the terminating error (nil or ctx.Err() on clean stop).
