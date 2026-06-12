@@ -73,8 +73,8 @@ func ipv6BuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []by
 func newIPv6ExtHdr(proto string) *packet.Layer {
 	return packet.NewLayer(proto, []fields.Field{
 		fields.NewByteField("nh", 0),
-		fields.NewByteField("len", 0),     // Hdr Ext Len in 8-byte units, not counting first 8 bytes
-		fields.NewStrField("options", ""), // variable-length options
+		fields.NewByteField("len", 0),    // Hdr Ext Len in 8-byte units, not counting first 8 bytes
+		newDeferredBytesField("options"), // variable-length options (filled by extHdrPostParseHook)
 	})
 }
 
@@ -113,30 +113,14 @@ func extHdrSizeFn(layer *packet.Layer) int {
 	return (int(hdrLen.(uint8)) + 1) * 8
 }
 
-// extHdrPostParseHook truncates the "options" field to the correct size
-// after ParseFields. StrField consumes all remaining bytes, so we need
-// to trim it to just the actual options bytes.
+// extHdrPostParseHook stores the extension header's options bytes. The
+// "options" field defers parsing (consumes nothing during Unpack), so the
+// dissect engine hands this hook exactly the gap between the 2-byte fixed
+// header and the full header size computed by extHdrSizeFn.
 func extHdrPostParseHook(layer *packet.Layer, extra []byte) error {
-	hdrLen, err := layer.Get("len")
-	if err != nil {
-		return nil
-	}
-	totalSize := (int(hdrLen.(uint8)) + 1) * 8
-	optionsSize := totalSize - 2 // subtract nh(1) + len(1)
-	if optionsSize < 0 {
-		optionsSize = 0
-	}
-	opts, _ := layer.Get("options")
-	switch v := opts.(type) {
-	case string:
-		if len(v) > optionsSize {
-			_ = layer.Set("options", v[:optionsSize])
-		}
-	case []byte:
-		if len(v) > optionsSize {
-			_ = layer.Set("options", string(v[:optionsSize]))
-		}
-	}
+	opts := make([]byte, len(extra))
+	copy(opts, extra)
+	_ = layer.Set("options", string(opts))
 	return nil
 }
 

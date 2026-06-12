@@ -52,7 +52,7 @@ func NewAH() *packet.Layer {
 		fields.NewShortField("reserved", 0),
 		fields.NewIntField("spi", 0),
 		fields.NewIntField("seq", 0),
-		fields.NewStrField("icv", ""), // integrity check value
+		newDeferredBytesField("icv"), // integrity check value (filled by ahPostParse)
 	})
 }
 

@@ -110,6 +110,27 @@ func TestAHDissectChain(t *testing.T) {
 	if dport.(uint16) != 80 {
 		t.Errorf("TCP dport = %d, want 80", dport)
 	}
+
+	// The parsed ICV must be exactly 12 bytes (not the greedy remainder), and
+	// rebuilding the dissected packet must reproduce the original wire bytes.
+	icv, _ := d.GetLayer("AH").Get("icv")
+	icvLen := 0
+	switch v := icv.(type) {
+	case string:
+		icvLen = len(v)
+	case []byte:
+		icvLen = len(v)
+	}
+	if icvLen != 12 {
+		t.Errorf("AH icv = %d bytes, want 12 (greedy over-read)", icvLen)
+	}
+	rebuilt, err := d.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rebuilt) != len(raw) {
+		t.Errorf("AH round-trip size mismatch: rebuilt %d, original %d", len(rebuilt), len(raw))
+	}
 }
 
 // ---- GTP ----

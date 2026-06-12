@@ -226,9 +226,14 @@ func TestIPv6ExtHdrParse(t *testing.T) {
 		t.Errorf("len = %d", hdrLen)
 	}
 
-	// consumed should be 16 (2 fixed + 14 options)
-	if consumed != 16 {
-		t.Errorf("consumed = %d, want 16", consumed)
+	// The options field defers parsing, so ParseFields consumes only the 2
+	// fixed bytes (nh + len). The dissect engine computes the full 16-byte
+	// header via extHdrSizeFn and hands the 14 option bytes to the hook.
+	if consumed != 2 {
+		t.Errorf("consumed = %d, want 2 (deferred options field)", consumed)
+	}
+	if size := extHdrSizeFn(hdr); size != 16 {
+		t.Errorf("extHdrSizeFn = %d, want 16", size)
 	}
 }
 
@@ -359,15 +364,17 @@ func TestIPv6ExtHdrChainParse(t *testing.T) {
 		t.Errorf("IPv6 nh = %d, want 0", nh)
 	}
 
-	// Parse Hop-by-Hop header (only 8 bytes)
+	// Parse Hop-by-Hop header. The options field defers, so ParseFields
+	// consumes only the 2 fixed bytes; the full 8-byte size comes from
+	// extHdrSizeFn.
 	hopRaw := raw[40:48]
 	hop := NewIPv6HopByHop()
 	consumed, err = hop.ParseFields(hopRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if consumed != len(hopRaw) {
-		t.Fatalf("Hop consumed = %d, want %d (StrField eats all remaining)", consumed, len(hopRaw))
+	if consumed != 2 {
+		t.Fatalf("Hop consumed = %d, want 2 (deferred options field)", consumed)
 	}
 
 	hopNH, _ := hop.Get("nh")
