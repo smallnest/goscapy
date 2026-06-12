@@ -1,10 +1,14 @@
-// Package bpf provides a pure-Go classic BPF (cBPF) assembler and interpreter.
+// Package bpf provides a pure-Go classic BPF (cBPF) filter compiler.
 //
-// It compiles a useful subset of the libpcap/tcpdump filter language into the
-// classic BPF instructions accepted by SO_ATTACH_FILTER (Linux) and BIOCSETF
-// (BSD/macOS), removing goscapy's runtime dependency on an external tcpdump
-// binary for the common filter cases. It also includes an interpreter (Run/
-// Match) so the same programs can filter packets offline in pure Go.
+// It compiles a useful subset of the libpcap/tcpdump filter language into BPF
+// programs, removing goscapy's runtime dependency on an external tcpdump binary
+// for the common filter cases. Assembly and execution are delegated to
+// golang.org/x/net/bpf — an officially maintained implementation — while this
+// package supplies the filter-string parser that x/net/bpf does not provide.
+//
+// Compile returns instructions in goscapy's sendrecv.BPFInstruction form
+// (suitable for SO_ATTACH_FILTER / BIOCSETF), and Match/MatchFunc run the same
+// program in pure Go via x/net/bpf's virtual machine for offline filtering.
 //
 // # Supported filter grammar (Ethernet / DLT_EN10MB link layer)
 //
@@ -28,6 +32,8 @@ import (
 	"strconv"
 	"strings"
 
+	xbpf "golang.org/x/net/bpf"
+
 	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
@@ -35,28 +41,16 @@ import (
 // implement. Callers may fall back to an external compiler (e.g. tcpdump).
 var ErrUnsupported = errors.New("bpf: unsupported filter expression")
 
-// acceptLen is the return value for matching packets: the number of bytes to
+// acceptLen is the verdict value for matching packets: the number of bytes to
 // accept. 262144 matches tcpdump's default and exceeds any real frame, so the
 // whole packet is delivered.
 const acceptLen = 262144
 
-// Classic BPF opcodes (subset emitted/interpreted here).
-const (
-	opLDAbsW = 0x20 // A = u32 at [k]
-	opLDAbsH = 0x28 // A = u16 at [k]
-	opLDAbsB = 0x30 // A = u8  at [k]
-	opLDIndH = 0x48 // A = u16 at [k+X]
-	opLDIndB = 0x50 // A = u8  at [k+X]
-	opLDXMsh = 0xb1 // X = 4*(pkt[k]&0xf)  (IP header length)
-	opJEQK   = 0x15 // if A == k jt else jf
-	opJSetK  = 0x45 // if A & k jt else jf
-	opRetK   = 0x06 // return k
-)
-
-// Compile parses a filter expression and returns classic BPF instructions for
-// an Ethernet link layer. It returns ErrUnsupported for grammar outside the
-// documented subset.
-func Compile(filter string) ([]sendrecv.BPFInstruction, error) {
+// CompileInstructions parses a filter expression and returns x/net/bpf typed
+// instructions for an Ethernet link layer. It returns ErrUnsupported for
+// grammar outside the documented subset. This is the building block used by
+// Compile (which assembles to raw form) and MatchFunc (which builds a VM).
+func CompileInstructions(filter string) ([]xbpf.Instruction, error) {
 	toks := tokenize(filter)
 	if len(toks) == 0 {
 		return nil, nil // empty filter = accept all
@@ -76,19 +70,51 @@ func Compile(filter string) ([]sendrecv.BPFInstruction, error) {
 	fLabel := a.newLabel()
 	pred(tLabel, fLabel)
 	a.mark(tLabel)
-	a.emit(opRetK, acceptLen)
+	a.emitRet(acceptLen)
 	a.mark(fLabel)
-	a.emit(opRetK, 0)
+	a.emitRet(0)
 
 	return a.resolve()
 }
 
+// Compile parses a filter expression and returns classic BPF instructions in
+// goscapy's sendrecv.BPFInstruction form, suitable for kernel attachment. It
+// returns ErrUnsupported for grammar outside the documented subset.
+func Compile(filter string) ([]sendrecv.BPFInstruction, error) {
+	insts, err := CompileInstructions(filter)
+	if err != nil {
+		return nil, err
+	}
+	if len(insts) == 0 {
+		return nil, nil
+	}
+	raw, err := xbpf.Assemble(insts)
+	if err != nil {
+		return nil, fmt.Errorf("bpf: assemble: %w", err)
+	}
+	out := make([]sendrecv.BPFInstruction, len(raw))
+	for i, r := range raw {
+		out[i] = sendrecv.BPFInstruction{Code: r.Op, Jt: r.Jt, Jf: r.Jf, K: r.K}
+	}
+	return out, nil
+}
+
 // --- assembler ---
+//
+// The assembler records typed x/net/bpf instructions, but defers jump targets
+// to labels so forward skip counts can be computed once all instructions are
+// emitted. Only forward jumps are produced (classic BPF forbids back-edges).
 
 type asmInsn struct {
-	code         uint16
-	k            uint32
-	jtLbl, jfLbl int // -1 when the literal jt/jf (0) should be used
+	// For non-jump instructions, inst holds the fully-formed instruction.
+	inst xbpf.Instruction
+	// For jumps, isJump is true and the fields below describe a JumpIf whose
+	// SkipTrue/SkipFalse are resolved from jtLbl/jfLbl at resolve() time.
+	isJump bool
+	cond   xbpf.JumpTest
+	val    uint32
+	jtLbl  int // label to jump to when the condition is true
+	jfLbl  int // label to jump to when the condition is false
 }
 
 type assembler struct {
@@ -105,49 +131,65 @@ func (a *assembler) newLabel() int {
 
 func (a *assembler) mark(l int) { a.labelPos[l] = len(a.ins) }
 
-func (a *assembler) emit(code uint16, k uint32) {
-	a.ins = append(a.ins, asmInsn{code: code, k: k, jtLbl: -1, jfLbl: -1})
+// emitLoadAbs loads size bytes at a fixed packet offset into register A.
+func (a *assembler) emitLoadAbs(off uint32, size int) {
+	a.ins = append(a.ins, asmInsn{inst: xbpf.LoadAbsolute{Off: off, Size: size}})
 }
 
-func (a *assembler) emitJump(code uint16, k uint32, jtLbl, jfLbl int) {
-	a.ins = append(a.ins, asmInsn{code: code, k: k, jtLbl: jtLbl, jfLbl: jfLbl})
+// emitLoadInd loads size bytes at packet[X+off] into register A.
+func (a *assembler) emitLoadInd(off uint32, size int) {
+	a.ins = append(a.ins, asmInsn{inst: xbpf.LoadIndirect{Off: off, Size: size}})
 }
 
-// matchOrFall emits a conditional jump that goes to tLbl on match and falls
-// through to the next instruction otherwise.
-func (a *assembler) matchOrFall(code uint16, k uint32, tLbl int) {
+// emitLoadMemShift sets X = 4*(packet[off]&0xf) (IPv4 header length).
+func (a *assembler) emitLoadMemShift(off uint32) {
+	a.ins = append(a.ins, asmInsn{inst: xbpf.LoadMemShift{Off: off}})
+}
+
+// emitRet appends a constant return (verdict) instruction.
+func (a *assembler) emitRet(val uint32) {
+	a.ins = append(a.ins, asmInsn{inst: xbpf.RetConstant{Val: val}})
+}
+
+// emitJump appends a conditional jump to jtLbl on match, jfLbl otherwise.
+func (a *assembler) emitJump(cond xbpf.JumpTest, val uint32, jtLbl, jfLbl int) {
+	a.ins = append(a.ins, asmInsn{isJump: true, cond: cond, val: val, jtLbl: jtLbl, jfLbl: jfLbl})
+}
+
+// matchOrFall emits a conditional jump that goes to tLbl on (A == val) and
+// falls through to the next instruction otherwise.
+func (a *assembler) matchOrFall(val uint32, tLbl int) {
 	cont := a.newLabel()
-	a.emitJump(code, k, tLbl, cont)
+	a.emitJump(xbpf.JumpEqual, val, tLbl, cont)
 	a.mark(cont)
 }
 
-// failOrFall emits a conditional jump that goes to fLbl on match and falls
-// through otherwise (used for fragment/JSET-style guards).
-func (a *assembler) failOrFall(code uint16, k uint32, fLbl int) {
+// failOrFall emits a conditional jump that goes to fLbl when (A & val) != 0 and
+// falls through otherwise (used for fragment guards).
+func (a *assembler) failOrFall(val uint32, fLbl int) {
 	cont := a.newLabel()
-	a.emitJump(code, k, fLbl, cont)
+	a.emitJump(xbpf.JumpBitsSet, val, fLbl, cont)
 	a.mark(cont)
 }
 
-func (a *assembler) resolve() ([]sendrecv.BPFInstruction, error) {
-	out := make([]sendrecv.BPFInstruction, len(a.ins))
+func (a *assembler) resolve() ([]xbpf.Instruction, error) {
+	out := make([]xbpf.Instruction, len(a.ins))
 	for i, in := range a.ins {
-		bi := sendrecv.BPFInstruction{Code: in.code, K: in.k}
-		if in.jtLbl >= 0 {
-			off := a.labelPos[in.jtLbl] - (i + 1)
-			if off < 0 || off > 255 {
-				return nil, fmt.Errorf("bpf: jt offset %d out of range at insn %d", off, i)
-			}
-			bi.Jt = uint8(off)
+		if !in.isJump {
+			out[i] = in.inst
+			continue
 		}
-		if in.jfLbl >= 0 {
-			off := a.labelPos[in.jfLbl] - (i + 1)
-			if off < 0 || off > 255 {
-				return nil, fmt.Errorf("bpf: jf offset %d out of range at insn %d", off, i)
-			}
-			bi.Jf = uint8(off)
+		st := a.labelPos[in.jtLbl] - (i + 1)
+		sf := a.labelPos[in.jfLbl] - (i + 1)
+		if st < 0 || st > 255 || sf < 0 || sf > 255 {
+			return nil, fmt.Errorf("bpf: jump skip out of range at insn %d (st=%d sf=%d)", i, st, sf)
 		}
-		out[i] = bi
+		out[i] = xbpf.JumpIf{
+			Cond:      in.cond,
+			Val:       in.val,
+			SkipTrue:  uint8(st),
+			SkipFalse: uint8(sf),
+		}
 	}
 	return out, nil
 }
@@ -317,26 +359,26 @@ func (p *parser) peekAhead(n int) string {
 
 // --- leaf predicate builders ---
 
-// guardEtherType emits LDH[12]; if != etype goto f, else fall through.
+// guardEtherType emits LDH[12]; if A != etype goto f, else fall through.
 func (a *assembler) guardEtherType(etype uint32, f int) {
-	a.emit(opLDAbsH, 12)
+	a.emitLoadAbs(12, 2)
 	cont := a.newLabel()
-	a.emitJump(opJEQK, etype, cont, f)
+	a.emitJump(xbpf.JumpEqual, etype, cont, f)
 	a.mark(cont)
 }
 
 func (a *assembler) etherTypePred(etype uint32) predicate {
 	return func(t, f int) {
-		a.emit(opLDAbsH, 12)
-		a.emitJump(opJEQK, etype, t, f)
+		a.emitLoadAbs(12, 2)
+		a.emitJump(xbpf.JumpEqual, etype, t, f)
 	}
 }
 
 func (a *assembler) ipProtoPred(proto uint32) predicate {
 	return func(t, f int) {
 		a.guardEtherType(0x0800, f)
-		a.emit(opLDAbsB, 23) // IPv4 protocol field
-		a.emitJump(opJEQK, proto, t, f)
+		a.emitLoadAbs(23, 1) // IPv4 protocol field
+		a.emitJump(xbpf.JumpEqual, proto, t, f)
 	}
 }
 
@@ -345,16 +387,16 @@ func (a *assembler) hostPred(dir int, ip uint32) predicate {
 		a.guardEtherType(0x0800, f)
 		switch dir {
 		case dirSrc:
-			a.emit(opLDAbsW, 26)
-			a.emitJump(opJEQK, ip, t, f)
+			a.emitLoadAbs(26, 4)
+			a.emitJump(xbpf.JumpEqual, ip, t, f)
 		case dirDst:
-			a.emit(opLDAbsW, 30)
-			a.emitJump(opJEQK, ip, t, f)
+			a.emitLoadAbs(30, 4)
+			a.emitJump(xbpf.JumpEqual, ip, t, f)
 		default:
-			a.emit(opLDAbsW, 26)
-			a.matchOrFall(opJEQK, ip, t)
-			a.emit(opLDAbsW, 30)
-			a.emitJump(opJEQK, ip, t, f)
+			a.emitLoadAbs(26, 4)
+			a.matchOrFall(ip, t)
+			a.emitLoadAbs(30, 4)
+			a.emitJump(xbpf.JumpEqual, ip, t, f)
 		}
 	}
 }
@@ -364,34 +406,34 @@ func (a *assembler) hostPred(dir int, ip uint32) predicate {
 func (a *assembler) portPred(dir int, proto, port uint32) predicate {
 	return func(t, f int) {
 		a.guardEtherType(0x0800, f)
-		a.emit(opLDAbsB, 23) // IPv4 protocol
+		a.emitLoadAbs(23, 1) // IPv4 protocol
 		if proto == 0 {
 			ok := a.newLabel()
-			a.matchOrFall(opJEQK, 6, ok)  // TCP
-			a.emitJump(opJEQK, 17, ok, f) // UDP, else fail
+			a.matchOrFall(6, ok)                  // TCP
+			a.emitJump(xbpf.JumpEqual, 17, ok, f) // UDP, else fail
 			a.mark(ok)
 		} else {
 			cont := a.newLabel()
-			a.emitJump(opJEQK, proto, cont, f)
+			a.emitJump(xbpf.JumpEqual, proto, cont, f)
 			a.mark(cont)
 		}
-		// Reject fragments (offset != 0): LDH[20]; JSET 0x1fff -> fail.
-		a.emit(opLDAbsH, 20)
-		a.failOrFall(opJSetK, 0x1fff, f)
+		// Reject fragments (offset != 0): LDH[20]; if A & 0x1fff goto fail.
+		a.emitLoadAbs(20, 2)
+		a.failOrFall(0x1fff, f)
 		// X = IPv4 header length.
-		a.emit(opLDXMsh, 14)
+		a.emitLoadMemShift(14)
 		switch dir {
 		case dirSrc:
-			a.emit(opLDIndH, 14)
-			a.emitJump(opJEQK, port, t, f)
+			a.emitLoadInd(14, 2)
+			a.emitJump(xbpf.JumpEqual, port, t, f)
 		case dirDst:
-			a.emit(opLDIndH, 16)
-			a.emitJump(opJEQK, port, t, f)
+			a.emitLoadInd(16, 2)
+			a.emitJump(xbpf.JumpEqual, port, t, f)
 		default:
-			a.emit(opLDIndH, 14)
-			a.matchOrFall(opJEQK, port, t)
-			a.emit(opLDIndH, 16)
-			a.emitJump(opJEQK, port, t, f)
+			a.emitLoadInd(14, 2)
+			a.matchOrFall(port, t)
+			a.emitLoadInd(16, 2)
+			a.emitJump(xbpf.JumpEqual, port, t, f)
 		}
 	}
 }

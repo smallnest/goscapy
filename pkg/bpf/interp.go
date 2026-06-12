@@ -1,85 +1,29 @@
 package bpf
 
 import (
-	"encoding/binary"
+	xbpf "golang.org/x/net/bpf"
 
 	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
-// Run executes a classic BPF program against a packet (starting at the link
-// layer) and returns the accept length: the number of bytes the filter accepts
-// (0 means reject). It implements the subset of cBPF opcodes emitted by
-// Compile, which is sufficient to interpret the programs this package produces.
+// Run executes a classic BPF program (in goscapy's sendrecv.BPFInstruction
+// form) against a packet starting at the link layer, returning the accept
+// length: the number of bytes the filter accepts (0 means reject). Execution
+// is delegated to golang.org/x/net/bpf's virtual machine.
 //
 // Run lets the same compiled filter be applied in pure Go (offline analysis)
-// without attaching it to a kernel socket.
+// without attaching it to a kernel socket. A program that fails to load
+// returns 0 (reject).
 func Run(prog []sendrecv.BPFInstruction, pkt []byte) uint32 {
-	var a, x uint32
-	pc := 0
-	for pc < len(prog) {
-		in := prog[pc]
-		switch in.Code {
-		case opLDAbsW:
-			v, ok := load(pkt, int(in.K), 4)
-			if !ok {
-				return 0
-			}
-			a = v
-		case opLDAbsH:
-			v, ok := load(pkt, int(in.K), 2)
-			if !ok {
-				return 0
-			}
-			a = v
-		case opLDAbsB:
-			v, ok := load(pkt, int(in.K), 1)
-			if !ok {
-				return 0
-			}
-			a = v
-		case opLDIndH:
-			v, ok := load(pkt, int(in.K)+int(x), 2)
-			if !ok {
-				return 0
-			}
-			a = v
-		case opLDIndB:
-			v, ok := load(pkt, int(in.K)+int(x), 1)
-			if !ok {
-				return 0
-			}
-			a = v
-		case opLDXMsh:
-			idx := int(in.K)
-			if idx >= len(pkt) {
-				return 0
-			}
-			x = 4 * uint32(pkt[idx]&0x0f)
-		case opJEQK:
-			pc++
-			if a == in.K {
-				pc += int(in.Jt)
-			} else {
-				pc += int(in.Jf)
-			}
-			continue
-		case opJSetK:
-			pc++
-			if a&in.K != 0 {
-				pc += int(in.Jt)
-			} else {
-				pc += int(in.Jf)
-			}
-			continue
-		case opRetK:
-			return in.K
-		default:
-			// Unknown opcode: reject conservatively.
-			return 0
-		}
-		pc++
+	vm, err := newVM(prog)
+	if err != nil {
+		return 0
 	}
-	return 0
+	n, err := vm.Run(pkt)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return uint32(n)
 }
 
 // Match reports whether the program accepts the packet (accept length > 0).
@@ -89,29 +33,33 @@ func Match(prog []sendrecv.BPFInstruction, pkt []byte) bool {
 
 // MatchFunc compiles filter once and returns a predicate over raw packets,
 // suitable for offline filtering pipelines. It returns ErrUnsupported (via the
-// error) if the filter cannot be compiled.
+// error) if the filter cannot be compiled. The returned predicate reuses a
+// single VM instance and is safe for sequential use.
 func MatchFunc(filter string) (func(pkt []byte) bool, error) {
-	prog, err := Compile(filter)
+	insts, err := CompileInstructions(filter)
 	if err != nil {
 		return nil, err
 	}
-	if len(prog) == 0 {
+	if len(insts) == 0 {
 		return func([]byte) bool { return true }, nil
 	}
-	return func(pkt []byte) bool { return Match(prog, pkt) }, nil
+	vm, err := xbpf.NewVM(insts)
+	if err != nil {
+		return nil, err
+	}
+	return func(pkt []byte) bool {
+		n, err := vm.Run(pkt)
+		return err == nil && n > 0
+	}, nil
 }
 
-func load(pkt []byte, off, n int) (uint32, bool) {
-	if off < 0 || off+n > len(pkt) {
-		return 0, false
+// newVM builds an x/net/bpf VM from raw goscapy instructions by round-tripping
+// them through RawInstruction.Disassemble.
+func newVM(prog []sendrecv.BPFInstruction) (*xbpf.VM, error) {
+	insts := make([]xbpf.Instruction, len(prog))
+	for i, in := range prog {
+		raw := xbpf.RawInstruction{Op: in.Code, Jt: in.Jt, Jf: in.Jf, K: in.K}
+		insts[i] = raw.Disassemble()
 	}
-	switch n {
-	case 1:
-		return uint32(pkt[off]), true
-	case 2:
-		return uint32(binary.BigEndian.Uint16(pkt[off:])), true
-	case 4:
-		return binary.BigEndian.Uint32(pkt[off:]), true
-	}
-	return 0, false
+	return xbpf.NewVM(insts)
 }
