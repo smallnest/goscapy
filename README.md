@@ -112,6 +112,7 @@ Full documentation is available at [pkg.go.dev/github.com/smallnest/goscapy](htt
 | `pkg/layers` | Protocol layer definitions (Ethernet, ARP, IP, TCP, UDP, ICMP, Raw) |
 | `pkg/sendrecv` | Raw socket send/receive (Send, Sendp, Recv, SendRecv, SrLoop, SrFlood) |
 | `pkg/sniff` | Packet sniffing with BPF filter support, plus offline pcap replay |
+| `pkg/bpf` | Pure-Go classic BPF assembler and interpreter (no tcpdump dependency) |
 | `pkg/packetlist` | Batch container for captured packets: filter, sessions, statistics, pcap I/O |
 | `pkg/answer` | AnsweringMachine framework for service emulation |
 | `pkg/fields` | Field type system (serialization, deserialization) |

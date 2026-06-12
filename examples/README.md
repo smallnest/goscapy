@@ -67,6 +67,7 @@ go run main.go
 | 13 | [TCP SYN 扫描](13-tcp-syn-scan/) | 半开放端口扫描 | `sudo go run main.go en0 127.0.0.1` |
 | 14 | [包嗅探](14-sniff/) | 实时流量捕获 | `sudo go run main.go en0` |
 | 15 | [BPF 过滤器](15-bpf-filter/) | BPF 过滤器编译和使用 | `go run main.go` |
+| 68 | [内置 BPF 汇编器](68-bpf-builtin/) | 纯 Go 编译/执行 BPF 过滤（无需 tcpdump）| `go run main.go` |
 | 64 | [循环探测](64-srloop/) | SrLoop/SrFlood 主动探测与洪泛 | `sudo go run main.go <目标> [iface]` |
 | 65 | [应答机框架](65-answering-machine/) | AnsweringMachine ARP 响应器 | `sudo go run main.go <iface> <IP> <MAC>` |
 | 67 | [应答机实例](67-responders/) | ICMP/ARP/DNS 开箱即用响应器 | `sudo go run main.go icmp <iface>` |

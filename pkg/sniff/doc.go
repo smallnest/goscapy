@@ -11,10 +11,13 @@
 // # BPF Filters
 //
 // Filters can be provided either as raw BPF instructions (zero dependencies)
-// or as filter strings compiled at runtime via CompileFilter (requires tcpdump
-// on PATH; may require root on macOS).
+// or as filter strings compiled at runtime via CompileFilter. CompileFilter
+// first tries the built-in pure-Go BPF assembler (pkg/bpf), which covers the
+// common filters (ip/ip6/arp, tcp/udp/icmp, host, port, src/dst, and/or/not)
+// with no external dependencies, and only falls back to tcpdump (must be on
+// PATH; may require root on macOS) for expressions outside that subset.
 //
-//	// Using a filter string (requires tcpdump on PATH):
+//	// Using a filter string (built-in assembler, no dependency for common cases):
 //	Sniff(SniffConfig{Iface: "eth0", Filter: "tcp port 80"}, handler)
 //
 //	// Using pre-compiled instructions (no dependencies):

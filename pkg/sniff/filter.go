@@ -2,26 +2,34 @@ package sniff
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
 
+	"github.com/smallnest/goscapy/pkg/bpf"
 	"github.com/smallnest/goscapy/pkg/sendrecv"
 )
 
-// CompileFilter compiles a BPF filter expression into raw BPF instructions
-// by shelling out to tcpdump. Returns an error if tcpdump is not available
-// on PATH or the filter expression is invalid.
+// CompileFilter compiles a BPF filter expression into raw BPF instructions.
 //
-// Note: On macOS, tcpdump requires root privileges to compile filters.
-// Users who cannot run as root should provide pre-compiled BPFInstructions
-// via SniffConfig.Instructions instead.
+// It first tries the built-in pure-Go assembler (pkg/bpf), which has no
+// external dependencies and covers common filters (ip/ip6/arp, tcp/udp/icmp,
+// host, port, src/dst qualifiers, and and/or/not). If the expression uses a
+// construct the built-in assembler does not support, CompileFilter falls back
+// to shelling out to tcpdump (which must be on PATH; may require root on
+// macOS).
 //
 // Example:
 //
 //	insns, err := CompileFilter("tcp port 80")
 func CompileFilter(filter string) ([]sendrecv.BPFInstruction, error) {
+	if prog, err := bpf.Compile(filter); err == nil {
+		return prog, nil
+	} else if !errors.Is(err, bpf.ErrUnsupported) {
+		return nil, err
+	}
 	return CompileFilterOnIface(filter, "")
 }
 

@@ -123,6 +123,49 @@ func TestSniffOfflineNoPath(t *testing.T) {
 	}
 }
 
+func TestSniffOfflineBPFExpr(t *testing.T) {
+	// Build a capture with mixed TCP and UDP packets.
+	var buf bytes.Buffer
+	w, err := pcap.NewWriter(&buf, pcap.LinkTypeEthernet, 65535)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		eth := layers.NewEthernetWith("aa:bb:cc:dd:ee:ff", "11:22:33:44:55:66", layers.EtherTypeIPv4)
+		ip := layers.NewIP()
+		_ = ip.Set("src", "192.168.1.1")
+		_ = ip.Set("dst", "10.0.0.1")
+		_ = ip.Set("proto", layers.IPProtoTCP)
+		tcp := layers.NewTCP()
+		_ = tcp.Set("sport", uint16(1000+i))
+		_ = tcp.Set("dport", uint16(80))
+		_ = w.WritePkt(packet.NewFrom(eth, ip, tcp))
+	}
+	for i := 0; i < 2; i++ {
+		eth := layers.NewEthernetWith("aa:bb:cc:dd:ee:ff", "11:22:33:44:55:66", layers.EtherTypeIPv4)
+		ip := layers.NewIP()
+		_ = ip.Set("src", "192.168.1.1")
+		_ = ip.Set("dst", "10.0.0.1")
+		_ = ip.Set("proto", layers.IPProtoUDP)
+		udp := layers.NewUDP()
+		_ = udp.Set("sport", uint16(5000+i))
+		_ = udp.Set("dport", uint16(53))
+		_ = w.WritePkt(packet.NewFrom(eth, ip, udp))
+	}
+
+	var tcpCount int
+	err = sniff.SniffOfflineReader(&buf, sniff.OfflineConfig{FilterExpr: "tcp port 80"}, func(*packet.Packet) bool {
+		tcpCount++
+		return true
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tcpCount != 3 {
+		t.Errorf("BPF filter matched %d, want 3 TCP packets", tcpCount)
+	}
+}
+
 func TestSniffOfflineChan(t *testing.T) {
 	buf := makeCapture(t, 4)
 	// Write to a temp file since SniffOfflineChan uses SniffOffline (path-based).

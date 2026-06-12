@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/smallnest/goscapy/pkg/bpf"
 	"github.com/smallnest/goscapy/pkg/packet"
 	"github.com/smallnest/goscapy/pkg/pcap"
 )
@@ -23,6 +24,12 @@ type OfflineConfig struct {
 	// is delivered to the handler only if Filter returns true. If nil, all
 	// packets pass.
 	Filter func(pkt *packet.Packet) bool
+
+	// FilterExpr is an optional BPF filter string applied to the raw bytes of
+	// each Ethernet-framed packet using the built-in pure-Go BPF assembler
+	// (pkg/bpf). It is combined with Filter (both must pass). Unsupported
+	// expressions cause SniffOffline to return an error. Leave empty to skip.
+	FilterExpr string
 }
 
 // SniffOffline reads packets from a pcap or pcapng file and invokes handler
@@ -56,6 +63,15 @@ func SniffOfflineReader(r io.Reader, cfg OfflineConfig, handler SniffHandler) er
 		return fmt.Errorf("sniff: open capture: %w", err)
 	}
 
+	// Compile the optional BPF filter expression up front.
+	var bpfPred func([]byte) bool
+	if cfg.FilterExpr != "" {
+		bpfPred, err = bpf.MatchFunc(cfg.FilterExpr)
+		if err != nil {
+			return fmt.Errorf("sniff: compile filter %q: %w", cfg.FilterExpr, err)
+		}
+	}
+
 	processed := 0
 	for cfg.Count <= 0 || processed < cfg.Count {
 		rec, err := rd.ReadPacket()
@@ -64,6 +80,10 @@ func SniffOfflineReader(r io.Reader, cfg OfflineConfig, handler SniffHandler) er
 				break
 			}
 			return fmt.Errorf("sniff: read packet: %w", err)
+		}
+
+		if bpfPred != nil && !bpfPred(rec.Data) {
+			continue
 		}
 
 		pkt, err := rec.Packet()
