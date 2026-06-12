@@ -69,6 +69,12 @@ func init() {
 	packet.RegisterBinding("SCTP", "IP", "proto", IPProtoSCTP)
 	// SCTP over IPv6 → IPv6.nh = 132
 	packet.RegisterBinding("SCTP", "IPv6", "nh", IPProtoSCTP)
+	// ESP over IP/IPv6 → proto/nh = 50
+	packet.RegisterBinding("ESP", "IP", "proto", IPProtoESP)
+	packet.RegisterBinding("ESP", "IPv6", "nh", IPProtoESP)
+	// AH over IP/IPv6 → proto/nh = 51
+	packet.RegisterBinding("AH", "IP", "proto", IPProtoAH)
+	packet.RegisterBinding("AH", "IPv6", "nh", IPProtoAH)
 	// MPLS over Ethernet → Ether.type = 0x8847 (unicast)
 	packet.RegisterBinding("MPLS", "Ethernet", "type", EtherTypeMPLSUnicast)
 	// PPPoE session over Ethernet → Ether.type = 0x8864
@@ -92,9 +98,12 @@ func init() {
 	packet.RegisterBuildHook("SCTP", sctpBuildHook)
 	packet.RegisterBuildHook("IGMP", igmpBuildHook)
 	packet.RegisterBuildHook("PPPoE", pppoeBuildHook)
+	packet.RegisterBuildHook("AH", ahBuildHook)
+	packet.RegisterBuildHook("GTP", gtpBuildHook)
 
 	// Post-parse hooks for variable-length header fields.
 	packet.RegisterPostParseHook("TCP", tcpPostParseHook)
+	packet.RegisterPostParseHook("AH", ahPostParse)
 	packet.RegisterPostParseHook("IPv6 Hop-by-Hop", extHdrPostParseHook)
 	packet.RegisterPostParseHook("IPv6 Routing", extHdrPostParseHook)
 	packet.RegisterPostParseHook("IPv6 DestOpts", extHdrPostParseHook)
@@ -128,6 +137,9 @@ func init() {
 	packet.RegisterLayer("MPLS", NewMPLS)
 	packet.RegisterLayer("PPPoE", NewPPPoE)
 	packet.RegisterLayer("PPP", NewPPP)
+	packet.RegisterLayer("ESP", NewESP)
+	packet.RegisterLayer("AH", NewAH)
+	packet.RegisterLayer("GTP", NewGTP)
 
 	// Register key fields for next-layer resolution.
 	// Ethernet uses "type" field to identify the upper layer.
@@ -147,9 +159,25 @@ func init() {
 	packet.RegisterNextLayer("IP", 6, "TCP")    // TCP
 	packet.RegisterNextLayer("IP", 17, "UDP")   // UDP
 	packet.RegisterNextLayer("IP", 132, "SCTP") // SCTP
+	packet.RegisterNextLayer("IP", 50, "ESP")   // IPsec ESP
+	packet.RegisterNextLayer("IP", 51, "AH")    // IPsec AH
 
 	// SCTP over IPv6 (IPv6 key field "nh" is registered below).
 	packet.RegisterNextLayer("IPv6", 132, "SCTP")
+	packet.RegisterNextLayer("IPv6", 50, "ESP")
+	packet.RegisterNextLayer("IPv6", 51, "AH")
+
+	// AH protects an upper-layer protocol named by its "nh" field; chain to it.
+	packet.RegisterKeyField("AH", "nh")
+	packet.RegisterNextLayer("AH", 6, "TCP")
+	packet.RegisterNextLayer("AH", 17, "UDP")
+	packet.RegisterNextLayer("AH", 4, "IP")    // IP-in-IP (tunnel mode)
+	packet.RegisterNextLayer("AH", 41, "IPv6") // IPv6-in-IP
+
+	// GTP-U user plane over UDP port 2152; payload G-PDU is an inner IP packet.
+	packet.RegisterHeuristic("UDP", "dport", GTPUPort, "GTP")
+	packet.RegisterHeuristic("UDP", "sport", GTPUPort, "GTP")
+	packet.RegisterNextLayerFunc("GTP", gtpNextLayer)
 
 	// MPLS next-layer resolution and PPPoE/PPP chaining.
 	packet.RegisterNextLayer("Ethernet", uint64(EtherTypeMPLSUnicast), "MPLS")
@@ -316,6 +344,9 @@ func init() {
 	packet.RegisterHeaderSizeFunc("IPv6 Hop-by-Hop", extHdrSizeFn)
 	packet.RegisterHeaderSizeFunc("IPv6 Routing", extHdrSizeFn)
 	packet.RegisterHeaderSizeFunc("IPv6 DestOpts", extHdrSizeFn)
+
+	// AH: (len + 2) * 4 bytes total header (RFC 4302).
+	packet.RegisterHeaderSizeFunc("AH", ahHeaderSize)
 
 	// MPLS: each label stack entry is 4 bytes. After the bottom-of-stack
 	// entry, the inner protocol is inferred from the first nibble of the
