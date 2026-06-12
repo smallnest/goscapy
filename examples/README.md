@@ -35,6 +35,7 @@ go run main.go
 | 61 | [IP/IPv6 分片构造](61-fragment/) | Fragment/Fragment6 构造侧分片 | `go run main.go` |
 | 62 | [新增协议](62-new-protocols/) | SCTP/IGMP/MPLS/PPPoE 构造与解析 | `go run main.go` |
 | 69 | [IPsec 与 GTP](69-ipsec-gtp/) | ESP/AH/GTP-U 构造与解析 | `go run main.go` |
+| 70 | [二层/冗余协议](70-l2-redundancy/) | VRRP/HSRP/STP/EAPOL 构造与解析 | `go run main.go` |
 | 63 | [离线嗅探](63-offline-sniff/) | 从 pcap 文件读取并走嗅探回调管线 | `go run main.go` |
 | 66 | [PacketList 批量分析](66-packetlist/) | 读写 pcap、过滤、会话分组、协议统计 | `go run main.go` |
 

@@ -26,9 +26,10 @@ A pure Go library for crafting, dissecting, sending, receiving, and sniffing net
 
 | Layer | Protocols |
 |-------|-----------|
-| Link | Ethernet, ARP, Dot1Q (VLAN), MPLS, PPPoE/PPP, LLDP, Dot11 |
+| Link | Ethernet, ARP, Dot1Q (VLAN), MPLS, PPPoE/PPP, LLDP, Dot11, STP, EAPOL/EAP (802.1X) |
 | Network | IPv4, IPv6 (+ extension headers), ICMP, ICMPv6/NDP, IGMP, ESP/AH (IPsec) |
 | Transport | TCP, UDP, SCTP |
+| Redundancy | VRRP, HSRP |
 | Tunnel | GRE, VXLAN, ERSPAN, GTP-U |
 | Application | DNS, DHCP, HTTP, NTP, SNMP, TLS, QUIC, RADIUS, Kerberos, LDAP, BGP, OSPF, NetFlow/IPFIX, SIP/RTP, Zigbee, LoRaWAN, BT |
 | Payload | Raw |

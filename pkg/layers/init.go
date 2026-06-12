@@ -75,6 +75,11 @@ func init() {
 	// AH over IP/IPv6 → proto/nh = 51
 	packet.RegisterBinding("AH", "IP", "proto", IPProtoAH)
 	packet.RegisterBinding("AH", "IPv6", "nh", IPProtoAH)
+	// VRRP over IP → IP.proto = 112
+	packet.RegisterBinding("VRRP", "IP", "proto", IPProtoVRRP)
+	// EAPOL over Ethernet → Ether.type = 0x888E
+	packet.RegisterBinding("EAPOL", "Ethernet", "type", EtherTypeEAPOL)
+	// EAP over EAPOL: no key field (EAPOL type=EAP-Packet payload is always EAP).
 	// MPLS over Ethernet → Ether.type = 0x8847 (unicast)
 	packet.RegisterBinding("MPLS", "Ethernet", "type", EtherTypeMPLSUnicast)
 	// PPPoE session over Ethernet → Ether.type = 0x8864
@@ -100,6 +105,9 @@ func init() {
 	packet.RegisterBuildHook("PPPoE", pppoeBuildHook)
 	packet.RegisterBuildHook("AH", ahBuildHook)
 	packet.RegisterBuildHook("GTP", gtpBuildHook)
+	packet.RegisterBuildHook("VRRP", vrrpBuildHook)
+	packet.RegisterBuildHook("EAPOL", eapolBuildHook)
+	packet.RegisterBuildHook("EAP", eapBuildHook)
 
 	// Post-parse hooks for variable-length header fields.
 	packet.RegisterPostParseHook("TCP", tcpPostParseHook)
@@ -140,6 +148,11 @@ func init() {
 	packet.RegisterLayer("ESP", NewESP)
 	packet.RegisterLayer("AH", NewAH)
 	packet.RegisterLayer("GTP", NewGTP)
+	packet.RegisterLayer("VRRP", NewVRRP)
+	packet.RegisterLayer("HSRP", NewHSRP)
+	packet.RegisterLayer("STP", NewSTP)
+	packet.RegisterLayer("EAPOL", NewEAPOL)
+	packet.RegisterLayer("EAP", NewEAP)
 
 	// Register key fields for next-layer resolution.
 	// Ethernet uses "type" field to identify the upper layer.
@@ -161,6 +174,7 @@ func init() {
 	packet.RegisterNextLayer("IP", 132, "SCTP") // SCTP
 	packet.RegisterNextLayer("IP", 50, "ESP")   // IPsec ESP
 	packet.RegisterNextLayer("IP", 51, "AH")    // IPsec AH
+	packet.RegisterNextLayer("IP", 112, "VRRP") // VRRP
 
 	// SCTP over IPv6 (IPv6 key field "nh" is registered below).
 	packet.RegisterNextLayer("IPv6", 132, "SCTP")
@@ -179,12 +193,19 @@ func init() {
 	packet.RegisterHeuristic("UDP", "sport", GTPUPort, "GTP")
 	packet.RegisterNextLayerFunc("GTP", gtpNextLayer)
 
+	// HSRP over UDP port 1985 (Cisco).
+	packet.RegisterHeuristic("UDP", "dport", HSRPPort, "HSRP")
+	packet.RegisterHeuristic("UDP", "sport", HSRPPort, "HSRP")
+
 	// MPLS next-layer resolution and PPPoE/PPP chaining.
 	packet.RegisterNextLayer("Ethernet", uint64(EtherTypeMPLSUnicast), "MPLS")
 	packet.RegisterNextLayer("Ethernet", uint64(EtherTypeMPLSMulticast), "MPLS")
 	packet.RegisterNextLayer("Ethernet", uint64(EtherTypePPPoESession), "PPPoE")
 	// PPPoE always carries a PPP frame in the session stage.
 	packet.RegisterTunnelPayload("PPPoE", "PPP")
+	// EAPOL over Ethernet; an EAP-Packet body is carried as the EAP layer.
+	packet.RegisterNextLayer("Ethernet", uint64(EtherTypeEAPOL), "EAPOL")
+	packet.RegisterTunnelPayload("EAPOL", "EAP")
 	// PPP "proto" selects the encapsulated network protocol.
 	packet.RegisterKeyField("PPP", "proto")
 	packet.RegisterNextLayer("PPP", uint64(PPPProtoIPv4), "IP")

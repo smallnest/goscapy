@@ -220,6 +220,10 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 			for _, l := range innerPkt.Layers() {
 				pkt.Push(l)
 			}
+			// The inner dissection consumed all remaining bytes (it appends its
+			// own Raw layer for any trailer); clear remaining so the leftover
+			// handling below does not append a second, duplicate Raw layer.
+			remaining = nil
 			break
 		}
 
