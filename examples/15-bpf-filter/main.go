@@ -128,7 +128,7 @@ func main() {
 	// 示例: 一个简单的 "accept all" 过滤器
 	// BPF 指令: ret #65535 (接受所有包，最大抓取 65535 字节)
 	manualInstructions := []sendrecv.BPFInstruction{
-		{Code: 0x06, Jt: 0, Jf: 0, K: 0x0000FFFF}, // RET #65535
+		{Op: 0x06, Jt: 0, Jf: 0, K: 0x0000FFFF}, // RET #65535
 	}
 	fmt.Printf("  手动构造的 'accept all' 过滤器: %d 条指令\n", len(manualInstructions))
 	fmt.Println()

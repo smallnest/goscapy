@@ -59,7 +59,7 @@ func applyBpfFilter(fd int, instructions []BPFInstruction) error {
 	insns := make([]syscall.BpfInsn, len(instructions))
 	for i, inst := range instructions {
 		insns[i] = syscall.BpfInsn{
-			Code: inst.Code,
+			Code: inst.Op,
 			Jt:   inst.Jt,
 			Jf:   inst.Jf,
 			K:    inst.K,

@@ -98,10 +98,10 @@ func parseDDOutput(output string) ([]sendrecv.BPFInstruction, error) {
 		}
 
 		instructions = append(instructions, sendrecv.BPFInstruction{
-			Code: uint16(code),
-			Jt:   uint8(jt),
-			Jf:   uint8(jf),
-			K:    uint32(k),
+			Op: uint16(code),
+			Jt: uint8(jt),
+			Jf: uint8(jf),
+			K:  uint32(k),
 		})
 	}
 

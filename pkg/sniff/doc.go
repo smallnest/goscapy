@@ -22,7 +22,7 @@
 //
 //	// Using pre-compiled instructions (no dependencies):
 //	instructions := []sendrecv.BPFInstruction{
-//	    {Code: 0x06, Jt: 0, Jf: 0, K: 0x0000FFFF}, // accept all
+//	    {Op: 0x06, Jt: 0, Jf: 0, K: 0x0000FFFF}, // accept all
 //	}
 //	Sniff(SniffConfig{Iface: "eth0", Instructions: instructions}, handler)
 //

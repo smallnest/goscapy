@@ -54,12 +54,12 @@ func MatchFunc(filter string) (func(pkt []byte) bool, error) {
 }
 
 // newVM builds an x/net/bpf VM from raw goscapy instructions by round-tripping
-// them through RawInstruction.Disassemble.
+// them through RawInstruction.Disassemble. Since BPFInstruction is an alias for
+// xbpf.RawInstruction, each entry is used directly.
 func newVM(prog []sendrecv.BPFInstruction) (*xbpf.VM, error) {
 	insts := make([]xbpf.Instruction, len(prog))
 	for i, in := range prog {
-		raw := xbpf.RawInstruction{Op: in.Code, Jt: in.Jt, Jf: in.Jf, K: in.K}
-		insts[i] = raw.Disassemble()
+		insts[i] = in.Disassemble()
 	}
 	return xbpf.NewVM(insts)
 }

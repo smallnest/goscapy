@@ -47,7 +47,7 @@ func applyPacketFilter(fd int, instructions []BPFInstruction) error {
 	filters := make([]syscall.SockFilter, len(instructions))
 	for i, inst := range instructions {
 		filters[i] = syscall.SockFilter{
-			Code: inst.Code,
+			Code: inst.Op,
 			Jt:   inst.Jt,
 			Jf:   inst.Jf,
 			K:    inst.K,

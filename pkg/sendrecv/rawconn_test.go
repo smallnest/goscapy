@@ -196,7 +196,7 @@ func TestRawConnAttachBPF(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	dropFilter := []BPFInstruction{
-		{Code: 0x06, K: 0},
+		{Op: 0x06, K: 0},
 	}
 	err = conn.AttachBPF(dropFilter)
 	if err != nil {

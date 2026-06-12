@@ -17,14 +17,14 @@ func TestParseDDOutput(t *testing.T) {
 	if len(insns) != 3 {
 		t.Fatalf("expected 3 instructions, got %d", len(insns))
 	}
-	if insns[0].Code != 0x28 || insns[0].K != 0x0000000c {
-		t.Errorf("first instruction mismatch: code=0x%04x k=0x%08x", insns[0].Code, insns[0].K)
+	if insns[0].Op != 0x28 || insns[0].K != 0x0000000c {
+		t.Errorf("first instruction mismatch: code=0x%04x k=0x%08x", insns[0].Op, insns[0].K)
 	}
-	if insns[1].Code != 0x15 || insns[1].K != 0x000086dd {
-		t.Errorf("second instruction mismatch: code=0x%04x k=0x%08x", insns[1].Code, insns[1].K)
+	if insns[1].Op != 0x15 || insns[1].K != 0x000086dd {
+		t.Errorf("second instruction mismatch: code=0x%04x k=0x%08x", insns[1].Op, insns[1].K)
 	}
-	if insns[2].Code != 0x06 || insns[2].K != 0x0000ffff {
-		t.Errorf("third instruction mismatch: code=0x%04x k=0x%08x", insns[2].Code, insns[2].K)
+	if insns[2].Op != 0x06 || insns[2].K != 0x0000ffff {
+		t.Errorf("third instruction mismatch: code=0x%04x k=0x%08x", insns[2].Op, insns[2].K)
 	}
 }
 
@@ -38,8 +38,8 @@ func TestParseDDOutputDecimal(t *testing.T) {
 	if len(insns) != 1 {
 		t.Fatalf("expected 1 instruction, got %d", len(insns))
 	}
-	if insns[0].Code != 6 || insns[0].K != 65535 {
-		t.Errorf("instruction mismatch: code=%d k=%d", insns[0].Code, insns[0].K)
+	if insns[0].Op != 6 || insns[0].K != 65535 {
+		t.Errorf("instruction mismatch: code=%d k=%d", insns[0].Op, insns[0].K)
 	}
 }
 

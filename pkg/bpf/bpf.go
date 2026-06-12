@@ -78,8 +78,9 @@ func CompileInstructions(filter string) ([]xbpf.Instruction, error) {
 }
 
 // Compile parses a filter expression and returns classic BPF instructions in
-// goscapy's sendrecv.BPFInstruction form, suitable for kernel attachment. It
-// returns ErrUnsupported for grammar outside the documented subset.
+// goscapy's sendrecv.BPFInstruction form (an alias for xbpf.RawInstruction),
+// suitable for kernel attachment. It returns ErrUnsupported for grammar
+// outside the documented subset.
 func Compile(filter string) ([]sendrecv.BPFInstruction, error) {
 	insts, err := CompileInstructions(filter)
 	if err != nil {
@@ -92,11 +93,7 @@ func Compile(filter string) ([]sendrecv.BPFInstruction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("bpf: assemble: %w", err)
 	}
-	out := make([]sendrecv.BPFInstruction, len(raw))
-	for i, r := range raw {
-		out[i] = sendrecv.BPFInstruction{Code: r.Op, Jt: r.Jt, Jf: r.Jf, K: r.K}
-	}
-	return out, nil
+	return raw, nil
 }
 
 // --- assembler ---

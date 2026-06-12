@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	xbpf "golang.org/x/net/bpf"
+
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -12,14 +14,11 @@ import (
 // from fatal errors.
 var ErrTimeout = errors.New("sendrecv: recv timeout")
 
-// BPFInstruction represents a single classic BPF instruction.
-// It mirrors the layout of struct bpf_insn (BSD/macOS) and struct sock_filter (Linux).
-type BPFInstruction struct {
-	Code uint16
-	Jt   uint8
-	Jf   uint8
-	K    uint32
-}
+// BPFInstruction is a single classic BPF instruction. It is an alias for
+// golang.org/x/net/bpf.RawInstruction, whose layout (Op, Jt, Jf, K) matches
+// struct sock_filter (Linux) and struct bpf_insn (BSD/macOS) for direct kernel
+// attachment via SO_ATTACH_FILTER / BIOCSETF.
+type BPFInstruction = xbpf.RawInstruction
 
 // Receiver reads raw packets from a network interface.
 type Receiver interface {
