@@ -17,7 +17,7 @@ A pure Go library for crafting, dissecting, sending, receiving, and sniffing net
 - **Offline Sniffing** — replay pcap/pcapng files through the same handler/filter pipeline
 - **Fragmentation** — `Fragment`/`Fragment6` split large packets into IPv4/IPv6 fragments
 - **Answering Machine** — sniff→match→reply framework for service emulation and honeypots
-- **Debug & Introspection** — `Hexdump`, `Show2` (rebuild-and-display), `Ls`/`FieldNames`
+- **Debug & Introspection** — `Hexdump`, `Show2` (rebuild-and-display), `Ls`/`FieldNames`, JSON export, tcpdump/Wireshark bridge
 - **Auto Checksums** — IP, TCP, UDP, ICMP, IGMP, and SCTP (CRC32c) checksums computed automatically
 - **Layer Binding** — automatic field inference between adjacent layers (e.g., IP over Ethernet → EtherType=0x0800)
 - **Cross-Platform** — Darwin (macOS) and Linux with platform-specific raw socket implementations
@@ -115,6 +115,7 @@ Full documentation is available at [pkg.go.dev/github.com/smallnest/goscapy](htt
 | `pkg/sniff` | Packet sniffing with BPF filter support, plus offline pcap replay |
 | `pkg/bpf` | Pure-Go classic BPF assembler and interpreter (no tcpdump dependency) |
 | `pkg/packetlist` | Batch container for captured packets: filter, sessions, statistics, pcap I/O |
+| `pkg/external` | Bridge packets to tcpdump/tshark/Wireshark for inspection |
 | `pkg/answer` | AnsweringMachine framework for service emulation |
 | `pkg/fields` | Field type system (serialization, deserialization) |
 

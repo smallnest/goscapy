@@ -38,6 +38,7 @@ go run main.go
 | 70 | [二层/冗余协议](70-l2-redundancy/) | VRRP/HSRP/STP/EAPOL 构造与解析 | `go run main.go` |
 | 63 | [离线嗅探](63-offline-sniff/) | 从 pcap 文件读取并走嗅探回调管线 | `go run main.go` |
 | 66 | [PacketList 批量分析](66-packetlist/) | 读写 pcap、过滤、会话分组、协议统计 | `go run main.go` |
+| 71 | [JSON 与工具联动](71-json-export/) | ToJSON 序列化 + tcpdump/Wireshark 导出 | `go run main.go` |
 
 ### 🛠️ 真实网络工具（goscapy 实现，需 root）
 
