@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -355,4 +356,28 @@ func scratch8(b *bytes.Buffer) []byte {
 	s := [8]byte{}
 	b.Write(s[:])
 	return b.Bytes()[b.Len()-8:]
+}
+
+func TestPcapngBlockLengthCap(t *testing.T) {
+	var buf bytes.Buffer
+	order := binary.LittleEndian
+	writePcapngBlock(&buf, order, blockTypeSHB, func(b *bytes.Buffer) {
+		order.PutUint32(scratch4(b), 0x1A2B3C4D)
+		order.PutUint16(scratch2(b), 1)
+		order.PutUint16(scratch2(b), 0)
+		order.PutUint64(scratch8(b), 0xFFFFFFFFFFFFFFFF)
+	})
+	// A block header that claims ~2 GB must be rejected, not allocated.
+	var hdr [8]byte
+	order.PutUint32(hdr[0:4], blockTypeEPB)
+	order.PutUint32(hdr[4:8], 0x7FFFFFF0)
+	buf.Write(hdr[:])
+
+	rd, err := NewReader(&buf)
+	if err == nil {
+		_, err = rd.ReadPacket()
+	}
+	if err == nil || !strings.Contains(err.Error(), "invalid block length") {
+		t.Fatalf("err = %v, want invalid block length", err)
+	}
 }

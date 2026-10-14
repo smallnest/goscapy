@@ -1423,3 +1423,19 @@ func TestDissectFragmentStaysRaw(t *testing.T) {
 		}
 	}
 }
+
+func TestDissectIPv6RoutingNextLayer(t *testing.T) {
+	raw := make([]byte, 40+8+20)
+	raw[0] = 0x60
+	raw[5] = 28         // payload length: routing header + TCP
+	raw[6] = 43         // next header: Routing
+	raw[40] = 6         // routing header's next header: TCP
+	raw[40+8+12] = 0x50 // TCP data offset
+	pkt, err := packet.Dissect(raw, func([]byte) (string, error) { return "IPv6", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := pkt.String(); got != "IPv6 / IPv6 Routing / TCP" {
+		t.Errorf("got %q, want IPv6 / IPv6 Routing / TCP", got)
+	}
+}

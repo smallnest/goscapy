@@ -323,3 +323,15 @@ func TestShowDissectedPacket(t *testing.T) {
 		t.Errorf("dissected Summary() missing src: %q", summary)
 	}
 }
+
+func TestSummaryDNSQueryAndResponse(t *testing.T) {
+	for flags, want := range map[uint16]string{0x0100: "DNS Q", 0x8180: "DNS R"} {
+		dns := packet.NewLayer("DNS", []fields.Field{
+			fields.NewShortField("id", 0),
+			fields.NewShortField("flags", flags),
+		})
+		if got := packet.NewFrom(dns).Summary(); got != want {
+			t.Errorf("flags %#04x: Summary() = %q, want %q", flags, got, want)
+		}
+	}
+}

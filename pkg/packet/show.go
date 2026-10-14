@@ -157,11 +157,9 @@ func layerSummary(l *Layer) string {
 		pdst, _ := l.Get("pdst")
 		return fmt.Sprintf("ARP op=%v %s > %s", op, formatAddr(psrc), formatAddr(pdst))
 	case "DNS":
-		qr, _ := l.Get("qr")
-		if qr != nil {
-			if v, ok := qr.(uint8); ok && v == 0 {
-				return "DNS Q"
-			}
+		// QR is the top bit of the flags word.
+		if flags, _ := l.Get("flags"); toUint64(flags)&0x8000 == 0 {
+			return "DNS Q"
 		}
 		return "DNS R"
 	default:
