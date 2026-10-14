@@ -40,7 +40,7 @@ func main() {
 		_ = w.WritePkt(packet.NewFrom(eth, ip, icmp))
 	}
 	tmp, _ := os.CreateTemp("", "goscapy-*.pcap")
-	defer os.Remove(tmp.Name())
+	defer func() { _ = os.Remove(tmp.Name()) }()
 	_, _ = tmp.Write(buf.Bytes())
 	_ = tmp.Close()
 
