@@ -159,3 +159,15 @@ func mustParseCIDR(s string) *net.IPNet {
 	}
 	return ipnet
 }
+
+func TestBestMatchIPv6PrefersSpecificRoute(t *testing.T) {
+	_, linkLocal, _ := net.ParseCIDR("fe80::/64")
+	routes := []Route{{Interface: "default"}, {Destination: linkLocal, Interface: "ll"}}
+	r, err := bestMatch(net.ParseIP("fe80::1"), routes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Interface != "ll" {
+		t.Errorf("matched %q, want the fe80::/64 route", r.Interface)
+	}
+}

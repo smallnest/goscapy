@@ -247,6 +247,9 @@ func ParseServerHello(body []byte) (*ServerHello, error) {
 	pos += 32
 
 	// Session ID
+	if pos >= len(body) {
+		return nil, fmt.Errorf("tls: ServerHello truncated at session ID")
+	}
 	sidLen := int(body[pos])
 	pos++
 	if pos+sidLen > len(body) {

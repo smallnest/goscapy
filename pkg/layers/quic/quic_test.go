@@ -117,3 +117,10 @@ func TestLayerCreation(t *testing.T) {
 		t.Errorf("Proto = %q, want %q", layer.Proto(), "QUIC")
 	}
 }
+
+func TestParseLongHeaderTruncatedAtSCID(t *testing.T) {
+	// first byte, version, DCID length 0, then nothing where the SCID length belongs.
+	if _, err := ParseLongHeader([]byte{0xc0, 0, 0, 0, 1, 0}); err == nil {
+		t.Error("expected error for long header ending before the SCID length")
+	}
+}

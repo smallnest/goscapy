@@ -49,9 +49,10 @@ func Route6(dst net.IP) (*Route, error) {
 
 // bestMatch finds the longest-prefix-matching route for dst.
 func bestMatch(dst net.IP, routes []Route) (*Route, error) {
-	dst = dst.To4()
-	if dst == nil {
-		dst = dst.To16()
+	// Normalise IPv4 to its 4-byte form; leave IPv6 as is. (Assigning the
+	// To4() result unconditionally nil'ed every IPv6 destination.)
+	if v4 := dst.To4(); v4 != nil {
+		dst = v4
 	}
 
 	var best *Route
