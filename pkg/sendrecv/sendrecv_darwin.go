@@ -3,6 +3,7 @@
 package sendrecv
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"syscall"
@@ -277,7 +278,39 @@ func ip6StartFn(_ []byte) (string, error) {
 	return "IPv6", nil
 }
 
+// errNoValidPackets reports a BPF read in which every frame was undissectable
+// (or of an unknown loopback family). It is not a receive failure: Recv and
+// RecvInto skip such reads and keep waiting, so one malformed frame on the wire
+// cannot abort a sniff or end response collection early.
+var errNoValidPackets = errors.New("sendrecv: BPF read produced no valid packets")
+
 func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
+	deadline := time.Now().Add(timeout)
+	for {
+		pkt, err := r.recvOnce(timeout)
+		if !errors.Is(err, errNoValidPackets) {
+			return pkt, err
+		}
+		if timeout = time.Until(deadline); timeout <= 0 {
+			return nil, fmt.Errorf("%w: %v", ErrTimeout, err)
+		}
+	}
+}
+
+func (r *bpfReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
+	deadline := time.Now().Add(timeout)
+	for {
+		pkt, n, err := r.recvIntoOnce(buf, timeout)
+		if !errors.Is(err, errNoValidPackets) {
+			return pkt, n, err
+		}
+		if timeout = time.Until(deadline); timeout <= 0 {
+			return nil, 0, fmt.Errorf("%w: %v", ErrTimeout, err)
+		}
+	}
+}
+
+func (r *bpfReceiver) recvOnce(timeout time.Duration) (*packet.Packet, error) {
 	// Return a queued packet from a previous batch read if available.
 	if len(r.queue) > 0 {
 		pkt := r.queue[0]
@@ -367,14 +400,14 @@ func (r *bpfReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 
 	// Return the first parsed packet, keep the rest in the queue.
 	if len(r.queue) == 0 {
-		return nil, fmt.Errorf("sendrecv: BPF read produced no valid packets")
+		return nil, errNoValidPackets
 	}
 	pkt := r.queue[0]
 	r.queue = r.queue[1:]
 	return pkt, nil
 }
 
-func (r *bpfReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
+func (r *bpfReceiver) recvIntoOnce(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
 	// Return a queued packet from a previous batch read if available.
 	if len(r.queue) > 0 {
 		pkt := r.queue[0]
@@ -471,7 +504,7 @@ func (r *bpfReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packe
 	}
 
 	if len(r.queue) == 0 {
-		return nil, 0, fmt.Errorf("sendrecv: BPF read produced no valid packets")
+		return nil, 0, errNoValidPackets
 	}
 	pkt := r.queue[0]
 	r.queue = r.queue[1:]

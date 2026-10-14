@@ -208,40 +208,35 @@ func (r *afPacketReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
 }
 
 func (r *afPacketReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
-	timeoutMs := int(timeout.Milliseconds())
-	if timeoutMs <= 0 {
-		timeoutMs = -1
-	}
-
-	fds := []unix.PollFd{{Fd: int32(r.fd), Events: unix.POLLIN}}
-	n, err := unix.Poll(fds, timeoutMs)
-	if err != nil {
-		if err == unix.EINTR {
-			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+	deadline := time.Now().Add(timeout)
+	for {
+		// waitRecv rounds a sub-millisecond timeout up to 1ms; passing it to
+		// poll(2) as 0ms→-1 would block forever on a quiet interface.
+		if err := waitRecv(r.fd, timeout); err != nil {
+			return nil, 0, err
 		}
-		return nil, 0, fmt.Errorf("sendrecv: poll: %w", err)
-	}
-	if n == 0 {
-		return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
-	}
 
-	nRead, _, err := syscall.Recvfrom(r.fd, buf, syscall.MSG_DONTWAIT)
-	if err != nil {
-		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
-			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+		nRead, _, err := syscall.Recvfrom(r.fd, buf, syscall.MSG_DONTWAIT)
+		if err != nil {
+			if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
+				return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+			}
+			return nil, 0, fmt.Errorf("sendrecv: recvfrom: %w", err)
 		}
-		return nil, 0, fmt.Errorf("sendrecv: recvfrom: %w", err)
-	}
-	if nRead == 0 {
-		return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
-	}
+		if nRead == 0 {
+			return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
+		}
 
-	pkt, err := packet.Dissect(buf[:nRead], ethernetStartFn)
-	if err != nil {
-		return nil, nRead, fmt.Errorf("sendrecv: dissect: %w", err)
+		pkt, err := packet.Dissect(buf[:nRead], ethernetStartFn)
+		if err == nil {
+			return pkt, nRead, nil
+		}
+		// A frame that fails to dissect is not a receive failure: skip it (as
+		// the BPF and mmap receivers do) and keep waiting for the next one.
+		if timeout = time.Until(deadline); timeout <= 0 {
+			return nil, 0, fmt.Errorf("%w: last frame undissectable: %v", ErrTimeout, err)
+		}
 	}
-
-	return pkt, nRead, nil
 }
 
 func (r *afPacketReceiver) Close() error {
