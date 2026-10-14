@@ -204,6 +204,9 @@ func ParseLongHeader(data []byte) (*QUICLongHeader, error) {
 	offset += dcidLen
 
 	// SCID
+	if offset >= len(data) {
+		return nil, fmt.Errorf("quic: SCID length truncated")
+	}
 	scidLen := int(data[offset])
 	offset++
 	if offset+scidLen > len(data) {

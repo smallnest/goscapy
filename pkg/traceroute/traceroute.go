@@ -135,7 +135,10 @@ func Traceroute(dst string, opts Options) (*TracerouteResult, error) {
 			icmpLayer := resp.GetLayer("ICMP")
 			if icmpLayer != nil {
 				if typeVal, err := icmpLayer.Get("type"); err == nil && typeVal != nil {
-					if typeVal.(uint8) == 0 {
+					// Echo Reply, or Destination Unreachable sent by the target
+					// itself (Port Unreachable is how a UDP probe is answered).
+					typ := typeVal.(uint8)
+					if typ == 0 || (typ == 3 && hop.IP == dstIP4.String()) {
 						reached = true
 					}
 				}

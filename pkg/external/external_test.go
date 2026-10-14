@@ -23,14 +23,14 @@ func TestWritePcapTemp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	// The temp file must be a readable pcap with 2 packets.
 	f, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	rd, err := pcap.NewReader(f)
 	if err != nil {
 		t.Fatal(err)

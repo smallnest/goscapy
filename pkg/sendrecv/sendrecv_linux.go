@@ -3,8 +3,10 @@
 package sendrecv
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -202,46 +204,60 @@ func openReceiver(iface string) (Receiver, error) {
 }
 
 func (r *afPacketReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
-	buf := make([]byte, 65536)
-	pkt, _, err := r.RecvInto(buf, timeout)
+	// A dissected packet aliases the bytes it was parsed from, so parsing in
+	// a fresh 64 KB buffer pinned 64 KB for every packet a caller kept. Read
+	// into a pooled buffer and dissect an exact-size copy instead.
+	buf := recvBufPool.Get().(*[]byte)
+	defer recvBufPool.Put(buf)
+	pkt, _, err := r.recvInto(*buf, timeout, true)
 	return pkt, err
 }
 
+var recvBufPool = sync.Pool{New: func() any {
+	b := make([]byte, 65536)
+	return &b
+}}
+
 func (r *afPacketReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
-	timeoutMs := int(timeout.Milliseconds())
-	if timeoutMs <= 0 {
-		timeoutMs = -1
-	}
+	return r.recvInto(buf, timeout, false)
+}
 
-	fds := []unix.PollFd{{Fd: int32(r.fd), Events: unix.POLLIN}}
-	n, err := unix.Poll(fds, timeoutMs)
-	if err != nil {
-		if err == unix.EINTR {
-			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+// recvInto reads one frame into buf and dissects it; with clone set, the
+// packet is dissected from a copy and does not alias buf.
+func (r *afPacketReceiver) recvInto(buf []byte, timeout time.Duration, clone bool) (*packet.Packet, int, error) {
+	deadline := time.Now().Add(timeout)
+	for {
+		// waitRecv rounds a sub-millisecond timeout up to 1ms; passing it to
+		// poll(2) as 0ms→-1 would block forever on a quiet interface.
+		if err := waitRecv(r.fd, timeout); err != nil {
+			return nil, 0, err
 		}
-		return nil, 0, fmt.Errorf("sendrecv: poll: %w", err)
-	}
-	if n == 0 {
-		return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
-	}
 
-	nRead, _, err := syscall.Recvfrom(r.fd, buf, syscall.MSG_DONTWAIT)
-	if err != nil {
-		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
-			return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+		nRead, _, err := syscall.Recvfrom(r.fd, buf, syscall.MSG_DONTWAIT)
+		if err != nil {
+			if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
+				return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
+			}
+			return nil, 0, fmt.Errorf("sendrecv: recvfrom: %w", err)
 		}
-		return nil, 0, fmt.Errorf("sendrecv: recvfrom: %w", err)
-	}
-	if nRead == 0 {
-		return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
-	}
+		if nRead == 0 {
+			return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
+		}
 
-	pkt, err := packet.Dissect(buf[:nRead], ethernetStartFn)
-	if err != nil {
-		return nil, nRead, fmt.Errorf("sendrecv: dissect: %w", err)
+		frame := buf[:nRead]
+		if clone {
+			frame = bytes.Clone(frame)
+		}
+		pkt, err := packet.Dissect(frame, ethernetStartFn)
+		if err == nil {
+			return pkt, nRead, nil
+		}
+		// A frame that fails to dissect is not a receive failure: skip it (as
+		// the BPF and mmap receivers do) and keep waiting for the next one.
+		if timeout = time.Until(deadline); timeout <= 0 {
+			return nil, 0, fmt.Errorf("%w: last frame undissectable: %v", ErrTimeout, err)
+		}
 	}
-
-	return pkt, nRead, nil
 }
 
 func (r *afPacketReceiver) Close() error {

@@ -1,11 +1,13 @@
 package tcpstream
 
 import (
+	"bytes"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/smallnest/goscapy/pkg/layers"
+	_ "github.com/smallnest/goscapy/pkg/layers/http"
 	"github.com/smallnest/goscapy/pkg/packet"
 )
 
@@ -339,5 +341,45 @@ func TestStreamTimeout(t *testing.T) {
 
 	if r.Stats() != 0 {
 		t.Errorf("Stats() after timeout = %d, want 0", r.Stats())
+	}
+}
+
+// A segment that dissects as an application layer has no Raw layer (or only
+// a Raw tail); the stream must still get every byte above TCP.
+func TestAppLayerPayload(t *testing.T) {
+	want := []byte("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n")
+	eth := layers.NewEthernetWith("02:00:00:00:00:02", "02:00:00:00:00:01", 0x0800)
+	built, err := packet.NewFrom(append([]*packet.Layer{eth},
+		makeTCPPacket("10.0.0.1", "10.0.0.2", 12345, 80, 1000, layers.TCPAck, want).Layers()...)...).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkt, err := packet.Dissect(built, func([]byte) (string, error) { return "Ethernet", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pkt.HasLayer("HTTP") {
+		t.Fatalf("got %s, want an HTTP layer", pkt)
+	}
+
+	r := New()
+	defer r.Close()
+	s := r.Submit(pkt)
+	if s == nil || !bytes.Equal(s.ClientBytes, want) {
+		t.Fatalf("stream = %+v, want ClientBytes %q", s, want)
+	}
+}
+
+// Bytes handed out by Submit must not change when later segments arrive.
+func TestSubmitResultStable(t *testing.T) {
+	r := New()
+	defer r.Close()
+	first := r.Submit(makeTCPPacket("10.0.0.1", "10.0.0.2", 1, 9999, 100, layers.TCPAck, []byte("abc")))
+	r.Submit(makeTCPPacket("10.0.0.1", "10.0.0.2", 1, 9999, 103, layers.TCPAck, []byte("def")))
+	if got := append(first.ClientBytes, 'X'); string(got) != "abcX" {
+		t.Fatalf("append to first result = %q, want abcX", got)
+	}
+	if s := r.ReadStream(first.ID); string(s.ClientBytes) != "abcdef" {
+		t.Fatalf("stream = %q, want abcdef", s.ClientBytes)
 	}
 }

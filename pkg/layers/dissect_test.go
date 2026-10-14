@@ -128,7 +128,8 @@ func TestDissectEthernetIPICMP(t *testing.T) {
 }
 
 func TestDissectEthernetIPTCPRaw(t *testing.T) {
-	// Same bytes as TestBuildEthernetIPTCPRaw produces.
+	// Same bytes as TestBuildEthernetIPTCPRaw produces, except dport 9999 (a
+	// port with no application-layer heuristic) so the payload stays Raw.
 	raw := []byte{
 		// Ethernet (14 bytes)
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -141,7 +142,7 @@ func TestDissectEthernetIPTCPRaw(t *testing.T) {
 		0xc0, 0xa8, 0x01, 0x01,
 		0x08, 0x08, 0x08, 0x08,
 		// TCP (20 bytes)
-		0x30, 0x39, 0x00, 0x50,
+		0x30, 0x39, 0x27, 0x0f,
 		0x00, 0x00, 0x03, 0xe8,
 		0x00, 0x00, 0x00, 0x00,
 		0x50, 0x02, 0x20, 0x00,
@@ -188,8 +189,8 @@ func TestDissectEthernetIPTCPRaw(t *testing.T) {
 		t.Errorf("TCP.sport = %d, want 12345", sport)
 	}
 	dport, _ := tcp.Get("dport")
-	if dport.(uint16) != 80 {
-		t.Errorf("TCP.dport = %d, want 80", dport)
+	if dport.(uint16) != 9999 {
+		t.Errorf("TCP.dport = %d, want 9999", dport)
 	}
 	seq, _ := tcp.Get("seq")
 	if seq.(uint32) != 1000 {
@@ -557,7 +558,7 @@ func TestDissectRoundTripEthernetIPTCPRaw(t *testing.T) {
 	_ = ip.Set("src", "192.168.1.1")
 	_ = ip.Set("dst", "8.8.8.8")
 
-	tcp := NewTCPWith(12345, 80, TCPSyn)
+	tcp := NewTCPWith(12345, 9999, TCPSyn)
 	_ = tcp.Set("seq", uint32(1000))
 
 	raw := NewRawWith([]byte("hello"))
@@ -587,8 +588,8 @@ func TestDissectRoundTripEthernetIPTCPRaw(t *testing.T) {
 		t.Errorf("TCP.sport = %d, want 12345", sport)
 	}
 	dport, _ := parsedTCP.Get("dport")
-	if dport.(uint16) != 80 {
-		t.Errorf("TCP.dport = %d, want 80", dport)
+	if dport.(uint16) != 9999 {
+		t.Errorf("TCP.dport = %d, want 9999", dport)
 	}
 	parsedSeq, _ := parsedTCP.Get("seq")
 	if parsedSeq.(uint32) != 1000 {
@@ -1299,5 +1300,142 @@ func TestIPv6UDPChecksumMandatory(t *testing.T) {
 	chksum := uint16(built[46])<<8 | uint16(built[47])
 	if chksum == 0 {
 		t.Errorf("IPv6 UDP checksum = 0, but it's mandatory per RFC 2460")
+	}
+}
+
+// ---- regression tests: heuristics, padding, IP options, fragments ----
+
+// udpFrame builds Ethernet/IP/UDP with the given ports and payload bytes.
+func udpFrame(t *testing.T, sport, dport uint16, payload []byte) []byte {
+	t.Helper()
+	ip := NewIP()
+	_ = ip.Set("src", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.2"))
+	pkt := NewEthernetWith("02:00:00:00:00:02", "02:00:00:00:00:01", 0x0800).Over(ip)
+	pkt.Push(NewUDPWith(sport, dport))
+	pkt.Push(NewRawWith(payload))
+	b, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func TestDissectPortHeuristicBothDirections(t *testing.T) {
+	dnsHdr := make([]byte, 12)
+	// A request (dport 53) and a response (sport 53) must both dissect as DNS.
+	for _, ports := range [][2]uint16{{40000, 53}, {53, 40000}} {
+		pkt, err := packet.Dissect(udpFrame(t, ports[0], ports[1], dnsHdr), ethernetStartFn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !pkt.HasLayer("DNS") {
+			t.Errorf("sport=%d dport=%d: got %s, want a DNS layer", ports[0], ports[1], pkt)
+		}
+	}
+	// A guessed layer whose bytes don't fit falls back to Raw, not an error.
+	pkt, err := packet.Dissect(udpFrame(t, 40000, 53, []byte("abcd")), ethernetStartFn)
+	if err != nil {
+		t.Fatalf("short payload on a heuristic port: %v", err)
+	}
+	if got := pkt.String(); got != "Ethernet / IP / UDP / Raw" {
+		t.Errorf("got %q, want Ethernet / IP / UDP / Raw", got)
+	}
+	// Same for a guessed tunnel whose inner frame doesn't parse (VXLAN port,
+	// 8-byte VXLAN header, then too few bytes for an inner Ethernet header).
+	pkt, err = packet.Dissect(udpFrame(t, 40000, 4789, make([]byte, 11)), ethernetStartFn)
+	if err != nil {
+		t.Fatalf("short payload on a heuristic tunnel port: %v", err)
+	}
+	if got := pkt.String(); got != "Ethernet / IP / UDP / VXLAN / Raw" {
+		t.Errorf("got %q, want Ethernet / IP / UDP / VXLAN / Raw", got)
+	}
+}
+
+func TestDissectDropsLinkLayerPadding(t *testing.T) {
+	ip := NewIP()
+	_ = ip.Set("src", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.2"))
+	pkt := NewEthernetWith("02:00:00:00:00:02", "02:00:00:00:00:01", 0x0800).Over(ip)
+	pkt.Push(NewTCPWith(1234, 5678, TCPAck))
+	b, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b = append(b, make([]byte, 6)...) // pad the 54-byte frame to Ethernet's 60
+	got, err := packet.Dissect(b, ethernetStartFn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.HasLayer("Raw") {
+		t.Errorf("padding dissected as payload: %s", got)
+	}
+}
+
+func TestIPOptionsRoundTrip(t *testing.T) {
+	ip := NewIP()
+	_ = ip.Set("src", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.2"))
+	_ = ip.Set("options", []byte{1, 1, 1, 1}) // four NOPs
+	pkt := ip.Over(NewUDPWith(1, 2))
+	pkt.Push(NewRawWith([]byte("hello")))
+	want, err := pkt.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want[0] != 0x46 || len(want) != 24+8+5 {
+		t.Fatalf("built verihl=%#x len=%d, want 0x46 and 37", want[0], len(want))
+	}
+	parsed, err := packet.DissectByProto(want, "IP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := parsed.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("round trip changed bytes:\n got %x\nwant %x", got, want)
+	}
+}
+
+func TestDissectFragmentStaysRaw(t *testing.T) {
+	ip := NewIP()
+	_ = ip.Set("src", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.2"))
+	pkt := ip.Over(NewUDPWith(1111, 2222))
+	pkt.Push(NewRawWith(make([]byte, 64)))
+	frags, err := Fragment(pkt, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, f := range frags {
+		b, err := f.Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed, err := packet.DissectByProto(b, "IP")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := parsed.String(); got != "IP / Raw" {
+			t.Errorf("fragment %d dissected as %q, want IP / Raw", i, got)
+		}
+	}
+}
+
+func TestDissectIPv6RoutingNextLayer(t *testing.T) {
+	raw := make([]byte, 40+8+20)
+	raw[0] = 0x60
+	raw[5] = 28         // payload length: routing header + TCP
+	raw[6] = 43         // next header: Routing
+	raw[40] = 6         // routing header's next header: TCP
+	raw[40+8+12] = 0x50 // TCP data offset
+	pkt, err := packet.Dissect(raw, func([]byte) (string, error) { return "IPv6", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := pkt.String(); got != "IPv6 / IPv6 Routing / TCP" {
+		t.Errorf("got %q, want IPv6 / IPv6 Routing / TCP", got)
 	}
 }

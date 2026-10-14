@@ -295,3 +295,39 @@ func TestDefaultMatchICMPTimeExceeded(t *testing.T) {
 		t.Fatal("expected match for ICMP Time Exceeded as response to Echo Request")
 	}
 }
+
+// Packets built with the goscapy builders hold addresses as strings; the
+// address checks must still apply (they used to be skipped silently).
+func TestDefaultMatchStringAddresses(t *testing.T) {
+	sentIP := layers.NewIP()
+	_ = sentIP.Set("dst", "10.0.0.2")
+	icmp := layers.NewICMP()
+	_ = icmp.Set("id", uint16(7))
+	sent := packet.NewFrom(sentIP, icmp)
+	echoReplyFrom := func(src string) *packet.Packet {
+		ip := layers.NewIP()
+		_ = ip.Set("src", net.ParseIP(src))
+		reply := layers.NewICMPEcho(7, 0)
+		_ = reply.Set("type", icmpEchoReply)
+		return ip.Over(reply)
+	}
+	if DefaultMatch(sent)(sent, echoReplyFrom("99.99.99.99")) {
+		t.Error("ICMP echo reply from the wrong host matched")
+	}
+	if !DefaultMatch(sent)(sent, echoReplyFrom("10.0.0.2")) {
+		t.Error("ICMP echo reply from the target did not match")
+	}
+
+	req := layers.NewARP()
+	_ = req.Set("op", arpWhoHas)
+	_ = req.Set("psrc", "192.168.1.10")
+	_ = req.Set("pdst", "192.168.1.77")
+	reply := layers.NewARP()
+	_ = reply.Set("op", arpIsAt)
+	_ = reply.Set("psrc", net.ParseIP("192.168.1.5")) // some other host answering someone else
+	_ = reply.Set("pdst", net.ParseIP("192.168.1.99"))
+	arpSent := packet.NewFrom(req)
+	if DefaultMatch(arpSent)(arpSent, packet.NewFrom(reply)) {
+		t.Error("ARP reply from an unrelated host matched")
+	}
+}

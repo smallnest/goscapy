@@ -36,6 +36,11 @@ const (
 	blockTypeSPB = 0x00000003 // Simple Packet Block
 )
 
+// maxBlockLen caps a pcapng block (libpcap uses the same 16 MiB limit). The
+// length comes straight from the file and sizes an allocation, so without a
+// cap a 12-byte file could ask for 4 GB.
+const maxBlockLen = 16 << 20
+
 // PacketRecord represents a single captured packet with metadata.
 type PacketRecord struct {
 	Timestamp  time.Time
@@ -225,6 +230,9 @@ func newPcapngReader(r io.Reader, firstBytes []byte) (*Reader, error) {
 
 	// Skip the rest of SHB (version + section length + options + trailing length).
 	// We already read: block_type(4) + block_total_length(4) + byte_order_magic(4) = 12 bytes.
+	if blockLen > maxBlockLen {
+		return nil, fmt.Errorf("pcap: SHB length %d exceeds %d", blockLen, maxBlockLen)
+	}
 	remaining := int(blockLen) - 12
 	if remaining > 0 {
 		if _, err := io.ReadFull(r, make([]byte, remaining)); err != nil {
@@ -261,7 +269,7 @@ func (rd *Reader) parsePcapngMetadata() error {
 		blockType := rd.byteOrder.Uint32(blockHeader[0:4])
 		blockLen := rd.byteOrder.Uint32(blockHeader[4:8])
 
-		if blockLen < 12 {
+		if blockLen < 12 || blockLen > maxBlockLen {
 			// Push back header and let readPcapngPacket handle it.
 			pr.pushBack(blockHeader[:])
 			rd.r = pr
@@ -332,7 +340,7 @@ func (rd *Reader) readPcapngPacket() (*PacketRecord, error) {
 		blockType := rd.byteOrder.Uint32(blockHeader[0:4])
 		blockLen := rd.byteOrder.Uint32(blockHeader[4:8])
 
-		if blockLen < 12 {
+		if blockLen < 12 || blockLen > maxBlockLen {
 			return nil, fmt.Errorf("pcap: invalid block length %d", blockLen)
 		}
 

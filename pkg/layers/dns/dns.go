@@ -116,6 +116,11 @@ func DecodeName(msg []byte, offset int, msgStart int) (string, int, error) {
 				counting = false
 			}
 			pos = msgStart + ptr
+			if pos < 0 {
+				// msgStart is negative when msg starts after the DNS header
+				// (see GetQuestions); a pointer into the header has no target.
+				return "", consumed, fmt.Errorf("dns: compression pointer out of range: %d", ptr)
+			}
 			hops++
 			continue
 		}
@@ -219,27 +224,40 @@ func BuildRR(rr DNSRR) []byte {
 	return buf
 }
 
+// layerData returns a DNS layer's "data" field as bytes. It is []byte after
+// dissection but a string on a freshly built layer (the field's default).
+func layerData(layer *packet.Layer) []byte {
+	switch v, _ := layer.Get("data"); d := v.(type) {
+	case []byte:
+		return d
+	case string:
+		return []byte(d)
+	}
+	return nil
+}
+
+// layerCount returns one of a DNS layer's uint16 section counters.
+func layerCount(layer *packet.Layer, name string) int {
+	v, _ := layer.Get(name)
+	n, _ := v.(uint16)
+	return int(n)
+}
+
 // GetQuestions extracts parsed DNSQuestion entries from a DNS layer.
 func GetQuestions(layer *packet.Layer) ([]DNSQuestion, error) {
-	data, _ := layer.Get("data")
-	qdcount, _ := layer.Get("qdcount")
-	b := data.([]byte)
-	qs, _, err := ParseQuestions(b, 0, int(qdcount.(uint16)), -12)
+	qs, _, err := ParseQuestions(layerData(layer), 0, layerCount(layer, "qdcount"), -12)
 	return qs, err
 }
 
 // GetAnswers extracts parsed DNSRR entries (answer section) from a DNS layer.
 func GetAnswers(layer *packet.Layer) ([]DNSRR, error) {
-	data, _ := layer.Get("data")
-	qdcount, _ := layer.Get("qdcount")
-	ancount, _ := layer.Get("ancount")
-	b := data.([]byte)
+	b := layerData(layer)
 	// Skip questions first.
-	_, qConsumed, err := ParseQuestions(b, 0, int(qdcount.(uint16)), -12)
+	_, qConsumed, err := ParseQuestions(b, 0, layerCount(layer, "qdcount"), -12)
 	if err != nil {
 		return nil, err
 	}
-	rr, _, err := ParseRRs(b, qConsumed, int(ancount.(uint16)), -12)
+	rr, _, err := ParseRRs(b, qConsumed, layerCount(layer, "ancount"), -12)
 	return rr, err
 }
 

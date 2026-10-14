@@ -152,11 +152,15 @@ func srFlood(ctx context.Context, pkt *packet.Packet, iface string, opts SrFlood
 		opts.Match = DefaultMatch(pkt)
 	}
 
+	// Always derive a cancellable context: the collector goroutine below only
+	// exits on ctx.Done(), so a send error must be able to stop it.
+	var cancel context.CancelFunc
 	if opts.Duration > 0 {
-		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Duration)
-		defer cancel()
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
 	}
+	defer cancel()
 
 	// Optional concurrent response collection.
 	var (
@@ -217,6 +221,7 @@ func srFlood(ctx context.Context, pkt *packet.Packet, iface string, opts SrFlood
 		}
 		if sendErr != nil {
 			if opts.Collect {
+				cancel() // otherwise the collector runs (and we block) until ctx ends
 				<-respDone
 			}
 			return sent, responses, sendErr

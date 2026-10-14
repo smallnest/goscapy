@@ -31,6 +31,19 @@ const (
 	bootReply   uint8 = 2
 )
 
+// asIP converts an address field value to net.IP. Dissected packets hold
+// net.IP, but packets built with the goscapy builders (SrcIP/DstIP) hold the
+// string form, so both must be understood or the address checks are skipped.
+func asIP(v any) net.IP {
+	switch t := v.(type) {
+	case net.IP:
+		return t
+	case string:
+		return net.ParseIP(t)
+	}
+	return nil
+}
+
 // DefaultMatch returns a MatchFunc that uses protocol-specific heuristics to
 // match a received packet against the sent packet. The matching logic is:
 //
@@ -68,7 +81,7 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 	var sentDstIP net.IP
 	if sentIP != nil {
 		if v, err := sentIP.Get("dst"); err == nil {
-			sentDstIP, _ = v.(net.IP)
+			sentDstIP = asIP(v)
 		}
 	}
 
@@ -148,10 +161,10 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 			sentARPOp, _ = v.(uint16)
 		}
 		if v, err := sentARP.Get("psrc"); err == nil {
-			sentARPPsrc, _ = v.(net.IP)
+			sentARPPsrc = asIP(v)
 		}
 		if v, err := sentARP.Get("pdst"); err == nil {
-			sentARPPdst, _ = v.(net.IP)
+			sentARPPdst = asIP(v)
 		}
 	}
 
@@ -196,8 +209,7 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 				if err != nil {
 					return false
 				}
-				recvPsrcIP, ok := recvPsrc.(net.IP)
-				if !ok || !recvPsrcIP.Equal(sentARPPdst) {
+				if !asIP(recvPsrc).Equal(sentARPPdst) {
 					return false
 				}
 			}
@@ -208,8 +220,7 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 				if err != nil {
 					return false
 				}
-				recvPdstIP, ok := recvPdst.(net.IP)
-				if !ok || !recvPdstIP.Equal(sentARPPsrc) {
+				if !asIP(recvPdst).Equal(sentARPPsrc) {
 					return false
 				}
 			}
@@ -228,8 +239,7 @@ func DefaultMatch(sent *packet.Packet) MatchFunc {
 			if err != nil {
 				return false
 			}
-			recvSrcIP, ok := recvSrc.(net.IP)
-			if !ok || !recvSrcIP.Equal(sentDstIP) {
+			if !asIP(recvSrc).Equal(sentDstIP) {
 				return false
 			}
 		}

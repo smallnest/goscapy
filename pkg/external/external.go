@@ -72,25 +72,7 @@ func Wireshark(linkType uint32, pkts ...*packet.Packet) (path string, err error)
 //
 // It requires the "tcpdump" binary on PATH.
 func Tcpdump(linkType uint32, args []string, pkts ...*packet.Packet) (string, error) {
-	bin, err := exec.LookPath("tcpdump")
-	if err != nil {
-		return "", fmt.Errorf("external: tcpdump not found on PATH: %w", err)
-	}
-	path, err := WritePcapTemp(linkType, pkts...)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = os.Remove(path) }()
-
-	full := append([]string{"-r", path}, args...)
-	cmd := exec.Command(bin, full...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	if err := cmd.Run(); err != nil {
-		return out.String(), fmt.Errorf("external: tcpdump: %w", err)
-	}
-	return out.String(), nil
+	return runOnPcap("tcpdump", linkType, args, pkts)
 }
 
 // Tshark writes pkts to a temporary pcap, runs `tshark -r <file> <args...>` to
@@ -99,9 +81,15 @@ func Tcpdump(linkType uint32, args []string, pkts ...*packet.Packet) (string, er
 //
 // It requires the "tshark" binary on PATH.
 func Tshark(linkType uint32, args []string, pkts ...*packet.Packet) (string, error) {
-	bin, err := exec.LookPath("tshark")
+	return runOnPcap("tshark", linkType, args, pkts)
+}
+
+// runOnPcap writes pkts to a temporary pcap, runs `<tool> -r <file> <args...>`
+// to completion, removes the temp file, and returns the combined output.
+func runOnPcap(tool string, linkType uint32, args []string, pkts []*packet.Packet) (string, error) {
+	bin, err := exec.LookPath(tool)
 	if err != nil {
-		return "", fmt.Errorf("external: tshark not found on PATH: %w", err)
+		return "", fmt.Errorf("external: %s not found on PATH: %w", tool, err)
 	}
 	path, err := WritePcapTemp(linkType, pkts...)
 	if err != nil {
@@ -115,7 +103,7 @@ func Tshark(linkType uint32, args []string, pkts ...*packet.Packet) (string, err
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
-		return out.String(), fmt.Errorf("external: tshark: %w", err)
+		return out.String(), fmt.Errorf("external: %s: %w", tool, err)
 	}
 	return out.String(), nil
 }

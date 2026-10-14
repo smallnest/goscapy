@@ -65,7 +65,7 @@ func main() {
 	var buf bytes.Buffer
 	_ = pl.WritePcapWriter(&buf, pcap.LinkTypeEthernet)
 	tmp, _ := os.CreateTemp("", "goscapy-*.pcap")
-	defer os.Remove(tmp.Name())
+	defer func() { _ = os.Remove(tmp.Name()) }()
 	_, _ = tmp.Write(buf.Bytes())
 	_ = tmp.Close()
 

@@ -331,3 +331,9 @@ func TestBuildExtensions(t *testing.T) {
 		t.Errorf("extensions size = %d, want 11", len(raw))
 	}
 }
+
+func TestParseServerHelloTruncatedAtSessionID(t *testing.T) {
+	if _, err := ParseServerHello(make([]byte, 34)); err == nil {
+		t.Error("expected error for ServerHello ending before the session ID length")
+	}
+}

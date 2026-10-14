@@ -637,3 +637,18 @@ func TestParseDNSWithCompressedResponse(t *testing.T) {
 		t.Errorf("RR name = %q, want \"example.com\"", answers[0].Name)
 	}
 }
+
+// A compression pointer into the 12-byte header (which "data" excludes) used
+// to index before the start of the slice and panic.
+func TestGetQuestionsPointerIntoHeader(t *testing.T) {
+	l := NewDNS()
+	_ = l.Set("qdcount", uint16(1))
+	_ = l.Set("data", []byte{0xc0, 0x00, 0, 1, 0, 1})
+	if _, err := GetQuestions(l); err == nil {
+		t.Error("expected an error for a pointer into the header")
+	}
+	// A freshly built layer holds "data" as its string default.
+	if _, err := GetQuestions(NewDNS()); err != nil {
+		t.Errorf("GetQuestions on a new layer: %v", err)
+	}
+}
