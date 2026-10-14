@@ -1,6 +1,7 @@
 package reassembly
 
 import (
+	"bytes"
 	"net"
 	"testing"
 	"time"
@@ -269,4 +270,56 @@ func TestNoIPLayerPassthrough(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected non-IP packet to pass through")
 	}
+}
+
+// Fragments as a sniffer sees them: built to wire bytes with an Ethernet
+// header, then dissected. Reassembly must return the original UDP datagram.
+func TestReassembleDissectedEthernetFragments(t *testing.T) {
+	payload := bytes.Repeat([]byte("ABCDEFGH"), 400)
+	ip := layers.NewIP()
+	_ = ip.Set("src", net.ParseIP("10.0.0.1"))
+	_ = ip.Set("dst", net.ParseIP("10.0.0.2"))
+	_ = ip.Set("id", uint16(42))
+	orig := layers.NewEthernetWith("02:00:00:00:00:02", "02:00:00:00:00:01", 0x0800).Over(ip)
+	orig.Push(layers.NewUDPWith(1111, 2222))
+	orig.Push(layers.NewRawWith(payload))
+	frags, err := layers.Fragment(orig, 1480)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := New()
+	defer r.Close()
+	var out *packet.Packet
+	for _, f := range frags {
+		b, err := f.Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		d, err := packet.DissectByProto(b, "Ethernet")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = r.Submit(d)
+	}
+	if out == nil {
+		t.Fatal("reassembly did not complete")
+	}
+	udpLen, _ := out.GetLayer("UDP").Get("len")
+	if udpLen != uint16(8+len(payload)) {
+		t.Errorf("UDP len = %v, want %d", udpLen, 8+len(payload))
+	}
+	load, _ := out.GetLayer("Raw").Get("load")
+	if got, _ := load.([]byte); !bytes.Equal(got, payload) {
+		t.Errorf("reassembled payload differs (len %d, want %d)", len(got), len(payload))
+	}
+}
+
+// A fragment whose offset lies beyond the final fragment's end must be
+// ignored, not panic the reassembler.
+func TestFragmentBeyondFinalEnd(t *testing.T) {
+	r := New()
+	defer r.Close()
+	r.Submit(buildFragment("10.0.0.1", "10.0.0.2", 7, 17, 100, true, make([]byte, 100)))
+	r.Submit(buildFragment("10.0.0.1", "10.0.0.2", 7, 17, 1, false, make([]byte, 8)))
 }

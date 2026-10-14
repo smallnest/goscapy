@@ -3,6 +3,7 @@ package packet
 import (
 	"fmt"
 	"net"
+	"slices"
 	"testing"
 
 	"github.com/smallnest/goscapy/pkg/fields"
@@ -152,8 +153,8 @@ func TestRegisterHeuristic(t *testing.T) {
 	RegisterHeuristic("TestLower", "type", uint16(0x9999), "TestUpper")
 
 	// Verify key field was registered.
-	if dissectRegistry.keyField["TestLower"] != "type" {
-		t.Errorf("keyField not registered: got %q", dissectRegistry.keyField["TestLower"])
+	if !slices.Contains(dissectRegistry.keyFields["TestLower"], "type") {
+		t.Errorf("keyField not registered: got %q", dissectRegistry.keyFields["TestLower"])
 	}
 
 	// Verify next layer mapping.
@@ -163,7 +164,7 @@ func TestRegisterHeuristic(t *testing.T) {
 	}
 
 	// Clean up.
-	delete(dissectRegistry.keyField, "TestLower")
+	delete(dissectRegistry.keyFields, "TestLower")
 	delete(dissectRegistry.nextLayer, "TestLower")
 }
 
@@ -178,7 +179,7 @@ func TestRegisterHeuristicMultipleValues(t *testing.T) {
 		t.Error("nextLayer[443] != HTTPS")
 	}
 
-	delete(dissectRegistry.keyField, "MultiProto")
+	delete(dissectRegistry.keyFields, "MultiProto")
 	delete(dissectRegistry.nextLayer, "MultiProto")
 }
 

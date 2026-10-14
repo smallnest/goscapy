@@ -2,6 +2,7 @@ package packet
 
 import (
 	"fmt"
+	"slices"
 )
 
 // LayerFactory creates a new empty Layer for the given protocol name.
@@ -32,15 +33,23 @@ type PostParseHook func(layer *Layer, extra []byte) error
 // of the payload. Returning "" falls back to key-field / heuristic resolution.
 type NextLayerFunc func(layer *Layer, remaining []byte) string
 
+// TotalLenFunc returns the total on-wire length (header + payload) that a
+// parsed layer declares for itself, e.g. the IPv4 "len" field. Bytes beyond it
+// are link-layer padding/trailer (an Ethernet frame is padded to 60 bytes) and
+// do not belong to the upper layers. Return 0 when the length is unknown.
+type TotalLenFunc func(layer *Layer) int
+
 type dissectReg struct {
 	factories      map[string]LayerFactory
 	nextLayer      map[string]map[uint64]string // proto → field value → next proto name
-	keyField       map[string]string            // proto → field name used for next-layer lookup
+	keyFields      map[string][]string          // proto → field names tried in order for next-layer lookup
 	headerSizeFn   map[string]HeaderSizeFunc    // proto → function to compute variable header size
 	dissectors     map[string]DissectorFunc     // proto → function to identify this protocol from raw bytes
 	tunnelPayload  map[string]string            // proto → inner proto for tunnel-encapsulated payloads
 	postParseHooks map[string]PostParseHook     // proto → hook called after fixed fields are parsed
 	nextLayerFns   map[string]NextLayerFunc     // proto → function resolving next layer from payload
+	totalLenFns    map[string]TotalLenFunc      // proto → function returning the layer's declared total length
+	guessed        map[string]map[string]bool   // lower proto → next protos chosen only by heuristic (RegisterHeuristic)
 }
 
 // dissectRegistry holds all protocol dissection registrations.
@@ -49,12 +58,14 @@ type dissectReg struct {
 var dissectRegistry = dissectReg{
 	factories:      make(map[string]LayerFactory),
 	nextLayer:      make(map[string]map[uint64]string),
-	keyField:       make(map[string]string),
+	keyFields:      make(map[string][]string),
 	headerSizeFn:   make(map[string]HeaderSizeFunc),
 	dissectors:     make(map[string]DissectorFunc),
 	tunnelPayload:  make(map[string]string),
 	postParseHooks: make(map[string]PostParseHook),
 	nextLayerFns:   make(map[string]NextLayerFunc),
+	totalLenFns:    make(map[string]TotalLenFunc),
+	guessed:        make(map[string]map[string]bool),
 }
 
 // RegisterLayer registers a layer factory for the given protocol name.
@@ -71,10 +82,13 @@ func RegisterNextLayer(proto string, keyValue uint64, nextProto string) {
 	dissectRegistry.nextLayer[proto][keyValue] = nextProto
 }
 
-// RegisterKeyField registers which field of a layer is used to determine
-// the next upper-layer protocol.
+// RegisterKeyField registers a field of a layer used to determine the next
+// upper-layer protocol. A protocol may have several key fields (UDP/TCP are
+// matched on both dport and sport); they are tried in registration order.
 func RegisterKeyField(proto, fieldName string) {
-	dissectRegistry.keyField[proto] = fieldName
+	if !slices.Contains(dissectRegistry.keyFields[proto], fieldName) {
+		dissectRegistry.keyFields[proto] = append(dissectRegistry.keyFields[proto], fieldName)
+	}
 }
 
 // RegisterHeaderSizeFunc registers a function that computes the actual wire
@@ -101,6 +115,10 @@ func RegisterDissector(proto string, fn DissectorFunc) {
 func RegisterHeuristic(lowerProto, field string, value any, nextProto string) {
 	RegisterKeyField(lowerProto, field)
 	RegisterNextLayer(lowerProto, toUint64(value), nextProto)
+	if dissectRegistry.guessed[lowerProto] == nil {
+		dissectRegistry.guessed[lowerProto] = make(map[string]bool)
+	}
+	dissectRegistry.guessed[lowerProto][nextProto] = true
 }
 
 // RegisterPostParseHook registers a hook called after a layer's fixed fields
@@ -117,6 +135,13 @@ func RegisterPostParseHook(proto string, hook PostParseHook) {
 // rather than a single header field.
 func RegisterNextLayerFunc(proto string, fn NextLayerFunc) {
 	dissectRegistry.nextLayerFns[proto] = fn
+}
+
+// RegisterTotalLenFunc registers a function reporting the total length a
+// layer declares for itself, so dissection can drop trailing link-layer
+// padding instead of handing it to the upper layers as payload.
+func RegisterTotalLenFunc(proto string, fn TotalLenFunc) {
+	dissectRegistry.totalLenFns[proto] = fn
 }
 
 // RegisterTunnelPayload marks a protocol as a tunnel whose payload starts
@@ -172,6 +197,7 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 	pkt := New()
 	remaining := raw
 	currentProto := firstProto
+	guessed := false // currentProto was picked by a heuristic, not a definite binding
 
 	for currentProto != "" {
 		factory, ok := dissectRegistry.factories[currentProto]
@@ -182,7 +208,13 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 		layer := factory()
 		consumed, err := layer.ParseFields(remaining)
 		if err != nil {
-			return nil, fmt.Errorf("packet: Dissect: layer %s: %w", currentProto, err)
+			if !guessed {
+				return nil, fmt.Errorf("packet: Dissect: layer %s: %w", currentProto, err)
+			}
+			// The layer was only guessed (e.g. from a port number) and the
+			// bytes don't fit it: keep them as a Raw payload, like Scapy does,
+			// rather than failing the layers already parsed.
+			break
 		}
 
 		actualHeaderSize := consumed
@@ -205,6 +237,13 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 			}
 		}
 
+		// Drop bytes beyond the layer's declared length (link-layer padding).
+		if fn, ok := dissectRegistry.totalLenFns[currentProto]; ok {
+			if total := fn(layer); total >= actualHeaderSize && total < len(remaining) {
+				remaining = remaining[:total]
+			}
+		}
+
 		pkt.Push(layer)
 		remaining = remaining[actualHeaderSize:]
 
@@ -215,6 +254,9 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 			}
 			innerPkt, err := dissect(remaining, innerProto, depth+1)
 			if err != nil {
+				if guessed {
+					break // not really this tunnel: keep the payload as Raw
+				}
 				return nil, fmt.Errorf("packet: Dissect: tunnel %s: %w", currentProto, err)
 			}
 			for _, l := range innerPkt.Layers() {
@@ -234,11 +276,12 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 		// Resolve next layer via custom func, then key field or heuristics.
 		if fn, ok := dissectRegistry.nextLayerFns[currentProto]; ok {
 			if next := fn(layer, remaining); next != "" {
-				currentProto = next
+				currentProto, guessed = next, false
 				continue
 			}
 		}
-		currentProto = resolveNextLayer(currentProto, layer)
+		next := resolveNextLayer(currentProto, layer)
+		currentProto, guessed = next, dissectRegistry.guessed[currentProto][next]
 	}
 
 	// Wrap leftover bytes as Raw payload.
@@ -250,31 +293,20 @@ func dissect(raw []byte, firstProto string, depth int) (*Packet, error) {
 	return pkt, nil
 }
 
-// resolveNextLayer determines the next upper-layer protocol based on the
-// current layer's key field value.
+// resolveNextLayer determines the next upper-layer protocol from the current
+// layer's key fields, returning the first one whose value has a mapping.
 func resolveNextLayer(proto string, layer *Layer) string {
-	keyField, hasKey := dissectRegistry.keyField[proto]
-	if !hasKey {
-		return ""
+	nextMap := dissectRegistry.nextLayer[proto]
+	for _, keyField := range dissectRegistry.keyFields[proto] {
+		keyVal, err := layer.Get(keyField)
+		if err != nil {
+			continue
+		}
+		if next, found := nextMap[toUint64(keyVal)]; found {
+			return next
+		}
 	}
-
-	keyVal, err := layer.Get(keyField)
-	if err != nil {
-		return ""
-	}
-
-	numeric := toUint64(keyVal)
-
-	nextMap, hasMap := dissectRegistry.nextLayer[proto]
-	if !hasMap {
-		return ""
-	}
-
-	next, found := nextMap[numeric]
-	if !found {
-		return ""
-	}
-	return next
+	return ""
 }
 
 // toUint64 converts common integer types to uint64 for map lookup.

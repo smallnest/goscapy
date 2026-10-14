@@ -1,6 +1,8 @@
 package layers
 
 import (
+	"bytes"
+	"fmt"
 	"net"
 
 	"github.com/smallnest/goscapy/pkg/fields"
@@ -28,7 +30,15 @@ func NewIP() *packet.Layer {
 		fields.NewShortField("chksum", 0), // auto-computed during Build
 		fields.NewIPField("src", nil),
 		fields.NewIPField("dst", nil),
+		newDeferredBytesField("options"), // IP options (IHL > 5), filled by ipPostParse
 	})
+}
+
+// ipPostParse stores the IP options: the bytes between the fixed 20-byte
+// header and the header length given by IHL. Without it a dissected packet
+// with options would be rebuilt with IHL > 5 but only 20 header bytes.
+func ipPostParse(layer *packet.Layer, extra []byte) error {
+	return layer.Set("options", bytes.Clone(extra))
 }
 
 // IPVersion extracts the version field from the verihl byte.
@@ -60,6 +70,21 @@ func ipBuildHook(pkt *packet.Packet, layerIdx int, upperBytes []byte, buf []byte
 	headerSize := int(verihl.(uint8)&0x0F) * 4
 	if headerSize < 20 {
 		headerSize = 20
+	}
+	// Options, when present, determine IHL (as TCP options determine dataofs).
+	optLen := 0
+	switch o, _ := layer.Get("options"); t := o.(type) {
+	case []byte:
+		optLen = len(t)
+	case string:
+		optLen = len(t)
+	}
+	if optLen > 0 {
+		if optLen%4 != 0 || optLen > 40 {
+			return 0, fmt.Errorf("layers: IP options must be a multiple of 4 bytes and at most 40, got %d", optLen)
+		}
+		headerSize = 20 + optLen
+		_ = layer.Set("verihl", verihl.(uint8)&0xF0|uint8(headerSize/4))
 	}
 	totalLen := uint16(headerSize + len(upperBytes))
 	_ = layer.Set("len", totalLen)

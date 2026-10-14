@@ -6,6 +6,7 @@ package reassembly
 
 import (
 	"net"
+	"slices"
 	"sync"
 	"time"
 
@@ -94,10 +95,11 @@ func (r *Reassembler) Close() {
 // returned as-is. If it completes a fragment group, the reassembled packet
 // is returned. Otherwise nil is returned (fragment stored, waiting for more).
 func (r *Reassembler) Submit(pkt *packet.Packet) *packet.Packet {
-	ipLayer := pkt.GetLayer("IP")
-	if ipLayer == nil {
+	ipIdx := slices.IndexFunc(pkt.Layers(), func(l *packet.Layer) bool { return l.Proto() == "IP" })
+	if ipIdx < 0 {
 		return pkt
 	}
+	ipLayer := pkt.Layers()[ipIdx]
 
 	fragVal, _ := ipLayer.Get("frag")
 	frag, _ := fragVal.(uint16)
@@ -132,27 +134,23 @@ func (r *Reassembler) Submit(pkt *packet.Packet) *packet.Packet {
 	key.id, _ = idVal.(uint16)
 	key.proto, _ = protoVal.(uint8)
 
-	// Extract payload (bytes after IP header).
-	verihlVal, _ := ipLayer.Get("verihl")
-	verihl, _ := verihlVal.(uint8)
-	headerLen := int(verihl&0x0F) * 4
-	if headerLen < 20 {
-		headerLen = 20
+	// The fragment's payload is everything above the IP layer. Slicing the
+	// full Build() output by the IP header length would be wrong whenever a
+	// link layer (Ethernet) sits below IP.
+	if ipIdx+1 >= pkt.Len() {
+		return nil // fragment without payload
 	}
-
-	raw, err := pkt.Build()
-	if err != nil || len(raw) < headerLen {
+	payload, err := pkt.BuildFrom(ipIdx + 1)
+	if err != nil {
 		return nil
 	}
-	payload := raw[headerLen:]
 
 	f := fragment{
 		offset: uint32(offset) * 8, // convert to byte offset
 		length: uint32(len(payload)),
-		data:   make([]byte, len(payload)),
+		data:   payload,
 		more:   moreFragments,
 	}
-	copy(f.data, payload)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -209,6 +207,9 @@ func (r *Reassembler) tryReassemble(key fragKey, group *fragGroup) []byte {
 
 	for _, f := range group.frags {
 		start := int(f.offset)
+		if start >= totalLen {
+			continue // fragment lies beyond the final fragment's end
+		}
 		end := start + int(f.length)
 		if end > totalLen {
 			end = totalLen
@@ -244,19 +245,6 @@ func (r *Reassembler) buildReassembled(key fragKey, payload []byte) *packet.Pack
 		}
 	}
 
-	upperPkt, err := packet.Dissect(payload, startFn)
-	if err != nil {
-		// Can't dissect upper layer — return IP + raw payload as single-layer packet.
-		ip := layers.NewIP()
-		_ = ip.Set("src", net.IP(key.src[:]).To4())
-		_ = ip.Set("dst", net.IP(key.dst[:]).To4())
-		_ = ip.Set("id", key.id)
-		_ = ip.Set("proto", key.proto)
-		_ = ip.Set("frag", uint16(0))
-		_ = ip.Set("len", uint16(20+len(payload)))
-		return packet.NewFrom(ip)
-	}
-
 	// Build a synthetic IP header for the reassembled packet.
 	ip := layers.NewIP()
 	_ = ip.Set("src", net.IP(key.src[:]).To4())
@@ -266,8 +254,12 @@ func (r *Reassembler) buildReassembled(key fragKey, payload []byte) *packet.Pack
 	_ = ip.Set("frag", uint16(0))
 	_ = ip.Set("len", uint16(20+len(payload)))
 
-	allLayers := append([]*packet.Layer{ip}, upperPkt.Layers()...)
-	return packet.NewFrom(allLayers...)
+	upperPkt, err := packet.Dissect(payload, startFn)
+	if err != nil {
+		// Can't dissect the upper layer — keep the reassembled bytes as Raw.
+		return packet.NewFrom(ip, layers.NewRawWith(payload))
+	}
+	return packet.NewFrom(append([]*packet.Layer{ip}, upperPkt.Layers()...)...)
 }
 
 // gc periodically removes expired fragment groups.

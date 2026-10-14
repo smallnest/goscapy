@@ -110,6 +110,7 @@ func init() {
 	packet.RegisterBuildHook("EAP", eapBuildHook)
 
 	// Post-parse hooks for variable-length header fields.
+	packet.RegisterPostParseHook("IP", ipPostParse)
 	packet.RegisterPostParseHook("TCP", tcpPostParseHook)
 	packet.RegisterPostParseHook("AH", ahPostParse)
 	packet.RegisterPostParseHook("IPv6 Hop-by-Hop", extHdrPostParseHook)
@@ -368,6 +369,42 @@ func init() {
 
 	// AH: (len + 2) * 4 bytes total header (RFC 4302).
 	packet.RegisterHeaderSizeFunc("AH", ahHeaderSize)
+
+	// Trailing bytes beyond the IP datagram are link-layer padding (Ethernet
+	// pads frames to 60 bytes), not L4 payload. A zero length (TSO/jumbogram
+	// captures) means "unknown" and leaves the payload untouched.
+	packet.RegisterTotalLenFunc("IP", func(layer *packet.Layer) int {
+		v, _ := layer.Get("len")
+		n, _ := v.(uint16)
+		return int(n)
+	})
+	packet.RegisterTotalLenFunc("IPv6", func(layer *packet.Layer) int {
+		v, _ := layer.Get("plen")
+		n, _ := v.(uint16)
+		if n == 0 {
+			return 0
+		}
+		return 40 + int(n)
+	})
+
+	// A fragment carries an arbitrary slice of the upper-layer PDU, so it must
+	// not be parsed (and later rebuilt) as a TCP/UDP header: keep it as Raw
+	// until reassembly. This covers every fragment, including the first (MF
+	// set), so that Build reproduces the fragment's bytes exactly.
+	packet.RegisterNextLayerFunc("IP", func(layer *packet.Layer, _ []byte) string {
+		v, _ := layer.Get("frag")
+		if frag, _ := v.(uint16); frag&0x3FFF != 0 { // MF flag or non-zero offset
+			return "Raw"
+		}
+		return ""
+	})
+	packet.RegisterNextLayerFunc("IPv6 Fragment", func(layer *packet.Layer, _ []byte) string {
+		v, _ := layer.Get("frag")
+		if frag, _ := v.(uint16); frag&0xFFF9 != 0 { // M flag or non-zero offset
+			return "Raw"
+		}
+		return ""
+	})
 
 	// MPLS: each label stack entry is 4 bytes. After the bottom-of-stack
 	// entry, the inner protocol is inferred from the first nibble of the
