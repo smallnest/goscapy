@@ -7,6 +7,7 @@ package tcpstream
 
 import (
 	"net"
+	"slices"
 	"sync"
 	"time"
 
@@ -123,6 +124,9 @@ type tcpStream struct {
 }
 
 // TCPStream is the public view of a reassembled TCP stream.
+//
+// A TCPStream returned by Submit shares its byte slices with the Reassembler:
+// treat them as read-only. ReadStream returns independent copies.
 type TCPStream struct {
 	ID          StreamID
 	ClientBytes []byte // client → server bytes
@@ -393,7 +397,16 @@ func (hs *halfStream) snapshot() []byte {
 	return cp
 }
 
-// snapshotStream creates a TCPStream snapshot from both directions.
+// view returns the current reassembly buffer without copying it. buf is
+// append-only, so the bytes a view covers never change; capping the capacity
+// keeps a caller's append from writing into the buffer.
+func (hs *halfStream) view() []byte {
+	return hs.buf[:len(hs.buf):len(hs.buf)]
+}
+
+// snapshotStream creates a TCPStream from both directions. It runs for every
+// data segment, so it hands out views: copying the buffers here made
+// reassembling an n-byte stream cost O(n²).
 func (r *Reassembler) snapshotStream(s *tcpStream, id StreamID) *TCPStream {
 	// Only return if there's something to report.
 	if len(s.client.buf) == 0 && len(s.server.buf) == 0 &&
@@ -403,8 +416,8 @@ func (r *Reassembler) snapshotStream(s *tcpStream, id StreamID) *TCPStream {
 	}
 	return &TCPStream{
 		ID:          id,
-		ClientBytes: s.client.snapshot(),
-		ServerBytes: s.server.snapshot(),
+		ClientBytes: s.client.view(),
+		ServerBytes: s.server.view(),
 	}
 }
 
@@ -494,59 +507,19 @@ func extractIP(layer *packet.Layer, field string) net.IP {
 	return nil
 }
 
-// extractTCPPayload extracts the TCP payload bytes from a packet.
+// extractTCPPayload returns the bytes above the TCP layer. They are rebuilt
+// from the upper layers rather than read from a Raw layer, because a segment
+// may dissect as an application layer (HTTP, TLS) with or without a Raw tail.
 func extractTCPPayload(pkt *packet.Packet, tcpLayer *packet.Layer) []byte {
-	// Find the Raw layer (TCP payload) or compute from packet bytes.
-	for _, l := range pkt.Layers() {
-		if l.Proto() == "Raw" {
-			v, err := l.Get("load")
-			if err != nil {
-				continue
-			}
-			switch data := v.(type) {
-			case []byte:
-				return data
-			case string:
-				return []byte(data)
-			}
-		}
+	i := slices.Index(pkt.Layers(), tcpLayer) + 1
+	if i == 0 || i >= pkt.Len() {
+		return nil
 	}
-
-	// Fallback: build the packet and extract TCP payload from wire bytes.
-	raw, err := pkt.Build()
+	payload, err := pkt.BuildFrom(i)
 	if err != nil {
 		return nil
 	}
-
-	// Find IP header end.
-	ipLayer := pkt.GetLayer("IP")
-	if ipLayer == nil {
-		ipLayer = pkt.GetLayer("IPv6")
-	}
-	if ipLayer == nil {
-		return nil
-	}
-
-	var ipHdrLen int
-	if ipLayer.Proto() == "IP" {
-		verihl, _ := ipLayer.Get("verihl")
-		v, _ := verihl.(uint8)
-		ipHdrLen = int(v&0x0F) * 4
-	} else {
-		// IPv6: fixed 40 bytes + extension headers
-		ipHdrLen = 40
-	}
-
-	// Find TCP header length.
-	dataofs, _ := tcpLayer.Get("dataofs")
-	d, _ := dataofs.(uint8)
-	tcpHdrLen := int(d>>4) * 4
-
-	offset := ipHdrLen + tcpHdrLen
-	if offset >= len(raw) {
-		return nil
-	}
-	return raw[offset:]
+	return payload
 }
 
 // ---- TCP sequence number arithmetic (wraps at 2^32) ----
