@@ -3,8 +3,10 @@
 package sendrecv
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -202,12 +204,27 @@ func openReceiver(iface string) (Receiver, error) {
 }
 
 func (r *afPacketReceiver) Recv(timeout time.Duration) (*packet.Packet, error) {
-	buf := make([]byte, 65536)
-	pkt, _, err := r.RecvInto(buf, timeout)
+	// A dissected packet aliases the bytes it was parsed from, so parsing in
+	// a fresh 64 KB buffer pinned 64 KB for every packet a caller kept. Read
+	// into a pooled buffer and dissect an exact-size copy instead.
+	buf := recvBufPool.Get().(*[]byte)
+	defer recvBufPool.Put(buf)
+	pkt, _, err := r.recvInto(*buf, timeout, true)
 	return pkt, err
 }
 
+var recvBufPool = sync.Pool{New: func() any {
+	b := make([]byte, 65536)
+	return &b
+}}
+
 func (r *afPacketReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.Packet, int, error) {
+	return r.recvInto(buf, timeout, false)
+}
+
+// recvInto reads one frame into buf and dissects it; with clone set, the
+// packet is dissected from a copy and does not alias buf.
+func (r *afPacketReceiver) recvInto(buf []byte, timeout time.Duration, clone bool) (*packet.Packet, int, error) {
 	deadline := time.Now().Add(timeout)
 	for {
 		// waitRecv rounds a sub-millisecond timeout up to 1ms; passing it to
@@ -227,7 +244,11 @@ func (r *afPacketReceiver) RecvInto(buf []byte, timeout time.Duration) (*packet.
 			return nil, 0, fmt.Errorf("sendrecv: recvfrom returned 0 bytes")
 		}
 
-		pkt, err := packet.Dissect(buf[:nRead], ethernetStartFn)
+		frame := buf[:nRead]
+		if clone {
+			frame = bytes.Clone(frame)
+		}
+		pkt, err := packet.Dissect(frame, ethernetStartFn)
 		if err == nil {
 			return pkt, nRead, nil
 		}

@@ -428,12 +428,9 @@ func (r *bpfReceiver) recvIntoOnce(buf []byte, timeout time.Duration) (*packet.P
 		return nil, 0, fmt.Errorf("%w after %v", ErrTimeout, timeout)
 	}
 
-	// Read into the caller-provided buffer.
-	readBuf := buf
-	if len(readBuf) < int(unsafe.Sizeof(bpfHdr{}))+64 {
-		readBuf = r.buf
-	}
-	nRead, err := syscall.Read(r.fd, readBuf)
+	// BPF rejects a read whose length differs from the kernel buffer size
+	// (EINVAL), so read into r.buf and copy the first packet out to buf.
+	nRead, err := syscall.Read(r.fd, r.buf)
 	if err != nil {
 		return nil, 0, fmt.Errorf("sendrecv: BPF read: %w", err)
 	}
@@ -441,7 +438,7 @@ func (r *bpfReceiver) recvIntoOnce(buf []byte, timeout time.Duration) (*packet.P
 		return nil, 0, fmt.Errorf("sendrecv: BPF read returned 0 bytes")
 	}
 
-	data := readBuf[:nRead]
+	data := r.buf[:nRead]
 	hdrSize := int(unsafe.Sizeof(bpfHdr{}))
 	firstN := 0
 	isFirst := true
@@ -461,17 +458,17 @@ func (r *bpfReceiver) recvIntoOnce(buf []byte, timeout time.Duration) (*packet.P
 			alignedLen = len(data)
 		}
 
-		// The first packet can reference buf directly (caller will process it
-		// before the next call). Subsequent packets in the batch must be copied
-		// because they'll be returned on later calls when buf may be reused.
+		// The first packet goes into the caller's buf when it fits. The rest of
+		// the batch is returned on later calls, when buf may have been reused,
+		// so those packets get their own copy.
 		var raw []byte
-		if isFirst {
-			raw = data[pktStart : pktStart+pktLen]
+		if isFirst && pktLen <= len(buf) {
+			raw = buf[:pktLen]
 			firstN = pktLen
 		} else {
 			raw = make([]byte, pktLen)
-			copy(raw, data[pktStart:pktStart+pktLen])
 		}
+		copy(raw, data[pktStart:pktStart+pktLen])
 
 		var pkt *packet.Packet
 		if r.dlt == 0 { // DLT_NULL (loopback)
